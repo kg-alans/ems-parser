@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import tempfile
 import os
+import base64
 from dbfread import DBF
 
 app = Flask(__name__)
@@ -22,27 +23,31 @@ def get_val(records, field):
 
 @app.route('/parse', methods=['POST'])
 def parse():
-    files = request.files
-    saved = {}
-    
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No JSON body received'}), 400
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        for fname, fobj in files.items():
-            path = os.path.join(tmpdir, fname)
-            fobj.save(path)
-            saved[fname.split('.')[-1].lower()] = path
+        parsed = {}
+        for ext in ['env', 'ad1', 'ad2', 'veh', 'ttl', 'stl']:
+            if ext in data:
+                try:
+                    file_bytes = base64.b64decode(data[ext])
+                    path = os.path.join(tmpdir, f'file.{ext}')
+                    with open(path, 'wb') as f:
+                        f.write(file_bytes)
+                    parsed[ext] = read_dbf(path)
+                except Exception as e:
+                    parsed[ext] = []
+            else:
+                parsed[ext] = []
 
-        env = read_dbf(saved.get('env', '')) if 'env' in saved else []
-        ad1 = read_dbf(saved.get('ad1', '')) if 'ad1' in saved else []
-        ad2 = read_dbf(saved.get('ad2', '')) if 'ad2' in saved else []
-        veh = read_dbf(saved.get('veh', '')) if 'veh' in saved else []
-        ttl = read_dbf(saved.get('ttl', '')) if 'ttl' in saved else []
-        stl = read_dbf(saved.get('stl', '')) if 'stl' in saved else []
-
-        env_data = env[0] if env else {}
-        ad1_data = ad1[0] if ad1 else {}
-        ad2_data = ad2[0] if ad2 else {}
-        veh_data = veh[0] if veh else {}
-        ttl_data = ttl[0] if ttl else {}
+        env = parsed['env']
+        ad1 = parsed['ad1']
+        ad2 = parsed['ad2']
+        veh = parsed['veh']
+        ttl = parsed['ttl']
+        stl = parsed['stl']
 
         unique_id = get_val(env, 'UNQFILE_ID')
         supp_no = get_val(env, 'SUPP_NO')
