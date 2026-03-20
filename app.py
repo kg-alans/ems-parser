@@ -69,7 +69,7 @@ def parse():
 
         est_first = get_val(ad2, 'EST_CT_FN')
         est_last = get_val(ad2, 'EST_CT_LN')
-        estimator = f"{est_first} {est_last}".strip()
+        estimator = est_first.strip() if est_first else est_last.strip()
         drop_date = get_val(ad2, 'RO_IN_DATE')
         promise_date = get_val(ad2, 'TAR_DATE')
 
