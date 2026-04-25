@@ -2,9 +2,13 @@ from flask import Flask, request, jsonify
 import tempfile
 import os
 import base64
+import re
+import xml.etree.ElementTree as ET
 from dbfread import DBF
 
 app = Flask(__name__)
+
+# ─── EMS helpers (unchanged) ──────────────────────────────────────
 
 def read_dbf(path):
     try:
@@ -20,6 +24,62 @@ def get_val(records, field):
         if v and str(v).strip() not in ('', '0', 'False'):
             return str(v).strip()
     return ''
+
+# ─── RO Report helpers ────────────────────────────────────────────
+
+def _xml_text(parent, tag):
+    el = parent.find(tag)
+    return (el.text or '').strip() if el is not None and el.text else ''
+
+def parse_ro_report_xml(xml_bytes):
+    """Parse CCC ONE native XML reportResponse 'Repair Orders Created' export."""
+    root = ET.fromstring(xml_bytes)
+    results = []
+    for o in root.findall('.//repairOrder'):
+        ro_number = _xml_text(o, 'repair_order_number')
+        if not ro_number:
+            continue
+        results.append({
+            'ro_number':         ro_number,
+            'workfile_id':       _xml_text(o, 'workfile_id'),
+            'owner':             _xml_text(o, 'owner_name'),
+            'vehicle':           _xml_text(o, 'vehicle_year_make_model'),
+            'estimator':         _xml_text(o, 'service_writer_display_name'),
+            'insurance_company': _xml_text(o, 'carrier_name'),
+            'vehicle_out':       _xml_text(o, 'vehicle_out_datetime'),
+            'ro_status':         _xml_text(o, 'file_status_name'),
+            'estimate_total':    _xml_text(o, 'estimate_gross_amount'),
+            'total_loss':        _xml_text(o, 'is_total_loss').lower() == 'true',
+        })
+    return results
+
+def normalize_owner(owner):
+    """Convert 'Last, First' to 'First Last' to match EMS parser output."""
+    if not owner:
+        return ''
+    if ',' in owner:
+        parts = owner.split(',', 1)
+        return f"{parts[1].strip()} {parts[0].strip()}"
+    return owner.strip()
+
+def normalize_year_4to2(vehicle):
+    """Convert '2023 RANG Discovery Sport' to '23 RANG Discovery Sport'."""
+    if not vehicle:
+        return ''
+    m = re.match(r'^\s*(\d{4})(\s+.*)$', vehicle)
+    if m:
+        return f"{m.group(1)[2:]}{m.group(2)}"
+    return vehicle
+
+def estimator_first_name_match(report_estimator, list_estimator):
+    """Tiebreaker: list 'Dana' matches report 'Dana Hulse'."""
+    if not report_estimator or not list_estimator:
+        return False
+    rep = report_estimator.lower()
+    lst = list_estimator.lower()
+    return rep == lst or rep.startswith(lst + ' ')
+
+# ─── /parse endpoint (unchanged) ──────────────────────────────────
 
 @app.route('/parse', methods=['POST'])
 def parse():
@@ -127,6 +187,101 @@ def parse():
         }
 
         return jsonify(result)
+
+# ─── /match-ro-report endpoint (NEW) ──────────────────────────────
+
+@app.route('/match-ro-report', methods=['POST'])
+def match_ro_report():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No JSON body received'}), 400
+    if 'xml' not in data:
+        return jsonify({'error': 'Missing xml field (base64 of report XML)'}), 400
+
+    sharepoint_items = data.get('sharepoint_items', [])
+
+    try:
+        xml_bytes = base64.b64decode(data['xml'])
+        report_rows = parse_ro_report_xml(xml_bytes)
+    except Exception as e:
+        return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
+
+    matched = []
+    unmatched = []
+    ambiguous = []
+
+    for row in report_rows:
+        ro_number = row['ro_number']
+        norm_owner = normalize_owner(row['owner']).lower()
+        norm_vehicle = normalize_year_4to2(row['vehicle']).lower()
+        report_estimator = row['estimator']
+
+        if not norm_owner or not norm_vehicle:
+            unmatched.append({
+                'ro_number': ro_number,
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'reason': 'report row missing customer or vehicle'
+            })
+            continue
+
+        candidates = []
+        for item in sharepoint_items:
+            item_customer = (item.get('customer_name') or '').lower()
+            item_vehicle = (item.get('vehicle') or '').lower()
+            if not item_customer or not item_vehicle:
+                continue
+            if item_customer == norm_owner and norm_vehicle.startswith(item_vehicle):
+                candidates.append(item)
+
+        def make_match(c):
+            return {
+                'list_item_id':  c.get('id'),
+                'ro_number':     ro_number,
+                'workfile_id':   row['workfile_id'],
+                'customer_name': c.get('customer_name'),
+                'vehicle':       c.get('vehicle')
+            }
+
+        if len(candidates) == 1:
+            matched.append(make_match(candidates[0]))
+        elif len(candidates) == 0:
+            unmatched.append({
+                'ro_number': ro_number,
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'reason': 'no SharePoint item with matching customer + vehicle'
+            })
+        else:
+            est_matches = [
+                c for c in candidates
+                if estimator_first_name_match(report_estimator, c.get('estimator', ''))
+            ]
+            if len(est_matches) == 1:
+                matched.append(make_match(est_matches[0]))
+            else:
+                ambiguous.append({
+                    'ro_number': ro_number,
+                    'owner': row['owner'],
+                    'vehicle': row['vehicle'],
+                    'candidate_ids': [c.get('id') for c in candidates],
+                    'reason': f'{len(candidates)} SharePoint items matched same customer + vehicle prefix'
+                })
+
+    return jsonify({
+        'matched': matched,
+        'unmatched_report_rows': unmatched,
+        'ambiguous': ambiguous,
+        'summary': {
+            'report_rows_total': len(report_rows),
+            'sharepoint_items': len(sharepoint_items),
+            'matched': len(matched),
+            'unmatched': len(unmatched),
+            'ambiguous': len(ambiguous)
+        }
+    })
+
+# ─── /health endpoint (unchanged) ─────────────────────────────────
 
 @app.route('/health', methods=['GET'])
 def health():
