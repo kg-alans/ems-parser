@@ -188,7 +188,7 @@ def parse():
 
         return jsonify(result)
 
-# ─── /match-ro-report endpoint (NEW) ──────────────────────────────
+# ─── /match-ro-report endpoint ────────────────────────────────────
 
 @app.route('/match-ro-report', methods=['POST'])
 def match_ro_report():
@@ -206,16 +206,43 @@ def match_ro_report():
     except Exception as e:
         return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
 
-    matched = []
+    # Build a workfile_id index for fast lookup. Items without workfile_id
+    # fall through to the customer+vehicle prefix matcher below.
+    wf_index = {}
+    for item in sharepoint_items:
+        wf = (item.get('workfile_id') or '').strip()
+        if wf:
+            wf_index.setdefault(wf, []).append(item)
+
+    # Provisional results — we'll post-process for duplicate SP matches.
+    provisional_matches = []  # list of (report_row, sp_item, match_type)
     unmatched = []
     ambiguous = []
 
     for row in report_rows:
         ro_number = row['ro_number']
+        report_wf = (row.get('workfile_id') or '').strip()
         norm_owner = normalize_owner(row['owner']).lower()
         norm_vehicle = normalize_year_4to2(row['vehicle']).lower()
         report_estimator = row['estimator']
 
+        # Path A: workfile_id match (preferred — unique key)
+        if report_wf and report_wf in wf_index:
+            wf_candidates = wf_index[report_wf]
+            if len(wf_candidates) == 1:
+                provisional_matches.append((row, wf_candidates[0], 'workfile_id'))
+                continue
+            # >1 SP item with same workfile_id — shouldn't happen but treat as ambiguous
+            ambiguous.append({
+                'ro_number': ro_number,
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'candidate_ids': [c.get('id') for c in wf_candidates],
+                'reason': 'multiple SharePoint items share this workfile_id'
+            })
+            continue
+
+        # Path B: customer + vehicle prefix fallback
         if not norm_owner or not norm_vehicle:
             unmatched.append({
                 'ro_number': ro_number,
@@ -234,17 +261,8 @@ def match_ro_report():
             if item_customer == norm_owner and norm_vehicle.startswith(item_vehicle):
                 candidates.append(item)
 
-        def make_match(c):
-            return {
-                'list_item_id':  c.get('id'),
-                'ro_number':     ro_number,
-                'workfile_id':   row['workfile_id'],
-                'customer_name': c.get('customer_name'),
-                'vehicle':       c.get('vehicle')
-            }
-
         if len(candidates) == 1:
-            matched.append(make_match(candidates[0]))
+            provisional_matches.append((row, candidates[0], 'customer_vehicle'))
         elif len(candidates) == 0:
             unmatched.append({
                 'ro_number': ro_number,
@@ -258,7 +276,7 @@ def match_ro_report():
                 if estimator_first_name_match(report_estimator, c.get('estimator', ''))
             ]
             if len(est_matches) == 1:
-                matched.append(make_match(est_matches[0]))
+                provisional_matches.append((row, est_matches[0], 'customer_vehicle_estimator'))
             else:
                 ambiguous.append({
                     'ro_number': ro_number,
@@ -266,6 +284,35 @@ def match_ro_report():
                     'vehicle': row['vehicle'],
                     'candidate_ids': [c.get('id') for c in candidates],
                     'reason': f'{len(candidates)} SharePoint items matched same customer + vehicle prefix'
+                })
+
+    # Post-process: detect SharePoint items that would be matched by multiple
+    # report rows. Move ALL such collisions to ambiguous to prevent silent overwrites.
+    sp_id_to_rows = {}
+    for row, sp, mtype in provisional_matches:
+        sp_id_to_rows.setdefault(sp.get('id'), []).append((row, sp, mtype))
+
+    matched = []
+    for sp_id, hits in sp_id_to_rows.items():
+        if len(hits) == 1:
+            row, sp, mtype = hits[0]
+            matched.append({
+                'list_item_id':  sp.get('id'),
+                'ro_number':     row['ro_number'],
+                'workfile_id':   row.get('workfile_id', ''),
+                'customer_name': sp.get('customer_name'),
+                'vehicle':       sp.get('vehicle'),
+                'match_type':    mtype
+            })
+        else:
+            # Multiple report rows want the same SP item — all go to ambiguous
+            for row, sp, mtype in hits:
+                ambiguous.append({
+                    'ro_number': row['ro_number'],
+                    'owner': row['owner'],
+                    'vehicle': row['vehicle'],
+                    'candidate_ids': [sp.get('id')],
+                    'reason': f"multiple report rows ({len(hits)}) matched the same SharePoint item — manual review needed"
                 })
 
     return jsonify({
