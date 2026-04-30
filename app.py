@@ -79,6 +79,18 @@ def estimator_first_name_match(report_estimator, list_estimator):
     lst = list_estimator.lower()
     return rep == lst or rep.startswith(lst + ' ')
 
+def estimator_first_name(full_name):
+    """Extract first word from 'Cordale Briggs' → 'Cordale'."""
+    if not full_name:
+        return ''
+    return full_name.strip().split()[0] if full_name.strip() else ''
+
+def insurance_needs_correction(sp_insurance):
+    """True if the SharePoint insurance value starts with the truncation/missing marker."""
+    if not sp_insurance:
+        return False
+    return sp_insurance.strip().startswith('⚠️')
+
 # ─── /parse endpoint (unchanged) ──────────────────────────────────
 
 @app.route('/parse', methods=['POST'])
@@ -232,7 +244,6 @@ def match_ro_report():
             if len(wf_candidates) == 1:
                 provisional_matches.append((row, wf_candidates[0], 'workfile_id'))
                 continue
-            # >1 SP item with same workfile_id — shouldn't happen but treat as ambiguous
             ambiguous.append({
                 'ro_number': ro_number,
                 'owner': row['owner'],
@@ -296,13 +307,22 @@ def match_ro_report():
     for sp_id, hits in sp_id_to_rows.items():
         if len(hits) == 1:
             row, sp, mtype = hits[0]
+            sp_insurance_now = sp.get('insurance', '') or ''
             matched.append({
-                'list_item_id':  sp.get('id'),
-                'ro_number':     row['ro_number'],
-                'workfile_id':   row.get('workfile_id', ''),
-                'customer_name': sp.get('customer_name'),
-                'vehicle':       sp.get('vehicle'),
-                'match_type':    mtype
+                'list_item_id':           sp.get('id'),
+                'ro_number':              row['ro_number'],
+                'workfile_id':            row.get('workfile_id', ''),
+                'customer_name':          sp.get('customer_name'),
+                'vehicle':                sp.get('vehicle'),
+                'match_type':             mtype,
+                # Phase 2 source fields
+                'vehicle_out_datetime':   row.get('vehicle_out', ''),
+                'ro_status':              row.get('ro_status', ''),
+                'is_completed':           row.get('ro_status', '').strip().lower() == 'completed',
+                'is_total_loss':          row.get('total_loss', False),
+                'carrier_name':           row.get('insurance_company', ''),
+                'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
+                'insurance_needs_fix':    insurance_needs_correction(sp_insurance_now)
             })
         else:
             # Multiple report rows want the same SP item — all go to ambiguous
