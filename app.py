@@ -8,6 +8,166 @@ from dbfread import DBF
 
 app = Flask(__name__)
 
+# ─── Phase 3 mapping tables ───────────────────────────────────────
+
+# Body technician → DTBS Tech choice value
+TECH_MAPPING = {
+    'Dmitriy Runov':   'Dmitriy',
+    'Ludek Srajer':    'Ludek',
+    'Alex Demchenko':  'Demchenko',
+    'Jason Moffitt':   'Jason',
+    'Uriah Scalf':     'Uriah',
+    'Kyle Parks':      'Kyle',
+    'Carlos Orozco':   'Carlos',
+    'Nic Moffitt':     'Nic',
+    'Tyler Evans':     'Tyler E',
+    # Jesus Zavala intentionally excluded — placeholder, never write
+}
+
+# Paint technician → DTBS Painter choice value
+PAINTER_MAPPING = {
+    'Doug Curtis':     'Doug',
+    'Wayne Decker':    'Wayne',
+    'Rick Hopkins':    'Rick',
+    'Admir Huskic':    'Admir',
+}
+
+# DTBS Repair Status rank — for phase progression logic.
+# Higher = further along. Only overwrite if new rank > current rank.
+# Sublet (13) and Total Loss (99) are exceptions handled in mapping logic.
+DTBS_STATUS_RANK = {
+    '':                       0,
+    'Prelim':                 1,
+    'Pre-Production':         2,
+    'Dispatch':               3,
+    'Teardown':               4,
+    'Waiting on Insurance':   5,
+    'Supp-Estimator':         6,
+    'Supp-Insurance':         7,
+    'Waiting on Parts':       8,
+    'Need Parts Update':      9,
+    'Frame':                  10,
+    'Repair in Process':      11,
+    'Paint':                  12,
+    'Sublet':                 13,   # special — always overwrites
+    'Reassembly':             14,
+    'QC':                     15,
+    'Wash':                   16,
+    'Done':                   17,
+    'Ready for Delivery':     18,
+    'Delivered':              19,
+    'Total Loss':             99,   # special — terminal, always overwrites
+}
+
+# CCC Repair Phase → DTBS Repair Status mapping.
+# Returns None for "skip — manual stays". Whitespace in CCC values is normalized
+# at lookup time (collapse multiple spaces, trim) so "2:X-Ray" and "2: X-Ray" both match.
+PHASE_MAPPING = {
+    # Bracketed (auto-assigned)
+    '[Not Started]':                       None,
+    '[Scheduled]':                         None,
+    '[No Plan]':                           None,
+    '[Completed]':                         'Ready for Delivery',
+
+    # Phase 0: Intake placeholders
+    '0:Check-In':                          None,
+    '0:Towed-In (Needs Estimate)':         None,
+    '0:Vehicle Arrived at Shop':           None,
+
+    # Phase 1: Intake/Prep
+    '1:Pre-Scan':                          'Teardown',
+    '1:Pre-Wash':                          'Teardown',
+    '1:Dispatch':                          'Dispatch',
+    '1:PDR':                               'Teardown',
+    '1:Disassembly':                       'Teardown',
+    '1:Disassembly ANNEX':                 'Teardown',
+    '1:Blueprinting':                      'Teardown',
+    '1:Estimator file review':             'Teardown',
+    '1:Glass Removal':                     'Teardown',
+    '1:Scope for Hail Damage (not disass)': 'Teardown',
+    '1:To PDR for Scope':                  'Teardown',
+    '1:Done at PDR, ready to Dispatch':    'Dispatch',
+
+    # Phase 2: Repair (Frame work has its own DTBS status)
+    '2:X-Ray':                             'Teardown',
+    '2:Body':                              'Repair in Process',
+    '2:Body ANNEX':                        'Repair in Process',
+    '2:Frame repair in process':           'Frame',
+    '2:Frame/Unibody':                     'Frame',
+    '2:Repair In Process':                 'Repair in Process',
+    '2:Repair Ready to Start':             'Repair in Process',
+    '2:Re-Work Reqd - Body':               'Repair in Process',
+
+    # Phase 3: Paint
+    '3:Prep / Prime':                      'Paint',
+    '3:Paint':                             'Paint',
+    '3:Paint ANNEX':                       'Paint',
+    '3:Paint In Process':                  'Paint',
+    '3:Glass Install':                     'Paint',
+    '3:Buff/Polish':                       'Paint',
+    '3:Re-Work Reqd - Paint':              'Paint',
+    '3.1:Paint':                           'Paint',
+    '3.2:Paint ANNEX':                     'Paint',
+
+    # Phase 4: Reassembly
+    '4:Reassembly':                        'Reassembly',
+    '4:Reassembly ANNEX':                  'Reassembly',
+
+    # Phase 5: QC / Detail
+    '5:Detail':                            'QC',
+    '5:QC':                                'QC',
+    '5:QC FAIL':                           'QC',
+    '5:Post-Scan':                         'QC',
+
+    # Phase 6: Done / Customer
+    '6:Done, To Estimator':                'QC',
+    '6:Repairs Complete, Customer Notified': 'Ready for Delivery',
+    '6:Waiting on Insurance for Delivery': 'Ready for Delivery',
+    '6:CustomerRequestRecall/Oilchange ef': None,  # service work — skip
+
+    # Phase 7: Sublet (special — always overwrites)
+    '7:Sublet Alignment':                  'Sublet',
+    '7:Sublet Calibration':                'Sublet',
+    '7:Sublet Clear Bra / Tint / Vinyl':   'Sublet',
+    '7:Sublet Mechanical':                 'Sublet',
+    '7:Sublet Other (see notes)':          'Sublet',
+    '7:Sublet PDR':                        'Sublet',
+    '7:Sublet Spray-In Bedliner':          'Sublet',
+    '7:Sublet Wheel':                      'Sublet',
+    '7:In House Mechanical':               'Sublet',
+
+    # Phase 8: Parts
+    '8: parts: take to annex':             'Waiting on Parts',
+    '8:parts:CHECK':                       'Waiting on Parts',
+    '8:Parts on Order':                    'Waiting on Parts',
+    '8:parts: BACK ORDERED PARTS':         'Waiting on Parts',
+    '8:parts: Waiting for parts delivery': 'Waiting on Parts',
+    '8:parts:Paint Delay':                 'Waiting on Parts',
+    '8:parts:Reassy Delay':                'Waiting on Parts',
+    '8:parts:Repair Delay':                'Waiting on Parts',
+    '8:parts:See Notes':                   'Waiting on Parts',
+    '8:parts:Sublet Delay':                'Waiting on Parts',
+
+    # Phase 9: Holds & Total Loss (Total Loss = special, always overwrites)
+    '9:1st Suppl Hold':                    'Supp-Estimator',
+    '9:2nd Suppl Hold':                    'Supp-Estimator',
+    '9:Supplement Hold':                   'Supp-Estimator',
+    '9:Insurance Prelim':                  'Supp-Insurance',
+    '9:Second Waiting on Auth':            'Supp-Insurance',
+    '9:Waiting on Authorization':          'Supp-Insurance',
+    '9:Possible Total Loss':               'Total Loss',
+    '9:TL Needs Release':                  'Total Loss',
+    '9:TL Car Has Released':               'Total Loss',
+    '9:Admin Delay 1 (see notes)':         None,
+    '9:Admin Delay 2 (see notes)':         None,
+    '9:Production Delay (see notes)':      None,
+
+    # Phase 10
+    '10: sublet detail':                   'Sublet',
+}
+
+PHASES_ALWAYS_OVERWRITE = {'Sublet', 'Total Loss'}
+
 # ─── EMS helpers (unchanged) ──────────────────────────────────────
 
 def read_dbf(path):
@@ -53,6 +213,54 @@ def parse_ro_report_xml(xml_bytes):
         })
     return results
 
+def parse_production_schedule_xml(xml_bytes):
+    """Parse CCC ONE native XML 'Production Schedule' export."""
+    root = ET.fromstring(xml_bytes)
+    results = []
+    for o in root.findall('.//repairOrder'):
+        ro_number = _xml_text(o, 'repair_order_number')
+        if not ro_number:
+            continue
+        results.append({
+            'ro_number':         ro_number,
+            'workfile_id':       _xml_text(o, 'workfile_id'),
+            'owner':             _xml_text(o, 'owner_name'),
+            'vehicle':           _xml_text(o, 'vehicle_year_make_model'),
+            'estimator':         _xml_text(o, 'service_writer_display_name'),
+            'insurance_company': _xml_text(o, 'carrier_name'),
+            'vehicle_in':        _xml_text(o, 'vehicle_in_datetime'),
+            'vehicle_out':       _xml_text(o, 'vehicle_out_datetime'),
+            'repair_phase':      _xml_text(o, 'repair_phase_name'),
+            'body_tech':         _xml_text(o, 'body_technician_display_name'),
+            'paint_tech':        _xml_text(o, 'paint_technician_display_name'),
+            'days_in_shop':      _xml_text(o, 'days_in_shop'),
+            'parts_received_pct': _xml_text(o, 'parts_received_percent'),
+            'labor_assigned_pct': _xml_text(o, 'labor_assigned_percent'),
+            'total_loss':        _xml_text(o, 'is_total_loss').lower() == 'true',
+        })
+    return results
+
+def parse_vehicles_scheduled_out_xml(xml_bytes):
+    """Parse CCC ONE native XML 'Vehicles Scheduled Out' export."""
+    root = ET.fromstring(xml_bytes)
+    results = []
+    for o in root.findall('.//repairOrder'):
+        ro_number = _xml_text(o, 'repair_order_number')
+        if not ro_number:
+            continue
+        results.append({
+            'ro_number':         ro_number,
+            'workfile_id':       _xml_text(o, 'workfile_id'),
+            'owner':             _xml_text(o, 'owner_name'),
+            'vehicle':           _xml_text(o, 'vehicle_year_make_model'),
+            'estimator':         _xml_text(o, 'service_writer_display_name'),
+            'insurance_company': _xml_text(o, 'carrier_name'),
+            'vehicle_out':       _xml_text(o, 'vehicle_out_datetime'),
+            'is_delivered':      _xml_text(o, 'is_delivered').lower() == 'true',
+            'total_loss':        _xml_text(o, 'is_total_loss').lower() == 'true',
+        })
+    return results
+
 def normalize_owner(owner):
     """Convert 'Last, First' to 'First Last' to match EMS parser output."""
     if not owner:
@@ -90,6 +298,163 @@ def insurance_needs_correction(sp_insurance):
     if not sp_insurance:
         return False
     return sp_insurance.strip().startswith('⚠️')
+
+# ─── Phase 3 helpers ──────────────────────────────────────────────
+
+def normalize_phase_key(phase):
+    """Normalize CCC phase string for mapping lookup.
+    Handles: '2:X-Ray' / '2: X-Ray' / ' 2:X-Ray ' all → '2:X-Ray'
+    """
+    if not phase:
+        return ''
+    # Collapse internal whitespace, then remove any space directly after a colon
+    collapsed = re.sub(r'\s+', ' ', phase.strip())
+    return re.sub(r':\s+', ':', collapsed)
+
+def map_phase_to_status(ccc_phase):
+    """Map a CCC repair_phase_name to a DTBS RepairStatus value.
+    Returns None if the phase shouldn't trigger a write."""
+    if not ccc_phase:
+        return None
+    key = normalize_phase_key(ccc_phase)
+    return PHASE_MAPPING.get(key)
+
+def should_write_status(new_status, current_status):
+    """Apply rank-based progression rule.
+    Returns True if new_status should overwrite current_status."""
+    if new_status is None:
+        return False
+    # Sublet and Total Loss always overwrite
+    if new_status in PHASES_ALWAYS_OVERWRITE:
+        return True
+    new_rank = DTBS_STATUS_RANK.get(new_status, 0)
+    cur_rank = DTBS_STATUS_RANK.get(current_status or '', 0)
+    return new_rank > cur_rank
+
+def map_tech(ccc_full_name):
+    """Map CCC body tech full name to DTBS Tech choice value.
+    Returns empty string if no mapping (don't write)."""
+    if not ccc_full_name:
+        return ''
+    return TECH_MAPPING.get(ccc_full_name.strip(), '')
+
+def map_painter(ccc_full_name):
+    """Map CCC paint tech full name to DTBS Painter choice value."""
+    if not ccc_full_name:
+        return ''
+    return PAINTER_MAPPING.get(ccc_full_name.strip(), '')
+
+def insurance_needs_fix_or_blank(sp_insurance):
+    """True if SP insurance is blank or starts with ⚠️ (broken lookup).
+    Used by Production Sync and Cleanup Sync — broader than the existing
+    insurance_needs_correction() helper which only catches ⚠️."""
+    if not sp_insurance or not sp_insurance.strip():
+        return True
+    return sp_insurance.strip().startswith('⚠️')
+
+def run_match_engine(report_rows, sharepoint_items):
+    """Shared matching engine. Returns (matched_pairs, unmatched, ambiguous).
+
+    matched_pairs is list of (report_row, sp_item, match_type) tuples.
+    Caller is responsible for building the response shape from these pairs.
+    """
+    # Workfile_id index for Path A
+    wf_index = {}
+    for item in sharepoint_items:
+        wf = (item.get('workfile_id') or '').strip()
+        if wf:
+            wf_index.setdefault(wf, []).append(item)
+
+    provisional = []
+    unmatched = []
+    ambiguous = []
+
+    for row in report_rows:
+        ro_number = row['ro_number']
+        report_wf = (row.get('workfile_id') or '').strip()
+        norm_owner = normalize_owner(row['owner']).lower()
+        norm_vehicle = normalize_year_4to2(row['vehicle']).lower()
+        report_estimator = row.get('estimator', '')
+
+        # Path A: workfile_id
+        if report_wf and report_wf in wf_index:
+            wf_candidates = wf_index[report_wf]
+            if len(wf_candidates) == 1:
+                provisional.append((row, wf_candidates[0], 'workfile_id'))
+                continue
+            ambiguous.append({
+                'ro_number': ro_number,
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'candidate_ids': [c.get('id') for c in wf_candidates],
+                'reason': 'multiple SharePoint items share this workfile_id'
+            })
+            continue
+
+        # Path B: customer + vehicle prefix
+        if not norm_owner or not norm_vehicle:
+            unmatched.append({
+                'ro_number': ro_number,
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'reason': 'report row missing customer or vehicle'
+            })
+            continue
+
+        candidates = []
+        for item in sharepoint_items:
+            item_customer = (item.get('customer_name') or '').lower()
+            item_vehicle = (item.get('vehicle') or '').lower()
+            if not item_customer or not item_vehicle:
+                continue
+            if item_customer == norm_owner and norm_vehicle.startswith(item_vehicle):
+                candidates.append(item)
+
+        if len(candidates) == 1:
+            provisional.append((row, candidates[0], 'customer_vehicle'))
+        elif len(candidates) == 0:
+            unmatched.append({
+                'ro_number': ro_number,
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'reason': 'no SharePoint item with matching customer + vehicle'
+            })
+        else:
+            est_matches = [
+                c for c in candidates
+                if estimator_first_name_match(report_estimator, c.get('estimator', ''))
+            ]
+            if len(est_matches) == 1:
+                provisional.append((row, est_matches[0], 'customer_vehicle_estimator'))
+            else:
+                ambiguous.append({
+                    'ro_number': ro_number,
+                    'owner': row['owner'],
+                    'vehicle': row['vehicle'],
+                    'candidate_ids': [c.get('id') for c in candidates],
+                    'reason': f'{len(candidates)} SharePoint items matched same customer + vehicle prefix'
+                })
+
+    # Duplicate SP detection: collapse SP items that match multiple report rows
+    sp_id_to_rows = {}
+    for row, sp, mtype in provisional:
+        sp_id_to_rows.setdefault(sp.get('id'), []).append((row, sp, mtype))
+
+    matched_pairs = []
+    for sp_id, hits in sp_id_to_rows.items():
+        if len(hits) == 1:
+            matched_pairs.append(hits[0])
+        else:
+            for row, sp, mtype in hits:
+                ambiguous.append({
+                    'ro_number': row['ro_number'],
+                    'owner': row['owner'],
+                    'vehicle': row['vehicle'],
+                    'candidate_ids': [sp.get('id')],
+                    'reason': f"multiple report rows ({len(hits)}) matched the same SharePoint item — manual review needed"
+                })
+
+    return matched_pairs, unmatched, ambiguous
 
 # ─── /parse endpoint (unchanged) ──────────────────────────────────
 
@@ -200,7 +565,7 @@ def parse():
 
         return jsonify(result)
 
-# ─── /match-ro-report endpoint ────────────────────────────────────
+# ─── /match-ro-report endpoint (Phase 2 — unchanged) ──────────────
 
 @app.route('/match-ro-report', methods=['POST'])
 def match_ro_report():
@@ -345,6 +710,154 @@ def match_ro_report():
             'matched': len(matched),
             'unmatched': len(unmatched),
             'ambiguous': len(ambiguous)
+        }
+    })
+
+# ─── /match-production-schedule endpoint (Phase 3 — Production Sync) ──
+
+@app.route('/match-production-schedule', methods=['POST'])
+def match_production_schedule():
+    """Phase 3 — Production Sync.
+    Matches Production Schedule report rows against open SP items.
+    Writes phase, tech, painter, dates. Never writes Done/ActualDelivery."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No JSON body received'}), 400
+    if 'xml' not in data:
+        return jsonify({'error': 'Missing xml field (base64 of report XML)'}), 400
+
+    sharepoint_items = data.get('sharepoint_items', [])
+
+    try:
+        xml_bytes = base64.b64decode(data['xml'])
+        report_rows = parse_production_schedule_xml(xml_bytes)
+    except Exception as e:
+        return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
+
+    matched_pairs, unmatched, ambiguous = run_match_engine(report_rows, sharepoint_items)
+
+    matched = []
+    for row, sp, mtype in matched_pairs:
+        sp_insurance_now = sp.get('insurance', '') or ''
+        sp_status_now = sp.get('repair_status', '') or ''
+
+        # Repair Status decision (rank-based)
+        new_status = map_phase_to_status(row.get('repair_phase', ''))
+        write_status = should_write_status(new_status, sp_status_now)
+
+        # Tech & Painter mapping (skip if no mapping)
+        new_tech = map_tech(row.get('body_tech', ''))
+        new_painter = map_painter(row.get('paint_tech', ''))
+
+        matched.append({
+            'list_item_id':           sp.get('id'),
+            'ro_number':              row['ro_number'],
+            'workfile_id':            row.get('workfile_id', ''),
+            'customer_name':          sp.get('customer_name'),
+            'vehicle':                sp.get('vehicle'),
+            'match_type':             mtype,
+            # Always-overwrite source fields
+            'vehicle_out_datetime':   row.get('vehicle_out', ''),
+            'vehicle_in_datetime':    row.get('vehicle_in', ''),
+            'repair_phase_raw':       row.get('repair_phase', ''),
+            'is_total_loss':          row.get('total_loss', False),
+            'carrier_name':           row.get('insurance_company', ''),
+            'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
+            # Conditional fields — caller checks the should_write flag
+            'new_repair_status':      new_status or '',
+            'should_write_status':    write_status,
+            'new_tech':               new_tech,
+            'new_painter':            new_painter,
+            'insurance_needs_fix':    insurance_needs_fix_or_blank(sp_insurance_now),
+            # Production metrics (informational, not currently written to SP)
+            'days_in_shop':           row.get('days_in_shop', ''),
+            'parts_received_pct':     row.get('parts_received_pct', ''),
+            'labor_assigned_pct':     row.get('labor_assigned_pct', ''),
+        })
+
+    # Stale tracker detection: SP items that aren't in any matched pair
+    matched_sp_ids = {p[1].get('id') for p in matched_pairs}
+    stale_sp_rows = []
+    for item in sharepoint_items:
+        if item.get('id') not in matched_sp_ids:
+            stale_sp_rows.append({
+                'list_item_id': item.get('id'),
+                'customer_name': item.get('customer_name', ''),
+                'vehicle': item.get('vehicle', ''),
+                'workfile_id': item.get('workfile_id', ''),
+                'ro_number': item.get('ro_number', ''),
+            })
+
+    return jsonify({
+        'matched': matched,
+        'unmatched_report_rows': unmatched,
+        'ambiguous': ambiguous,
+        'stale_sp_rows': stale_sp_rows,
+        'summary': {
+            'report_rows_total': len(report_rows),
+            'sharepoint_items': len(sharepoint_items),
+            'matched': len(matched),
+            'unmatched': len(unmatched),
+            'ambiguous': len(ambiguous),
+            'stale': len(stale_sp_rows),
+        }
+    })
+
+# ─── /match-vehicles-scheduled-out endpoint (Phase 3 — Cleanup Sync) ──
+
+@app.route('/match-vehicles-scheduled-out', methods=['POST'])
+def match_vehicles_scheduled_out():
+    """Phase 3 — Cleanup Sync.
+    Matches Vehicles Scheduled Out report rows against open SP items.
+    Writes Done/ActualDelivery for delivered vehicles. Final field sync."""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No JSON body received'}), 400
+    if 'xml' not in data:
+        return jsonify({'error': 'Missing xml field (base64 of report XML)'}), 400
+
+    sharepoint_items = data.get('sharepoint_items', [])
+
+    try:
+        xml_bytes = base64.b64decode(data['xml'])
+        report_rows = parse_vehicles_scheduled_out_xml(xml_bytes)
+    except Exception as e:
+        return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
+
+    matched_pairs, unmatched, ambiguous = run_match_engine(report_rows, sharepoint_items)
+
+    matched = []
+    for row, sp, mtype in matched_pairs:
+        sp_insurance_now = sp.get('insurance', '') or ''
+        is_delivered = row.get('is_delivered', False)
+
+        matched.append({
+            'list_item_id':           sp.get('id'),
+            'ro_number':              row['ro_number'],
+            'workfile_id':            row.get('workfile_id', ''),
+            'customer_name':          sp.get('customer_name'),
+            'vehicle':                sp.get('vehicle'),
+            'match_type':             mtype,
+            # Always-write source fields
+            'vehicle_out_datetime':   row.get('vehicle_out', ''),
+            'is_delivered':           is_delivered,
+            'is_total_loss':          row.get('total_loss', False),
+            'carrier_name':           row.get('insurance_company', ''),
+            'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
+            # Conditional fields
+            'insurance_needs_fix':    insurance_needs_fix_or_blank(sp_insurance_now),
+        })
+
+    return jsonify({
+        'matched': matched,
+        'unmatched_report_rows': unmatched,
+        'ambiguous': ambiguous,
+        'summary': {
+            'report_rows_total': len(report_rows),
+            'sharepoint_items': len(sharepoint_items),
+            'matched': len(matched),
+            'unmatched': len(unmatched),
+            'ambiguous': len(ambiguous),
         }
     })
 
