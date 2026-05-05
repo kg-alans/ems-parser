@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import tempfile
 import os
 import base64
+import json
 import re
 import xml.etree.ElementTree as ET
 from dbfread import DBF
@@ -184,6 +185,37 @@ def get_val(records, field):
         if v and str(v).strip() not in ('', '0', 'False'):
             return str(v).strip()
     return ''
+
+# ─── Input coercion helper (defensive parsing) ────────────────────
+
+def coerce_sharepoint_items(raw):
+    """Coerce sharepoint_items input into a list of dicts.
+
+    Power Automate's HTTP Body field can serialize an array reference as either
+    a real JSON array OR a JSON-encoded string depending on how the chip/
+    expression was configured. This helper accepts both shapes so the API
+    is robust to PA quirks.
+
+    Returns (items_list, error_message). If error_message is set, items_list
+    is None and the caller should return a 400 with that message.
+    """
+    if raw is None:
+        return [], None  # missing field is treated as empty list, not an error
+    # If PA sent it as a JSON-encoded string, parse it back.
+    if isinstance(raw, str):
+        stripped = raw.strip()
+        if not stripped:
+            return [], None
+        try:
+            raw = json.loads(stripped)
+        except json.JSONDecodeError as e:
+            return None, f'sharepoint_items is a string but not valid JSON: {str(e)}. First 200 chars: {stripped[:200]}'
+    if not isinstance(raw, list):
+        return None, f'sharepoint_items must be a list, got {type(raw).__name__}. Sample: {repr(raw)[:200]}'
+    for i, item in enumerate(raw):
+        if not isinstance(item, dict):
+            return None, f'sharepoint_items[{i}] must be a dict, got {type(item).__name__}. Sample: {repr(item)[:200]}'
+    return raw, None
 
 # ─── RO Report helpers ────────────────────────────────────────────
 
@@ -565,7 +597,7 @@ def parse():
 
         return jsonify(result)
 
-# ─── /match-ro-report endpoint (Phase 2 — unchanged) ──────────────
+# ─── /match-ro-report endpoint (Phase 2) ──────────────────────────
 
 @app.route('/match-ro-report', methods=['POST'])
 def match_ro_report():
@@ -575,7 +607,9 @@ def match_ro_report():
     if 'xml' not in data:
         return jsonify({'error': 'Missing xml field (base64 of report XML)'}), 400
 
-    sharepoint_items = data.get('sharepoint_items', [])
+    sharepoint_items, err = coerce_sharepoint_items(data.get('sharepoint_items'))
+    if err:
+        return jsonify({'error': err}), 400
 
     try:
         xml_bytes = base64.b64decode(data['xml'])
@@ -726,7 +760,9 @@ def match_production_schedule():
     if 'xml' not in data:
         return jsonify({'error': 'Missing xml field (base64 of report XML)'}), 400
 
-    sharepoint_items = data.get('sharepoint_items', [])
+    sharepoint_items, err = coerce_sharepoint_items(data.get('sharepoint_items'))
+    if err:
+        return jsonify({'error': err}), 400
 
     try:
         xml_bytes = base64.b64decode(data['xml'])
@@ -816,7 +852,9 @@ def match_vehicles_scheduled_out():
     if 'xml' not in data:
         return jsonify({'error': 'Missing xml field (base64 of report XML)'}), 400
 
-    sharepoint_items = data.get('sharepoint_items', [])
+    sharepoint_items, err = coerce_sharepoint_items(data.get('sharepoint_items'))
+    if err:
+        return jsonify({'error': err}), 400
 
     try:
         xml_bytes = base64.b64decode(data['xml'])
