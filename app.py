@@ -212,6 +212,10 @@ def coerce_sharepoint_items(raw):
             return None, f'sharepoint_items is a string but not valid JSON: {str(e)}. First 200 chars: {stripped[:200]}'
     if not isinstance(raw, list):
         return None, f'sharepoint_items must be a list, got {type(raw).__name__}. Sample: {repr(raw)[:200]}'
+    # PA sometimes wraps the array in an outer array: [[{...}, {...}]] instead of [{...}, {...}].
+    # If we see exactly that shape, unwrap one layer.
+    if len(raw) == 1 and isinstance(raw[0], list):
+        raw = raw[0]
     for i, item in enumerate(raw):
         if not isinstance(item, dict):
             return None, f'sharepoint_items[{i}] must be a dict, got {type(item).__name__}. Sample: {repr(item)[:200]}'
