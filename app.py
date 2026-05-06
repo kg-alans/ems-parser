@@ -500,6 +500,90 @@ def run_match_engine(report_rows, sharepoint_items):
 
     return matched_pairs, unmatched, ambiguous
 
+# ─── Phase 4: Cancelled Opportunities Cleanup ─────────────────────
+
+# Toggle dry-run mode. When True, all matches are routed to ambiguous with
+# reason "DRY RUN — would have deleted ..." and the matched array is always
+# empty. This means even with a bug elsewhere, dry-run can never delete
+# anything. Flip to False after dry-run output looks correct.
+DRY_RUN_CANCELLED_OPPS = True
+
+def parse_opportunities_xml(xml_bytes):
+    """Parse CCC ONE native XML 'Opportunities' export.
+
+    Returns ALL rows (caller filters via is_cancelled_opportunity).
+    Note: this report uses <work_files> elements, not <repairOrder>.
+    """
+    root = ET.fromstring(xml_bytes)
+    results = []
+    for o in root.findall('.//work_files'):
+        results.append({
+            'workfile_id':         _xml_text(o, 'workfile_id'),
+            'ro_number':           _xml_text(o, 'repair_order_number'),
+            'owner':               _xml_text(o, 'owner_name'),
+            'vehicle':             _xml_text(o, 'vehicle_year_make_model'),
+            'estimator':           _xml_text(o, 'service_writer_display_name'),
+            'cancel_date':         _xml_text(o, 'cancel_date'),
+            'cancel_reason':       _xml_text(o, 'cancel_reason_name'),  # display only
+            'workfile_status':     _xml_text(o, 'workfile_status'),
+            'converted_datetime':  _xml_text(o, 'converted_datetime'),
+            'visit_stage_id':      _xml_text(o, 'customer_visit_stage_id'),
+        })
+    return results
+
+def is_cancelled_opportunity(row):
+    """Filter: row represents a workfile that was EMS-exported but never
+    became an active RO, and is now safe to delete from DTBS.
+
+    Criteria:
+    - converted_datetime is blank (never became an RO), AND
+    - cancel_date is populated OR workfile_status is Closed
+
+    Cancel reason is explicitly NOT used — estimators choose it based on
+    notification suppression, not accurate categorization.
+    """
+    if row.get('converted_datetime'):
+        return False  # became an RO at some point — leave alone
+    if row.get('cancel_date'):
+        return True   # explicitly cancelled
+    if row.get('workfile_status', '').strip() == 'Closed':
+        return True   # closed without converting
+    return False      # still open, may convert later
+
+def cancelled_opp_safety_guards(sp_item):
+    """Check if a matched SP row has any indicators of human/sync activity
+    that should prevent auto-deletion. Returns (is_safe, reason).
+
+    Failed guards route the match to ambiguous instead of delete:
+    - ro_number (Title) populated — sync or human claimed the row
+    - Tech, Painter, ProductionNotes, PartsNotes, PartsStatus populated
+    - RepairStatus is anything other than blank or 'Prelim'
+
+    SP item dict keys expected: ro_number, tech, painter, production_notes,
+    parts_notes, parts_status, repair_status. These come from the PA Project
+    SP Items Select action — see flow build instructions.
+    """
+    ro_number = (sp_item.get('ro_number') or '').strip()
+    if ro_number:
+        return False, f"SP row has RO# '{ro_number}' — manual review"
+
+    if (sp_item.get('tech') or '').strip():
+        return False, "SP row has Tech assigned — manual review"
+    if (sp_item.get('painter') or '').strip():
+        return False, "SP row has Painter assigned — manual review"
+    if (sp_item.get('production_notes') or '').strip():
+        return False, "SP row has Production Notes — manual review"
+    if (sp_item.get('parts_notes') or '').strip():
+        return False, "SP row has Parts Notes — manual review"
+    if (sp_item.get('parts_status') or '').strip():
+        return False, "SP row has Parts Status — manual review"
+
+    repair_status = (sp_item.get('repair_status') or '').strip()
+    if repair_status and repair_status != 'Prelim':
+        return False, f"SP row RepairStatus is '{repair_status}' — manual review"
+
+    return True, ''
+
 # ─── /parse endpoint (unchanged) ──────────────────────────────────
 
 @app.route('/parse', methods=['POST'])
@@ -908,6 +992,111 @@ def match_vehicles_scheduled_out():
             'matched': len(matched),
             'unmatched': len(unmatched),
             'ambiguous': len(ambiguous),
+        }
+    })
+
+# ─── /match-cancelled-opportunities endpoint (Phase 4) ────────────
+
+@app.route('/match-cancelled-opportunities', methods=['POST'])
+def match_cancelled_opportunities():
+    """Phase 4 — Cancelled Opportunities Cleanup.
+
+    Matches Opportunities report rows (filtered to cancelled or
+    closed-without-conversion) against open SP items. Returns matches that
+    should be DELETED (not updated) — the caller's flow does Delete item
+    instead of Update item.
+
+    Safety guards block deletion of any SP row showing human or sync activity:
+    populated RO#, Tech, Painter, ProductionNotes, PartsNotes, PartsStatus,
+    or RepairStatus advanced past Prelim. Failed guards move the match to
+    the ambiguous bucket for manual review.
+
+    Dry-run mode (DRY_RUN_CANCELLED_OPPS=True) routes ALL safe matches to
+    ambiguous with reason "DRY RUN — would have deleted ...". Matched array
+    is always empty in dry-run, so deletion can never happen by accident.
+    Flip the toggle to False once dry-run output looks correct.
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No JSON body received'}), 400
+    if 'xml' not in data:
+        return jsonify({'error': 'Missing xml field (base64 of report XML)'}), 400
+
+    sharepoint_items, err = coerce_sharepoint_items(data.get('sharepoint_items'))
+    if err:
+        return jsonify({'error': err}), 400
+
+    try:
+        xml_bytes = base64.b64decode(data['xml'])
+        all_rows = parse_opportunities_xml(xml_bytes)
+    except Exception as e:
+        return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
+
+    # Filter to deletion candidates only
+    candidate_rows = [r for r in all_rows if is_cancelled_opportunity(r)]
+
+    # The shared run_match_engine uses ro_number as a display identifier in
+    # ambiguous/unmatched output. Cancelled opps usually have empty ro_number,
+    # so substitute "WF:{workfile_id}" so the email tables show something useful.
+    for r in candidate_rows:
+        if not r.get('ro_number'):
+            r['ro_number'] = f"WF:{r.get('workfile_id', '')}"
+
+    matched_pairs, unmatched, ambiguous = run_match_engine(candidate_rows, sharepoint_items)
+
+    # Apply safety guards. Failed guards move matches to ambiguous.
+    safe_matches = []
+    for row, sp, mtype in matched_pairs:
+        is_safe, reason = cancelled_opp_safety_guards(sp)
+        if is_safe:
+            safe_matches.append((row, sp, mtype))
+        else:
+            ambiguous.append({
+                'ro_number': row['ro_number'],
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'candidate_ids': [sp.get('id')],
+                'reason': f'safety guard: {reason}'
+            })
+
+    # Dry-run gate: in dry-run mode, all safe matches → ambiguous instead.
+    # Matched array is always empty in dry-run.
+    matched = []
+    if DRY_RUN_CANCELLED_OPPS:
+        for row, sp, mtype in safe_matches:
+            cancel_date_str = row.get('cancel_date', '')[:10] if row.get('cancel_date') else ''
+            cancel_reason_str = row.get('cancel_reason', '') or '(none)'
+            ambiguous.append({
+                'ro_number': row['ro_number'],
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'candidate_ids': [sp.get('id')],
+                'reason': f"DRY RUN — would have deleted SP item {sp.get('id')} (workfile_id={row.get('workfile_id', '')}, cancel_date={cancel_date_str}, cancel_reason={cancel_reason_str})"
+            })
+    else:
+        for row, sp, mtype in safe_matches:
+            matched.append({
+                'list_item_id':    sp.get('id'),
+                'workfile_id':     row.get('workfile_id', ''),
+                'customer_name':   sp.get('customer_name'),
+                'vehicle':         sp.get('vehicle'),
+                'cancel_date':     row.get('cancel_date', ''),
+                'cancel_reason':   row.get('cancel_reason', ''),  # display only
+                'match_type':      mtype,
+            })
+
+    return jsonify({
+        'matched': matched,
+        'unmatched_report_rows': unmatched,
+        'ambiguous': ambiguous,
+        'summary': {
+            'report_rows_total':    len(all_rows),
+            'deletion_candidates':  len(candidate_rows),
+            'sharepoint_items':     len(sharepoint_items),
+            'matched':              len(matched),
+            'unmatched':            len(unmatched),
+            'ambiguous':            len(ambiguous),
+            'dry_run':              DRY_RUN_CANCELLED_OPPS,
         }
     })
 
