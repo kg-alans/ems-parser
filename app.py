@@ -397,6 +397,34 @@ def insurance_needs_fix_or_blank(sp_insurance):
         return True
     return sp_insurance.strip().startswith('⚠️')
 
+def ro_match_type(sp_ro_norm, report_ro_norm):
+    """Classify how an SP ro_number relates to a report ro_number.
+    Both inputs should be lowercased and trimmed.
+
+    Returns:
+      'exact'      — SP equals report exactly
+      'compatible' — SP starts with report + '-' (Tekion suffix case;
+                     e.g., report 'ccc-0280' vs SP 'ccc-0280-1')
+      None         — no relationship
+
+    Asymmetric on purpose: SP is the side that may have a suffix added
+    after a Tekion connection break. The report (CCC ONE) side is
+    canonical because changing the RO# in CCC severs the Tekion link.
+    """
+    if not sp_ro_norm or not report_ro_norm:
+        return None
+    if sp_ro_norm == report_ro_norm:
+        return 'exact'
+    if sp_ro_norm.startswith(report_ro_norm + '-'):
+        return 'compatible'
+    return None
+
+def ro_compatible(sp_ro_norm, report_ro_norm):
+    """True if SP ro_number is exact or compatible with report's.
+    Wrapper around ro_match_type for the boolean case (Path B disqualifier).
+    """
+    return ro_match_type(sp_ro_norm, report_ro_norm) is not None
+
 def run_match_engine(report_rows, sharepoint_items):
     """Shared matching engine. Returns (matched_pairs, unmatched, ambiguous).
 
@@ -404,9 +432,15 @@ def run_match_engine(report_rows, sharepoint_items):
     Caller is responsible for building the response shape from these pairs.
 
     Match precedence:
-      Path A   — workfile_id     (CCC-internal unique file ID, only if SP row has it)
-      Path A.5 — ro_number       (Title field on SP row, if populated)
-      Path B   — customer+vehicle (fuzzy fallback for un-synced rows)
+      Path A    — workfile_id           (CCC-internal unique ID, exact)
+      Path A.5  — ro_number             (exact, case-insensitive, trimmed)
+                  ro_number_compatible  (Tekion suffix case: SP has extra '-N')
+      Path B    — customer + vehicle    (fuzzy fallback for un-synced rows)
+
+    Path B includes a disqualifier: any SP row whose workfile_id or
+    ro_number contradicts the report row's IDs is skipped from candidates.
+    This prevents already-claimed SP rows from being magnet-matched on
+    shared customer + vehicle prefix (e.g., dealer accounts with many ROs).
     """
     # Workfile_id index for Path A
     wf_index = {}
@@ -414,13 +448,6 @@ def run_match_engine(report_rows, sharepoint_items):
         wf = (item.get('workfile_id') or '').strip()
         if wf:
             wf_index.setdefault(wf, []).append(item)
-
-    # RO# index for Path A.5 — case-insensitive, trimmed
-    ro_index = {}
-    for item in sharepoint_items:
-        ro = (item.get('ro_number') or '').strip().lower()
-        if ro:
-            ro_index.setdefault(ro, []).append(item)
 
     provisional = []
     unmatched = []
@@ -434,7 +461,7 @@ def run_match_engine(report_rows, sharepoint_items):
         norm_vehicle = normalize_year_4to2(row['vehicle']).lower()
         report_estimator = row.get('estimator', '')
 
-        # Path A: workfile_id
+        # Path A: workfile_id (exact match in index)
         if report_wf and report_wf in wf_index:
             wf_candidates = wf_index[report_wf]
             if len(wf_candidates) == 1:
@@ -449,22 +476,45 @@ def run_match_engine(report_rows, sharepoint_items):
             })
             continue
 
-        # Path A.5: ro_number (exact match on Title field)
-        if report_ro and report_ro in ro_index:
-            ro_candidates = ro_index[report_ro]
-            if len(ro_candidates) == 1:
-                provisional.append((row, ro_candidates[0], 'ro_number'))
-                continue
-            ambiguous.append({
-                'ro_number': ro_number,
-                'owner': row['owner'],
-                'vehicle': row['vehicle'],
-                'candidate_ids': [c.get('id') for c in ro_candidates],
-                'reason': 'multiple SharePoint items share this RO#'
-            })
-            continue
+        # Path A.5: ro_number — scan for exact and compatible (suffix) matches.
+        # Prefer exact over compatible. If only compatible matches exist, use those.
+        if report_ro:
+            exact_matches = []
+            compat_matches = []
+            for item in sharepoint_items:
+                sp_ro = (item.get('ro_number') or '').strip().lower()
+                mt = ro_match_type(sp_ro, report_ro)
+                if mt == 'exact':
+                    exact_matches.append(item)
+                elif mt == 'compatible':
+                    compat_matches.append(item)
 
-        # Path B: customer + vehicle prefix
+            if exact_matches:
+                if len(exact_matches) == 1:
+                    provisional.append((row, exact_matches[0], 'ro_number'))
+                    continue
+                ambiguous.append({
+                    'ro_number': ro_number,
+                    'owner': row['owner'],
+                    'vehicle': row['vehicle'],
+                    'candidate_ids': [c.get('id') for c in exact_matches],
+                    'reason': 'multiple SharePoint items share this RO#'
+                })
+                continue
+            elif compat_matches:
+                if len(compat_matches) == 1:
+                    provisional.append((row, compat_matches[0], 'ro_number_compatible'))
+                    continue
+                ambiguous.append({
+                    'ro_number': ro_number,
+                    'owner': row['owner'],
+                    'vehicle': row['vehicle'],
+                    'candidate_ids': [c.get('id') for c in compat_matches],
+                    'reason': 'multiple SharePoint items have suffix variants of this RO#'
+                })
+                continue
+
+        # Path B: customer + vehicle prefix (with disqualifier)
         if not norm_owner or not norm_vehicle:
             unmatched.append({
                 'ro_number': ro_number,
@@ -480,6 +530,18 @@ def run_match_engine(report_rows, sharepoint_items):
             item_vehicle = (item.get('vehicle') or '').lower()
             if not item_customer or not item_vehicle:
                 continue
+
+            # Disqualifier: skip SP rows already positively identified by
+            # a contradicting workfile_id or ro_number. Prevents the magnet
+            # effect where one SP row attracts many report rows via shared
+            # customer + vehicle prefix (e.g., JLR dealer account).
+            sp_wf = (item.get('workfile_id') or '').strip()
+            if sp_wf and sp_wf != report_wf:
+                continue
+            sp_ro = (item.get('ro_number') or '').strip().lower()
+            if sp_ro and not ro_compatible(sp_ro, report_ro):
+                continue
+
             if item_customer == norm_owner and norm_vehicle.startswith(item_vehicle):
                 candidates.append(item)
 
@@ -613,7 +675,7 @@ def cancelled_opp_safety_guards(sp_item):
 
     return True, ''
 
-# ─── /parse endpoint (unchanged) ──────────────────────────────────
+# ─── /parse endpoint ──────────────────────────────────────────────
 
 @app.route('/parse', methods=['POST'])
 def parse():
@@ -670,7 +732,11 @@ def parse():
         year = get_val(veh, 'V_MODEL_YR')
         make_code = get_val(veh, 'V_MAKECODE')
         model_full = get_val(veh, 'V_MODEL')
-        model_short = ' '.join(model_full.split()[:2]) if model_full else ''
+        # Take first 3 model words to give Path B's prefix matcher more specificity.
+        # Reduces magnet effect on dealer accounts (JLR, Hyundai Southtowne, etc.)
+        # where many ROs share the same year + make + base model. Short model names
+        # (e.g., 'Civic') stay short — Python slicing past the end is a no-op.
+        model_short = ' '.join(model_full.split()[:3]) if model_full else ''
         color = get_val(veh, 'V_COLOR')
         vin = get_val(veh, 'V_VIN')
 
@@ -722,10 +788,30 @@ def parse():
 
         return jsonify(result)
 
-# ─── /match-ro-report endpoint (Phase 2) ──────────────────────────
+# ─── /match-ro-report endpoint (Phase 2 — RO Sync / bulk historical fill) ──
 
 @app.route('/match-ro-report', methods=['POST'])
 def match_ro_report():
+    """Phase 2 — RO Report Sync.
+
+    Matches CCC ONE 'Repair Orders Created' report rows against open SP items.
+    Used by Flow 10 (DTBS RO Report Sync) for bulk historical fill — writes
+    RO#, WorkfileID, vehicle out datetime, total loss flag, etc.
+
+    Refactored to use shared run_match_engine. Same response shape as before
+    (matched / unmatched_report_rows / ambiguous / summary). PA flow needs
+    no changes to keep working.
+
+    Phase 2 specifics:
+    - insurance_needs_fix uses the narrower insurance_needs_correction()
+      helper (⚠️-only). Phase 2's PA flow only overwrites Insurance when
+      the SP value starts with ⚠️, per the existing field map.
+    - Path A.5 (ro_number) won't fire until Flow 10's Project SP Items
+      Select action is updated to include ro_number in its output. Until
+      then, RO Sync benefits from the workfile_id disqualifier (the more
+      important of the two — workfile_id is unique) but not the ro_number
+      disqualifier or the ro_number match path itself. Pending PA edit.
+    """
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No JSON body received'}), 400
@@ -742,122 +828,27 @@ def match_ro_report():
     except Exception as e:
         return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
 
-    # Build a workfile_id index for fast lookup. Items without workfile_id
-    # fall through to the customer+vehicle prefix matcher below.
-    wf_index = {}
-    for item in sharepoint_items:
-        wf = (item.get('workfile_id') or '').strip()
-        if wf:
-            wf_index.setdefault(wf, []).append(item)
-
-    # Provisional results — we'll post-process for duplicate SP matches.
-    provisional_matches = []  # list of (report_row, sp_item, match_type)
-    unmatched = []
-    ambiguous = []
-
-    for row in report_rows:
-        ro_number = row['ro_number']
-        report_wf = (row.get('workfile_id') or '').strip()
-        norm_owner = normalize_owner(row['owner']).lower()
-        norm_vehicle = normalize_year_4to2(row['vehicle']).lower()
-        report_estimator = row['estimator']
-
-        # Path A: workfile_id match (preferred — unique key)
-        if report_wf and report_wf in wf_index:
-            wf_candidates = wf_index[report_wf]
-            if len(wf_candidates) == 1:
-                provisional_matches.append((row, wf_candidates[0], 'workfile_id'))
-                continue
-            ambiguous.append({
-                'ro_number': ro_number,
-                'owner': row['owner'],
-                'vehicle': row['vehicle'],
-                'candidate_ids': [c.get('id') for c in wf_candidates],
-                'reason': 'multiple SharePoint items share this workfile_id'
-            })
-            continue
-
-        # Path B: customer + vehicle prefix fallback
-        if not norm_owner or not norm_vehicle:
-            unmatched.append({
-                'ro_number': ro_number,
-                'owner': row['owner'],
-                'vehicle': row['vehicle'],
-                'reason': 'report row missing customer or vehicle'
-            })
-            continue
-
-        candidates = []
-        for item in sharepoint_items:
-            item_customer = (item.get('customer_name') or '').lower()
-            item_vehicle = (item.get('vehicle') or '').lower()
-            if not item_customer or not item_vehicle:
-                continue
-            if item_customer == norm_owner and norm_vehicle.startswith(item_vehicle):
-                candidates.append(item)
-
-        if len(candidates) == 1:
-            provisional_matches.append((row, candidates[0], 'customer_vehicle'))
-        elif len(candidates) == 0:
-            unmatched.append({
-                'ro_number': ro_number,
-                'owner': row['owner'],
-                'vehicle': row['vehicle'],
-                'reason': 'no SharePoint item with matching customer + vehicle'
-            })
-        else:
-            est_matches = [
-                c for c in candidates
-                if estimator_first_name_match(report_estimator, c.get('estimator', ''))
-            ]
-            if len(est_matches) == 1:
-                provisional_matches.append((row, est_matches[0], 'customer_vehicle_estimator'))
-            else:
-                ambiguous.append({
-                    'ro_number': ro_number,
-                    'owner': row['owner'],
-                    'vehicle': row['vehicle'],
-                    'candidate_ids': [c.get('id') for c in candidates],
-                    'reason': f'{len(candidates)} SharePoint items matched same customer + vehicle prefix'
-                })
-
-    # Post-process: detect SharePoint items that would be matched by multiple
-    # report rows. Move ALL such collisions to ambiguous to prevent silent overwrites.
-    sp_id_to_rows = {}
-    for row, sp, mtype in provisional_matches:
-        sp_id_to_rows.setdefault(sp.get('id'), []).append((row, sp, mtype))
+    matched_pairs, unmatched, ambiguous = run_match_engine(report_rows, sharepoint_items)
 
     matched = []
-    for sp_id, hits in sp_id_to_rows.items():
-        if len(hits) == 1:
-            row, sp, mtype = hits[0]
-            sp_insurance_now = sp.get('insurance', '') or ''
-            matched.append({
-                'list_item_id':           sp.get('id'),
-                'ro_number':              row['ro_number'],
-                'workfile_id':            row.get('workfile_id', ''),
-                'customer_name':          sp.get('customer_name'),
-                'vehicle':                sp.get('vehicle'),
-                'match_type':             mtype,
-                # Phase 2 source fields
-                'vehicle_out_datetime':   row.get('vehicle_out', ''),
-                'ro_status':              row.get('ro_status', ''),
-                'is_completed':           row.get('ro_status', '').strip().lower() == 'completed',
-                'is_total_loss':          row.get('total_loss', False),
-                'carrier_name':           row.get('insurance_company', ''),
-                'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
-                'insurance_needs_fix':    insurance_needs_correction(sp_insurance_now)
-            })
-        else:
-            # Multiple report rows want the same SP item — all go to ambiguous
-            for row, sp, mtype in hits:
-                ambiguous.append({
-                    'ro_number': row['ro_number'],
-                    'owner': row['owner'],
-                    'vehicle': row['vehicle'],
-                    'candidate_ids': [sp.get('id')],
-                    'reason': f"multiple report rows ({len(hits)}) matched the same SharePoint item — manual review needed"
-                })
+    for row, sp, mtype in matched_pairs:
+        sp_insurance_now = sp.get('insurance', '') or ''
+        matched.append({
+            'list_item_id':           sp.get('id'),
+            'ro_number':              row['ro_number'],
+            'workfile_id':            row.get('workfile_id', ''),
+            'customer_name':          sp.get('customer_name'),
+            'vehicle':                sp.get('vehicle'),
+            'match_type':             mtype,
+            # Phase 2 source fields
+            'vehicle_out_datetime':   row.get('vehicle_out', ''),
+            'ro_status':              row.get('ro_status', ''),
+            'is_completed':           row.get('ro_status', '').strip().lower() == 'completed',
+            'is_total_loss':          row.get('total_loss', False),
+            'carrier_name':           row.get('insurance_company', ''),
+            'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
+            'insurance_needs_fix':    insurance_needs_correction(sp_insurance_now),
+        })
 
     return jsonify({
         'matched': matched,
