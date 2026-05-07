@@ -402,6 +402,11 @@ def run_match_engine(report_rows, sharepoint_items):
 
     matched_pairs is list of (report_row, sp_item, match_type) tuples.
     Caller is responsible for building the response shape from these pairs.
+
+    Match precedence:
+      Path A   — workfile_id     (CCC-internal unique file ID, only if SP row has it)
+      Path A.5 — ro_number       (Title field on SP row, if populated)
+      Path B   — customer+vehicle (fuzzy fallback for un-synced rows)
     """
     # Workfile_id index for Path A
     wf_index = {}
@@ -410,6 +415,13 @@ def run_match_engine(report_rows, sharepoint_items):
         if wf:
             wf_index.setdefault(wf, []).append(item)
 
+    # RO# index for Path A.5 — case-insensitive, trimmed
+    ro_index = {}
+    for item in sharepoint_items:
+        ro = (item.get('ro_number') or '').strip().lower()
+        if ro:
+            ro_index.setdefault(ro, []).append(item)
+
     provisional = []
     unmatched = []
     ambiguous = []
@@ -417,6 +429,7 @@ def run_match_engine(report_rows, sharepoint_items):
     for row in report_rows:
         ro_number = row['ro_number']
         report_wf = (row.get('workfile_id') or '').strip()
+        report_ro = (ro_number or '').strip().lower()
         norm_owner = normalize_owner(row['owner']).lower()
         norm_vehicle = normalize_year_4to2(row['vehicle']).lower()
         report_estimator = row.get('estimator', '')
@@ -433,6 +446,21 @@ def run_match_engine(report_rows, sharepoint_items):
                 'vehicle': row['vehicle'],
                 'candidate_ids': [c.get('id') for c in wf_candidates],
                 'reason': 'multiple SharePoint items share this workfile_id'
+            })
+            continue
+
+        # Path A.5: ro_number (exact match on Title field)
+        if report_ro and report_ro in ro_index:
+            ro_candidates = ro_index[report_ro]
+            if len(ro_candidates) == 1:
+                provisional.append((row, ro_candidates[0], 'ro_number'))
+                continue
+            ambiguous.append({
+                'ro_number': ro_number,
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'candidate_ids': [c.get('id') for c in ro_candidates],
+                'reason': 'multiple SharePoint items share this RO#'
             })
             continue
 
