@@ -302,6 +302,7 @@ def parse_vehicles_scheduled_out_xml(xml_bytes):
             'vehicle_out':       _xml_text(o, 'vehicle_out_datetime'),
             'is_delivered':      _xml_text(o, 'is_delivered').lower() == 'true',
             'total_loss':        _xml_text(o, 'is_total_loss').lower() == 'true',
+            'file_status':       _xml_text(o, 'file_status_name'),
         })
     return results
 
@@ -964,6 +965,11 @@ def match_vehicles_scheduled_out():
     for row, sp, mtype in matched_pairs:
         sp_insurance_now = sp.get('insurance', '') or ''
         is_delivered = row.get('is_delivered', False)
+        # Phase 5: file_status_name from CCC drives the new Closed flag.
+        # Done flips when EITHER the vehicle is delivered OR the file is closed in CCC
+        # (file_status=Closed without delivery happens for total losses, etc.)
+        is_closed = row.get('file_status', '').strip().lower() == 'closed'
+        should_set_done = is_delivered or is_closed
 
         matched.append({
             'list_item_id':           sp.get('id'),
@@ -975,9 +981,12 @@ def match_vehicles_scheduled_out():
             # Always-write source fields
             'vehicle_out_datetime':   row.get('vehicle_out', ''),
             'is_delivered':           is_delivered,
+            'is_closed':              is_closed,
+            'should_set_done':        should_set_done,
             'is_total_loss':          row.get('total_loss', False),
             'carrier_name':           row.get('insurance_company', ''),
             'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
+            'file_status_raw':        row.get('file_status', ''),
             # Conditional fields
             'insurance_needs_fix':    insurance_needs_fix_or_blank(sp_insurance_now),
         })
