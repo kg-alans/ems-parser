@@ -307,12 +307,16 @@ def parse_vehicles_scheduled_out_xml(xml_bytes):
     return results
 
 def normalize_owner(owner):
-    """Convert 'Last, First' to 'First Last' to match EMS parser output."""
+    """Both EMS parser and CCC reports now produce 'Last, First' format
+    for human customers. This helper just trims and standardizes whitespace.
+    Function preserved (not deleted) so all existing run_match_engine call
+    sites continue to work without modification.
+
+    Edge case: dealer/company names ('JAGUAR LANDROVER DOWNTOWN SALT LAKE')
+    have no comma — pass through unchanged.
+    """
     if not owner:
         return ''
-    if ',' in owner:
-        parts = owner.split(',', 1)
-        return f"{parts[1].strip()} {parts[0].strip()}"
     return owner.strip()
 
 def normalize_year_4to2(vehicle):
@@ -719,7 +723,9 @@ def parse():
         cust_co = get_val(ad1, 'INSD_CO_NM')
 
         if cust_first or cust_last:
-            customer_name = f"{cust_first} {cust_last}".strip()
+            # "Last, First" format — matches how shop staff reference cars
+            # (by last name) and how CCC ONE reports come in for human customers.
+            customer_name = f"{cust_last}, {cust_first}".strip(', ').strip()
         else:
             customer_name = cust_co
 
