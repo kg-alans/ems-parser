@@ -229,6 +229,55 @@ def coerce_sharepoint_items(raw):
             return None, f'sharepoint_items[{i}] must be a dict, got {type(item).__name__}. Sample: {repr(item)[:200]}'
     return raw, None
 
+# ─── Insurance Lookup helper (Phase 6 — insurance normalization) ──
+
+def normalize_insurance_name(raw_name, lookup_list):
+    """Match a raw insurance carrier name against the Insurance Lookup list.
+
+    Args:
+        raw_name: Carrier name from CCC report or EMS export (e.g., 'STATE FARM').
+        lookup_list: List of dicts with at least 'Title' and 'DisplayName' keys,
+                     OR an empty list if the caller has none (see Option B fallback below).
+
+    Returns:
+        - If raw_name is blank/None: empty string (sync flow will write null/skip).
+        - If lookup_list is empty: raw_name unchanged (Option B — graceful fallback
+          so PA flows that accidentally send an empty lookup don't flood SP with
+          ⚠️ markers; reverts to pre-Phase-6 behavior for that run).
+        - If a match is found (case-insensitive Title equality): the DisplayName.
+        - If no match: '⚠️ <raw_name>' so the value surfaces in the weekly
+          Insurance Pending Review email (Option X — keeps the bug visible).
+
+    Matching is case-insensitive on the Title field. Both sides are trimmed
+    of whitespace. Same logic Flow 6 (EMS Parser) uses for its create/update
+    insurance writes.
+    """
+    if not raw_name or not str(raw_name).strip():
+        return ''
+    raw = str(raw_name).strip()
+
+    # Option B — empty lookup → skip normalization, return raw passthrough.
+    # Protects against PA "Get Insurance Lookup" returning [] on transient errors.
+    if not lookup_list:
+        return raw
+
+    raw_lower = raw.lower()
+    for entry in lookup_list:
+        if not isinstance(entry, dict):
+            continue
+        title = entry.get('Title')
+        if title is None:
+            continue
+        if str(title).strip().lower() == raw_lower:
+            display = entry.get('DisplayName')
+            if display is not None and str(display).strip():
+                return str(display).strip()
+            # Title matched but DisplayName is blank — treat as no usable match.
+            break
+
+    # No match — return ⚠️-prefixed raw name to surface in the digest email.
+    return f'⚠️ {raw}'
+
 # ─── RO Report helpers ────────────────────────────────────────────
 
 def _xml_text(parent, tag):
@@ -817,6 +866,14 @@ def match_ro_report():
       then, RO Sync benefits from the workfile_id disqualifier (the more
       important of the two — workfile_id is unique) but not the ro_number
       disqualifier or the ro_number match path itself. Pending PA edit.
+
+    Phase 6 (insurance normalization, May 8 evening):
+    - Accepts optional `insurance_lookup` array (list of {Title, DisplayName}
+      dicts) in the request body. If present, each matched row's
+      `normalized_insurance` field returns the lookup's DisplayName when the
+      CCC carrier_name matches a Title (case-insensitive), or `⚠️ <raw name>`
+      when no match. If absent or empty, `normalized_insurance` equals the
+      raw carrier_name (Option B — preserves pre-Phase-6 behavior).
     """
     data = request.get_json()
     if not data:
@@ -827,6 +884,11 @@ def match_ro_report():
     sharepoint_items, err = coerce_sharepoint_items(data.get('sharepoint_items'))
     if err:
         return jsonify({'error': err}), 400
+
+    # Phase 6: optional insurance_lookup from the caller. Empty/missing → fallback.
+    insurance_lookup, err = coerce_sharepoint_items(data.get('insurance_lookup'))
+    if err:
+        return jsonify({'error': f'insurance_lookup parse error: {err}'}), 400
 
     try:
         xml_bytes = base64.b64decode(data['xml'])
@@ -839,6 +901,7 @@ def match_ro_report():
     matched = []
     for row, sp, mtype in matched_pairs:
         sp_insurance_now = sp.get('insurance', '') or ''
+        raw_carrier = row.get('insurance_company', '')
         matched.append({
             'list_item_id':           sp.get('id'),
             'ro_number':              row['ro_number'],
@@ -851,7 +914,8 @@ def match_ro_report():
             'ro_status':              row.get('ro_status', ''),
             'is_completed':           row.get('ro_status', '').strip().lower() == 'completed',
             'is_total_loss':          row.get('total_loss', False),
-            'carrier_name':           row.get('insurance_company', ''),
+            'carrier_name':           raw_carrier,
+            'normalized_insurance':   normalize_insurance_name(raw_carrier, insurance_lookup),
             'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
             'insurance_needs_fix':    insurance_needs_correction(sp_insurance_now),
         })
@@ -863,6 +927,7 @@ def match_ro_report():
         'summary': {
             'report_rows_total': len(report_rows),
             'sharepoint_items': len(sharepoint_items),
+            'insurance_lookup_entries': len(insurance_lookup),
             'matched': len(matched),
             'unmatched': len(unmatched),
             'ambiguous': len(ambiguous)
@@ -875,7 +940,12 @@ def match_ro_report():
 def match_production_schedule():
     """Phase 3 — Production Sync.
     Matches Production Schedule report rows against open SP items.
-    Writes phase, tech, painter, dates. Never writes Done/ActualDelivery."""
+    Writes phase, tech, painter, dates. Never writes Done/ActualDelivery.
+
+    Phase 6 (insurance normalization, May 8 evening):
+    - Accepts optional `insurance_lookup` array; populates `normalized_insurance`
+      on each matched row. See /match-ro-report docstring for details.
+    """
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No JSON body received'}), 400
@@ -885,6 +955,10 @@ def match_production_schedule():
     sharepoint_items, err = coerce_sharepoint_items(data.get('sharepoint_items'))
     if err:
         return jsonify({'error': err}), 400
+
+    insurance_lookup, err = coerce_sharepoint_items(data.get('insurance_lookup'))
+    if err:
+        return jsonify({'error': f'insurance_lookup parse error: {err}'}), 400
 
     try:
         xml_bytes = base64.b64decode(data['xml'])
@@ -907,6 +981,8 @@ def match_production_schedule():
         new_tech = map_tech(row.get('body_tech', ''))
         new_painter = map_painter(row.get('paint_tech', ''))
 
+        raw_carrier = row.get('insurance_company', '')
+
         matched.append({
             'list_item_id':           sp.get('id'),
             'ro_number':              row['ro_number'],
@@ -919,7 +995,8 @@ def match_production_schedule():
             'vehicle_in_datetime':    row.get('vehicle_in', ''),
             'repair_phase_raw':       row.get('repair_phase', ''),
             'is_total_loss':          row.get('total_loss', False),
-            'carrier_name':           row.get('insurance_company', ''),
+            'carrier_name':           raw_carrier,
+            'normalized_insurance':   normalize_insurance_name(raw_carrier, insurance_lookup),
             'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
             # Conditional fields — caller checks the should_write flag
             'new_repair_status':      new_status or '',
@@ -954,6 +1031,7 @@ def match_production_schedule():
         'summary': {
             'report_rows_total': len(report_rows),
             'sharepoint_items': len(sharepoint_items),
+            'insurance_lookup_entries': len(insurance_lookup),
             'matched': len(matched),
             'unmatched': len(unmatched),
             'ambiguous': len(ambiguous),
@@ -967,7 +1045,12 @@ def match_production_schedule():
 def match_vehicles_scheduled_out():
     """Phase 3 — Cleanup Sync.
     Matches Vehicles Scheduled Out report rows against open SP items.
-    Writes Done/ActualDelivery for delivered vehicles. Final field sync."""
+    Writes Done/ActualDelivery for delivered vehicles. Final field sync.
+
+    Phase 6 (insurance normalization, May 8 evening):
+    - Accepts optional `insurance_lookup` array; populates `normalized_insurance`
+      on each matched row. See /match-ro-report docstring for details.
+    """
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No JSON body received'}), 400
@@ -977,6 +1060,10 @@ def match_vehicles_scheduled_out():
     sharepoint_items, err = coerce_sharepoint_items(data.get('sharepoint_items'))
     if err:
         return jsonify({'error': err}), 400
+
+    insurance_lookup, err = coerce_sharepoint_items(data.get('insurance_lookup'))
+    if err:
+        return jsonify({'error': f'insurance_lookup parse error: {err}'}), 400
 
     try:
         xml_bytes = base64.b64decode(data['xml'])
@@ -996,6 +1083,8 @@ def match_vehicles_scheduled_out():
         is_closed = row.get('file_status', '').strip().lower() == 'closed'
         should_set_done = is_delivered or is_closed
 
+        raw_carrier = row.get('insurance_company', '')
+
         matched.append({
             'list_item_id':           sp.get('id'),
             'ro_number':              row['ro_number'],
@@ -1009,7 +1098,8 @@ def match_vehicles_scheduled_out():
             'is_closed':              is_closed,
             'should_set_done':        should_set_done,
             'is_total_loss':          row.get('total_loss', False),
-            'carrier_name':           row.get('insurance_company', ''),
+            'carrier_name':           raw_carrier,
+            'normalized_insurance':   normalize_insurance_name(raw_carrier, insurance_lookup),
             'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
             'file_status_raw':        row.get('file_status', ''),
             # Conditional fields
@@ -1023,6 +1113,7 @@ def match_vehicles_scheduled_out():
         'summary': {
             'report_rows_total': len(report_rows),
             'sharepoint_items': len(sharepoint_items),
+            'insurance_lookup_entries': len(insurance_lookup),
             'matched': len(matched),
             'unmatched': len(unmatched),
             'ambiguous': len(ambiguous),
