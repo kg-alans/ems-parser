@@ -758,6 +758,28 @@ def parse():
         ttl = parsed['ttl']
         stl = parsed['stl']
 
+        # Sync race detection: if env or ad1 came back empty (file missing,
+        # not yet synced from OneDrive, or unparseable), return 503 so PA's
+        # retry policy fires. Without this check, /parse returns 200 with
+        # blank fields and SP silently gets a half-empty row. The env file
+        # holds the unique_id and the ad1 holds customer/insurance data —
+        # if either is missing we can't usefully populate the row.
+        #
+        # Other files (ad2/veh/ttl/stl) are nice-to-have but not essential
+        # enough to warrant a retry. ad2 has estimator/dates, veh has
+        # vehicle string, ttl/stl have $ and hours. Missing those is
+        # uncommon and PA's update branch null-guards will preserve
+        # existing values on the next supplement.
+        if not env or not ad1:
+            missing = []
+            if not env:
+                missing.append('env')
+            if not ad1:
+                missing.append('ad1')
+            return jsonify({
+                'error': f"Essential EMS file(s) empty or missing: {', '.join(missing)}. Likely OneDrive sync race — PA should retry."
+            }), 503
+
         unique_id = get_val(env, 'UNQFILE_ID')
         supp_no = get_val(env, 'SUPP_NO')
         trans_type = get_val(env, 'TRANS_TYPE')
