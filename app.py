@@ -770,13 +770,26 @@ def parse():
         cust_first = get_val(ad1, 'INSD_FN')
         cust_last = get_val(ad1, 'INSD_LN')
         cust_co = get_val(ad1, 'INSD_CO_NM')
+        # OWNR_ fallback fields: for third-party claims (CUST_PR='C', claimant)
+        # where the car owner is the Ken Garff customer but the policy holder
+        # (INSD_) is a different person (the at-fault driver). CCC stores the
+        # claimant's info under OWNR_. Without this fallback, third-party claim
+        # workfiles come into DTBS with blank CustomerName.
+        ownr_first = get_val(ad1, 'OWNR_FN')
+        ownr_last = get_val(ad1, 'OWNR_LN')
+        ownr_co = get_val(ad1, 'OWNR_CO_NM')
 
         if cust_first or cust_last:
             # "Last, First" format — matches how shop staff reference cars
             # (by last name) and how CCC ONE reports come in for human customers.
             customer_name = f"{cust_last}, {cust_first}".strip(', ').strip()
-        else:
+        elif cust_co:
             customer_name = cust_co
+        elif ownr_first or ownr_last:
+            # Third-party claim fallback — owner is the Ken Garff customer.
+            customer_name = f"{ownr_last}, {ownr_first}".strip(', ').strip()
+        else:
+            customer_name = ownr_co
 
         est_first = get_val(ad2, 'EST_CT_FN')
         est_last = get_val(ad2, 'EST_CT_LN')
