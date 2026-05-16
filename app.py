@@ -646,12 +646,6 @@ def run_match_engine(report_rows, sharepoint_items):
 
 # ─── Phase 4: Cancelled Opportunities Cleanup ─────────────────────
 
-# Toggle dry-run mode. When True, all matches are routed to ambiguous with
-# reason "DRY RUN — would have deleted ..." and the matched array is always
-# empty. This means even with a bug elsewhere, dry-run can never delete
-# anything. Flip to False after dry-run output looks correct.
-DRY_RUN_CANCELLED_OPPS = True
-
 def parse_opportunities_xml(xml_bytes):
     """Parse CCC ONE native XML 'Opportunities' export.
 
@@ -1171,10 +1165,13 @@ def match_cancelled_opportunities():
     or RepairStatus advanced past Prelim. Failed guards move the match to
     the ambiguous bucket for manual review.
 
-    Dry-run mode (DRY_RUN_CANCELLED_OPPS=True) routes ALL safe matches to
-    ambiguous with reason "DRY RUN — would have deleted ...". Matched array
-    is always empty in dry-run, so deletion can never happen by accident.
-    Flip the toggle to False once dry-run output looks correct.
+    History: this endpoint shipped with a `DRY_RUN_CANCELLED_OPPS` toggle
+    that routed all safe matches to ambiguous with "DRY RUN — would have
+    deleted ..." reason. That toggle was removed May 15, 2026 after dry-run
+    output was verified accurate. If you need to dry-run again in the
+    future, the cleanest approach is to use the safety guards as your
+    test bed (populate the row's Tech or RepairStatus to block deletion
+    on a per-row basis) or add the toggle back temporarily.
     """
     data = request.get_json()
     if not data:
@@ -1219,31 +1216,18 @@ def match_cancelled_opportunities():
                 'reason': f'safety guard: {reason}'
             })
 
-    # Dry-run gate: in dry-run mode, all safe matches → ambiguous instead.
-    # Matched array is always empty in dry-run.
+    # Build matched array from safe matches.
     matched = []
-    if DRY_RUN_CANCELLED_OPPS:
-        for row, sp, mtype in safe_matches:
-            cancel_date_str = row.get('cancel_date', '')[:10] if row.get('cancel_date') else ''
-            cancel_reason_str = row.get('cancel_reason', '') or '(none)'
-            ambiguous.append({
-                'ro_number': row['ro_number'],
-                'owner': row['owner'],
-                'vehicle': row['vehicle'],
-                'candidate_ids': [sp.get('id')],
-                'reason': f"DRY RUN — would have deleted SP item {sp.get('id')} (workfile_id={row.get('workfile_id', '')}, cancel_date={cancel_date_str}, cancel_reason={cancel_reason_str})"
-            })
-    else:
-        for row, sp, mtype in safe_matches:
-            matched.append({
-                'list_item_id':    sp.get('id'),
-                'workfile_id':     row.get('workfile_id', ''),
-                'customer_name':   sp.get('customer_name'),
-                'vehicle':         sp.get('vehicle'),
-                'cancel_date':     row.get('cancel_date', ''),
-                'cancel_reason':   row.get('cancel_reason', ''),  # display only
-                'match_type':      mtype,
-            })
+    for row, sp, mtype in safe_matches:
+        matched.append({
+            'list_item_id':    sp.get('id'),
+            'workfile_id':     row.get('workfile_id', ''),
+            'customer_name':   sp.get('customer_name'),
+            'vehicle':         sp.get('vehicle'),
+            'cancel_date':     row.get('cancel_date', ''),
+            'cancel_reason':   row.get('cancel_reason', ''),  # display only
+            'match_type':      mtype,
+        })
 
     return jsonify({
         'matched': matched,
@@ -1256,7 +1240,6 @@ def match_cancelled_opportunities():
             'matched':              len(matched),
             'unmatched':            len(unmatched),
             'ambiguous':            len(ambiguous),
-            'dry_run':              DRY_RUN_CANCELLED_OPPS,
         }
     })
 
