@@ -278,6 +278,138 @@ def normalize_insurance_name(raw_name, lookup_list):
     # No match — return ⚠️-prefixed raw name to surface in the digest email.
     return f'⚠️ {raw}'
 
+# ─── Change Diff Helper (May 18, 2026 — email visibility feature) ─────
+
+def is_blank_for_diff(v):
+    """Treat None, empty string, and whitespace-only strings as blank.
+    Boolean False is NOT blank — Yes/No=No is a real value worth showing in diffs.
+    """
+    if v is None:
+        return True
+    if isinstance(v, str) and v.strip() == '':
+        return True
+    return False
+
+def format_value_for_diff(v, value_type):
+    """Format a value for human-readable display in the email's Changes column.
+
+    value_type: 'bool' | 'date' | 'text'
+    """
+    if is_blank_for_diff(v):
+        return '(blank)'
+    if value_type == 'bool':
+        # PA may serialize Yes/No as Python True/False, or as 'true'/'false' strings
+        if v is True or (isinstance(v, str) and v.lower() in ('true', 'yes', '1')):
+            return 'Yes'
+        if v is False or (isinstance(v, str) and v.lower() in ('false', 'no', '0')):
+            return 'No'
+        return str(v)
+    if value_type == 'date':
+        # Trim time portion if present — show just YYYY-MM-DD
+        s = str(v).strip()
+        if 'T' in s:
+            return s.split('T')[0]
+        if ' ' in s and len(s) > 10:
+            return s.split(' ')[0]
+        return s[:10] if len(s) >= 10 else s
+    # text — return as-is, trimmed
+    return str(v).strip()
+
+def values_equal_for_diff(old, new, value_type):
+    """Compare old SP value vs new value with blank-equivalence and type awareness.
+    Returns True if they should be considered "the same" (no change to report).
+    """
+    old_blank = is_blank_for_diff(old)
+    new_blank = is_blank_for_diff(new)
+    if old_blank and new_blank:
+        return True
+    if old_blank != new_blank:
+        return False
+    # Both non-blank
+    if value_type == 'bool':
+        return format_value_for_diff(old, 'bool') == format_value_for_diff(new, 'bool')
+    if value_type == 'date':
+        return format_value_for_diff(old, 'date') == format_value_for_diff(new, 'date')
+    # text — case-insensitive trim compare
+    return str(old).strip().lower() == str(new).strip().lower()
+
+def compute_changes(sp_item, new_values, field_specs):
+    """Compute a list of changes between SP's current values and what would be written.
+
+    Args:
+        sp_item: dict of current SP values (from Project SP Items projection).
+        new_values: dict keyed by sp_key with the value the flow would write.
+                    Only fields present here are compared.
+        field_specs: ordered list of (sp_key, display_name, value_type) tuples.
+                     Order determines email row order (importance-ranked).
+
+    Returns:
+        List of {"field": display_name, "old": str, "new": str} dicts.
+        Empty list if nothing changed.
+    """
+    changes = []
+    for sp_key, display_name, value_type in field_specs:
+        if sp_key not in new_values:
+            continue
+        old = sp_item.get(sp_key)
+        new = new_values.get(sp_key)
+        if values_equal_for_diff(old, new, value_type):
+            continue
+        changes.append({
+            'field': display_name,
+            'old':   format_value_for_diff(old, value_type),
+            'new':   format_value_for_diff(new, value_type),
+        })
+    return changes
+
+# Field specs per sync flow — ordered by importance (Done/Closed/status first,
+# then dates, then identifiers, then insurance/estimator). Display names match
+# the SP column display names for readability in the email.
+
+# Flow 10 (RO Report Sync) — writes: Title, WorkfileID, CCCPromisDate,
+# ActualDelivery, Done, Closed (hardcoded No), TotalLoss, Insurance, Estimator
+RO_SYNC_DIFF_FIELDS = [
+    ('done',                  'Done',                  'bool'),
+    ('total_loss',            'Total Loss',            'bool'),
+    ('cccpromisdate',         'CCC Promise Date',      'date'),
+    ('actual_delivery',       'Actual Delivery',       'date'),
+    ('ro_number',             'RO #',                  'text'),
+    ('workfile_id',           'Workfile ID',           'text'),
+    ('insurance',             'Insurance',             'text'),
+    ('estimator',             'Estimator',             'text'),
+]
+
+# Flow 10a (Production Sync) — writes: Title, WorkfileID, CCCPromisDate,
+# DropDate, RepairStatus, Tech, Painter, Closed (hardcoded No), TotalLoss,
+# Insurance, Estimator
+PRODUCTION_SYNC_DIFF_FIELDS = [
+    ('repair_status',         'Repair Status',         'text'),
+    ('tech',                  'Tech',                  'text'),
+    ('painter',               'Painter',               'text'),
+    ('total_loss',            'Total Loss',            'bool'),
+    ('cccpromisdate',         'CCC Promise Date',      'date'),
+    ('drop_date',             'Drop Date',             'date'),
+    ('ro_number',             'RO #',                  'text'),
+    ('workfile_id',           'Workfile ID',           'text'),
+    ('insurance',             'Insurance',             'text'),
+    ('estimator',             'Estimator',             'text'),
+]
+
+# Flow 10b (Cleanup Sync) — writes: Title, WorkfileID, CCCPromisDate, Done,
+# Closed, ActualDelivery, TotalLoss, Insurance, Estimator
+CLEANUP_SYNC_DIFF_FIELDS = [
+    ('done',                  'Done',                  'bool'),
+    ('closed',                'Closed',                'bool'),
+    ('actual_delivery',       'Actual Delivery',       'date'),
+    ('total_loss',            'Total Loss',            'bool'),
+    ('cccpromisdate',         'CCC Promise Date',      'date'),
+    ('ro_number',             'RO #',                  'text'),
+    ('workfile_id',           'Workfile ID',           'text'),
+    ('insurance',             'Insurance',             'text'),
+    ('estimator',             'Estimator',             'text'),
+]
+
+
 # ─── RO Report helpers ────────────────────────────────────────────
 
 def _xml_text(parent, tag):
@@ -949,6 +1081,26 @@ def match_ro_report():
             'insurance_needs_fix':    insurance_needs_correction(sp_insurance_now),
         })
 
+    # Compute changes per matched row (May 18 — email visibility feature).
+    # Encodes the same logic the PA flow uses to decide what to write per field.
+    for m in matched:
+        sp = next((s for s in sharepoint_items if s.get('id') == m['list_item_id']), {})
+        vehicle_out = m.get('vehicle_out_datetime', '')
+        is_completed = m.get('is_completed', False)
+        # Build dict of values the flow would write to SP for this row.
+        new_values = {
+            'ro_number':       m.get('ro_number', ''),
+            'workfile_id':     m.get('workfile_id', ''),
+            # CCCPromisDate: write Vehicle Out only when CCC has it; else preserve SP
+            'cccpromisdate':   vehicle_out if vehicle_out else sp.get('cccpromisdate', ''),
+            'actual_delivery': vehicle_out if is_completed and vehicle_out else None,
+            'done':            is_completed,
+            'total_loss':      m.get('is_total_loss', False),
+            'insurance':       m.get('normalized_insurance', ''),
+            'estimator':       m.get('estimator_first_name', ''),
+        }
+        m['changes'] = compute_changes(sp, new_values, RO_SYNC_DIFF_FIELDS)
+
     return jsonify({
         'matched': matched,
         'unmatched_report_rows': unmatched,
@@ -1038,6 +1190,26 @@ def match_production_schedule():
             'parts_received_pct':     row.get('parts_received_pct', ''),
             'labor_assigned_pct':     row.get('labor_assigned_pct', ''),
         })
+
+    # Compute changes per matched row (May 18 — email visibility feature).
+    for m in matched:
+        sp = next((s for s in sharepoint_items if s.get('id') == m['list_item_id']), {})
+        vehicle_out = m.get('vehicle_out_datetime', '')
+        vehicle_in = m.get('vehicle_in_datetime', '')
+        new_values = {
+            'ro_number':       m.get('ro_number', ''),
+            'workfile_id':     m.get('workfile_id', ''),
+            'cccpromisdate':   vehicle_out if vehicle_out else sp.get('cccpromisdate', ''),
+            'drop_date':       vehicle_in if vehicle_in else sp.get('drop_date', ''),
+            # RepairStatus only writes when should_write_status is True
+            'repair_status':   m.get('new_repair_status', '') if m.get('should_write_status') else sp.get('repair_status', ''),
+            'tech':            m.get('new_tech', '') if m.get('new_tech', '') else sp.get('tech', ''),
+            'painter':         m.get('new_painter', '') if m.get('new_painter', '') else sp.get('painter', ''),
+            'total_loss':      m.get('is_total_loss', False),
+            'insurance':       m.get('normalized_insurance', ''),
+            'estimator':       m.get('estimator_first_name', ''),
+        }
+        m['changes'] = compute_changes(sp, new_values, PRODUCTION_SYNC_DIFF_FIELDS)
 
     # Stale tracker detection: SP items that aren't in any matched pair
     matched_sp_ids = {p[1].get('id') for p in matched_pairs}
@@ -1134,6 +1306,24 @@ def match_vehicles_scheduled_out():
             # Conditional fields
             'insurance_needs_fix':    insurance_needs_fix_or_blank(sp_insurance_now),
         })
+
+    # Compute changes per matched row (May 18 — email visibility feature).
+    for m in matched:
+        sp = next((s for s in sharepoint_items if s.get('id') == m['list_item_id']), {})
+        vehicle_out = m.get('vehicle_out_datetime', '')
+        is_delivered_now = m.get('is_delivered', False)
+        new_values = {
+            'ro_number':       m.get('ro_number', ''),
+            'workfile_id':     m.get('workfile_id', ''),
+            'cccpromisdate':   vehicle_out if vehicle_out else sp.get('cccpromisdate', ''),
+            'done':            m.get('should_set_done', False),
+            'closed':          m.get('is_closed', False),
+            'actual_delivery': vehicle_out if is_delivered_now and vehicle_out else None,
+            'total_loss':      m.get('is_total_loss', False),
+            'insurance':       m.get('normalized_insurance', ''),
+            'estimator':       m.get('estimator_first_name', ''),
+        }
+        m['changes'] = compute_changes(sp, new_values, CLEANUP_SYNC_DIFF_FIELDS)
 
     return jsonify({
         'matched': matched,
