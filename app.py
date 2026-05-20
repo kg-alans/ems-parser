@@ -362,6 +362,19 @@ def compute_changes(sp_item, new_values, field_specs):
         })
     return changes
 
+def format_changes_text(changes):
+    """Pre-format the changes list as a human-readable string for the email.
+
+    Returns '(no changes)' for empty list, or '; '-joined entries like
+    'Done: No → Yes; Actual Delivery: (blank) → 2026-05-01'.
+
+    PA can just insert this string directly — no nested loops or xpath tricks
+    needed on the flow side.
+    """
+    if not changes:
+        return '(no changes)'
+    return '; '.join(f"{c['field']}: {c['old']} → {c['new']}" for c in changes)
+
 # Field specs per sync flow — ordered by importance (Done/Closed/status first,
 # then dates, then identifiers, then insurance/estimator). Display names match
 # the SP column display names for readability in the email.
@@ -1100,6 +1113,7 @@ def match_ro_report():
             'estimator':       m.get('estimator_first_name', ''),
         }
         m['changes'] = compute_changes(sp, new_values, RO_SYNC_DIFF_FIELDS)
+        m['changes_text'] = format_changes_text(m['changes'])
 
     return jsonify({
         'matched': matched,
@@ -1210,6 +1224,7 @@ def match_production_schedule():
             'estimator':       m.get('estimator_first_name', ''),
         }
         m['changes'] = compute_changes(sp, new_values, PRODUCTION_SYNC_DIFF_FIELDS)
+        m['changes_text'] = format_changes_text(m['changes'])
 
     # Stale tracker detection: SP items that aren't in any matched pair
     matched_sp_ids = {p[1].get('id') for p in matched_pairs}
@@ -1324,6 +1339,7 @@ def match_vehicles_scheduled_out():
             'estimator':       m.get('estimator_first_name', ''),
         }
         m['changes'] = compute_changes(sp, new_values, CLEANUP_SYNC_DIFF_FIELDS)
+        m['changes_text'] = format_changes_text(m['changes'])
 
     return jsonify({
         'matched': matched,
