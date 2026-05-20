@@ -623,7 +623,7 @@ def ro_compatible(sp_ro_norm, report_ro_norm):
     """
     return ro_match_type(sp_ro_norm, report_ro_norm) is not None
 
-def run_match_engine(report_rows, sharepoint_items):
+def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
     """Shared matching engine. Returns (matched_pairs, unmatched, ambiguous).
 
     matched_pairs is list of (report_row, sp_item, match_type) tuples.
@@ -639,7 +639,36 @@ def run_match_engine(report_rows, sharepoint_items):
     ro_number contradicts the report row's IDs is skipped from candidates.
     This prevents already-claimed SP rows from being magnet-matched on
     shared customer + vehicle prefix (e.g., dealer accounts with many ROs).
+
+    Path B safety (added May 20, 2026 — Leedy bug fix):
+      - Source-side duplicate scan: if multiple report rows share the same
+        normalized owner + vehicle, ALL of them go to ambiguous. We can't
+        trust loose matches when the source itself has duplicates.
+      - Insurance verification: when Path B finds a single candidate, check
+        that SP and report insurance values agree (after normalization). If
+        both sides have non-blank insurance AND they disagree, the match goes
+        to ambiguous with reason "insurance mismatch". When either side is
+        blank, the check is skipped (lots of legitimate workfiles have blank
+        insurance early — customer-pay rows, deferred insurance entry).
+
+    Args:
+        insurance_lookup: optional Insurance Lookup list for normalization.
+            If None or empty, insurance check is skipped (pre-May-20 behavior).
     """
+    if insurance_lookup is None:
+        insurance_lookup = []
+
+    # Pre-scan: count report rows by normalized owner+vehicle. Used to refuse
+    # Path B matches when the source has duplicates (e.g., customer brought
+    # car back for a second job — two CCC files, same customer, same vehicle).
+    owner_vehicle_counts = {}
+    for r in report_rows:
+        no = normalize_owner(r.get('owner', '') or '').lower()
+        nv = normalize_year_4to2(r.get('vehicle', '') or '').lower()
+        if no and nv:
+            key = (no, nv)
+            owner_vehicle_counts[key] = owner_vehicle_counts.get(key, 0) + 1
+
     # Workfile_id index for Path A
     wf_index = {}
     for item in sharepoint_items:
@@ -722,6 +751,19 @@ def run_match_engine(report_rows, sharepoint_items):
             })
             continue
 
+        # Source-side duplicate check: if this report has multiple rows with
+        # same owner+vehicle, route to ambiguous regardless of SP match.
+        # We can't safely Path-B match when the source has duplicates.
+        if owner_vehicle_counts.get((norm_owner, norm_vehicle), 0) > 1:
+            ambiguous.append({
+                'ro_number': ro_number,
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'candidate_ids': [],
+                'reason': f'source-side duplicate: this report has {owner_vehicle_counts[(norm_owner, norm_vehicle)]} rows with the same customer + vehicle. Manual review required.'
+            })
+            continue
+
         candidates = []
         for item in sharepoint_items:
             item_customer = (item.get('customer_name') or '').lower()
@@ -744,6 +786,32 @@ def run_match_engine(report_rows, sharepoint_items):
                 candidates.append(item)
 
         if len(candidates) == 1:
+            # Insurance verification (May 20, 2026 — Leedy bug fix).
+            # If both SP and report insurance are non-blank AND they disagree
+            # (after normalization), route to ambiguous. Otherwise accept.
+            sp_insurance = (candidates[0].get('insurance') or '').strip()
+            report_carrier = (row.get('carrier_name') or '').strip()
+            if sp_insurance and report_carrier and insurance_lookup:
+                # Strip ⚠️ marker if present for fair comparison
+                sp_clean = sp_insurance
+                if sp_clean.startswith('⚠️'):
+                    sp_clean = sp_clean.replace('⚠️', '', 1).strip()
+                # Normalize both sides through the lookup helper
+                sp_normalized = normalize_insurance_name(sp_clean, insurance_lookup)
+                report_normalized = normalize_insurance_name(report_carrier, insurance_lookup)
+                # Strip ⚠️ from results too (we don't want '⚠️ ACUITY' vs '⚠️ ACUITY' to be a useful match — that's just two unnormalized strings)
+                sp_compare = sp_normalized.replace('⚠️', '').strip().lower()
+                report_compare = report_normalized.replace('⚠️', '').strip().lower()
+                if sp_compare != report_compare:
+                    ambiguous.append({
+                        'ro_number': ro_number,
+                        'owner': row['owner'],
+                        'vehicle': row['vehicle'],
+                        'candidate_ids': [candidates[0].get('id')],
+                        'reason': f'insurance mismatch: SP="{sp_insurance}", report="{report_carrier}". Likely cross-file match — verify before allowing.'
+                    })
+                    continue
+            # Insurance check passed (or skipped due to blank or no lookup)
             provisional.append((row, candidates[0], 'customer_vehicle'))
         elif len(candidates) == 0:
             unmatched.append({
@@ -1070,7 +1138,7 @@ def match_ro_report():
     except Exception as e:
         return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
 
-    matched_pairs, unmatched, ambiguous = run_match_engine(report_rows, sharepoint_items)
+    matched_pairs, unmatched, ambiguous = run_match_engine(report_rows, sharepoint_items, insurance_lookup)
 
     matched = []
     for row, sp, mtype in matched_pairs:
@@ -1161,7 +1229,7 @@ def match_production_schedule():
     except Exception as e:
         return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
 
-    matched_pairs, unmatched, ambiguous = run_match_engine(report_rows, sharepoint_items)
+    matched_pairs, unmatched, ambiguous = run_match_engine(report_rows, sharepoint_items, insurance_lookup)
 
     matched = []
     for row, sp, mtype in matched_pairs:
@@ -1287,7 +1355,7 @@ def match_vehicles_scheduled_out():
     except Exception as e:
         return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
 
-    matched_pairs, unmatched, ambiguous = run_match_engine(report_rows, sharepoint_items)
+    matched_pairs, unmatched, ambiguous = run_match_engine(report_rows, sharepoint_items, insurance_lookup)
 
     matched = []
     for row, sp, mtype in matched_pairs:
@@ -1389,6 +1457,13 @@ def match_cancelled_opportunities():
     if err:
         return jsonify({'error': err}), 400
 
+    # Optional insurance_lookup (May 20, 2026) — passed to run_match_engine
+    # for Path B insurance verification. Cancelled Opportunities endpoint
+    # historically didn't use it, but the engine's safety check needs it.
+    # If absent or empty, the insurance check is skipped (still safe — the
+    # source-side duplicate check is independent).
+    insurance_lookup, _ = coerce_sharepoint_items(data.get('insurance_lookup'))
+
     try:
         xml_bytes = base64.b64decode(data['xml'])
         all_rows = parse_opportunities_xml(xml_bytes)
@@ -1405,7 +1480,7 @@ def match_cancelled_opportunities():
         if not r.get('ro_number'):
             r['ro_number'] = f"WF:{r.get('workfile_id', '')}"
 
-    matched_pairs, unmatched, ambiguous = run_match_engine(candidate_rows, sharepoint_items)
+    matched_pairs, unmatched, ambiguous = run_match_engine(candidate_rows, sharepoint_items, insurance_lookup)
 
     # Apply safety guards. Failed guards move matches to ambiguous.
     safe_matches = []
