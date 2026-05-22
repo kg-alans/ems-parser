@@ -475,6 +475,11 @@ def parse_production_schedule_xml(xml_bytes):
             'parts_received_pct': _xml_text(o, 'parts_received_percent'),
             'labor_assigned_pct': _xml_text(o, 'labor_assigned_percent'),
             'total_loss':        _xml_text(o, 'is_total_loss').lower() == 'true',
+            # Path B signal fields (May 20 2026 — dollar/weak signal verification)
+            'estimate_total':    _xml_text(o, 'estimate_gross_amount'),
+            'drop_date':         _xml_text(o, 'vehicle_in_datetime'),
+            'promise_date':      _xml_text(o, 'repair_completed_datetime'),
+            'color':             _xml_text(o, 'vehicle_exterior_paint_color'),
         })
     return results
 
@@ -497,6 +502,9 @@ def parse_vehicles_scheduled_out_xml(xml_bytes):
             'is_delivered':      _xml_text(o, 'is_delivered').lower() == 'true',
             'total_loss':        _xml_text(o, 'is_total_loss').lower() == 'true',
             'file_status':       _xml_text(o, 'file_status_name'),
+            # Path B signal fields (May 20 2026 — dollar/weak signal verification)
+            'estimate_total':    _xml_text(o, 'estimate_gross_amount'),
+            'color':             _xml_text(o, 'vehicle_exterior_paint_color'),
         })
     return results
 
@@ -623,6 +631,195 @@ def ro_compatible(sp_ro_norm, report_ro_norm):
     """
     return ro_match_type(sp_ro_norm, report_ro_norm) is not None
 
+# ─── Path B signal scoring (May 20 2026) ─────────────────────────
+# Threshold for considering a dollar amount strong enough to confirm a match.
+# Below this floor, dollar matches are likely tow-ins, customer-pay door dings,
+# or other low-uniqueness amounts that collide easily across rows.
+PATH_B_DOLLAR_FLOOR = 500.0
+
+def _parse_dollar(value):
+    """Parse a dollar string to float. Returns None for blank/invalid input.
+    Handles both CCC report format ('4287.31') and SP currency strings.
+    """
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    # Strip currency symbols and commas
+    s = re.sub(r'[$,\s]', '', s)
+    try:
+        return float(s)
+    except (ValueError, TypeError):
+        return None
+
+def dollars_penny_match(report_total, sp_total):
+    """True if both amounts are above floor and match to the penny.
+    Returns False if either side is blank, below floor, or differs by ≥ 1 cent.
+    """
+    r = _parse_dollar(report_total)
+    s = _parse_dollar(sp_total)
+    if r is None or s is None:
+        return False
+    if r < PATH_B_DOLLAR_FLOOR or s < PATH_B_DOLLAR_FLOOR:
+        return False
+    # Compare to the penny — abs difference under half a cent counts as equal
+    return abs(r - s) < 0.005
+
+def insurance_signal(report_carrier, sp_insurance, insurance_lookup):
+    """Returns one of:
+      'agree'      — both non-blank, normalize to same carrier
+      'disagree'   — both non-blank, normalize to different carriers
+      'skip'       — at least one side blank, or lookup empty (signal unavailable)
+    """
+    rc = (report_carrier or '').strip()
+    si = (sp_insurance or '').strip()
+    if not rc or not si or not insurance_lookup:
+        return 'skip'
+    # Strip ⚠️ markers for fair comparison
+    if si.startswith('⚠️'):
+        si = si.replace('⚠️', '', 1).strip()
+    sp_normalized = normalize_insurance_name(si, insurance_lookup)
+    report_normalized = normalize_insurance_name(rc, insurance_lookup)
+    sp_compare = sp_normalized.replace('⚠️', '').strip().lower()
+    report_compare = report_normalized.replace('⚠️', '').strip().lower()
+    if not sp_compare or not report_compare:
+        return 'skip'
+    return 'agree' if sp_compare == report_compare else 'disagree'
+
+def _date_prefix(value):
+    """Get YYYY-MM-DD prefix from any ISO-ish date string. Returns '' on failure."""
+    if not value:
+        return ''
+    s = str(value).strip()
+    # Take everything before 'T' or space, fall back to first 10 chars
+    if 'T' in s:
+        s = s.split('T', 1)[0]
+    elif ' ' in s:
+        s = s.split(' ', 1)[0]
+    return s[:10] if len(s) >= 10 else ''
+
+def _date_within_one_day(date_a, date_b):
+    """True if two ISO-prefix dates are within ±1 calendar day.
+    Returns False on blank or unparseable input. Pure-string comparison
+    using day-of-year math (avoids importing datetime for one helper).
+    """
+    a = _date_prefix(date_a)
+    b = _date_prefix(date_b)
+    if not a or not b or len(a) < 10 or len(b) < 10:
+        return False
+    # Compare year, month, day separately. If year+month match and day differs
+    # by ≤ 1, accept. Cross-month/year boundaries are rare enough that we accept
+    # only exact match on those (avoids leap-year and month-length pitfalls).
+    try:
+        ya, ma, da = int(a[0:4]), int(a[5:7]), int(a[8:10])
+        yb, mb, db = int(b[0:4]), int(b[5:7]), int(b[8:10])
+    except ValueError:
+        return False
+    if ya == yb and ma == mb:
+        return abs(da - db) <= 1
+    return a == b
+
+def weak_signal_estimator(report_estimator, sp_estimator):
+    """True if estimator first names match (case-insensitive)."""
+    return estimator_first_name_match(report_estimator, sp_estimator)
+
+def weak_signal_color(report_color, sp_color):
+    """True if vehicle colors match (lowercase, trimmed). False if either blank."""
+    rc = (report_color or '').strip().lower()
+    sc = (sp_color or '').strip().lower()
+    if not rc or not sc:
+        return False
+    return rc == sc
+
+def weak_signal_drop_date(report_drop, sp_drop):
+    """True if drop dates match within ±1 day."""
+    return _date_within_one_day(report_drop, sp_drop)
+
+def weak_signal_promise_date(report_promise, sp_promise):
+    """True if promise/target dates match within ±1 day."""
+    return _date_within_one_day(report_promise, sp_promise)
+
+def score_path_b_signals(report_row, sp_candidate, insurance_lookup):
+    """Score a single (report row, SP candidate) pair against all Path B signals.
+
+    Returns a dict with:
+      strong_confirmations: list of signal names that strongly confirm
+      strong_contradictions: list of signal names that actively contradict
+      weak_confirmations: list of signal names that weakly confirm
+      total_strong: count of strong confirmations
+      total_weak: count of weak confirmations
+      has_contradiction: True if any strong signal contradicts
+      reason_parts: human-readable signal summary for email
+    """
+    strong_confirmations = []
+    strong_contradictions = []
+    weak_confirmations = []
+    reason_parts = []
+
+    # Strong signal 1: dollar amount (penny match, above floor)
+    report_dollar = report_row.get('estimate_total')
+    sp_dollar = sp_candidate.get('estimate_total')
+    if dollars_penny_match(report_dollar, sp_dollar):
+        strong_confirmations.append('dollar')
+        amount = _parse_dollar(report_dollar)
+        reason_parts.append(f'dollar ${amount:,.2f}')
+
+    # Strong signal 2: insurance agreement
+    ins_state = insurance_signal(
+        report_row.get('insurance_company') or report_row.get('carrier_name'),
+        sp_candidate.get('insurance'),
+        insurance_lookup
+    )
+    if ins_state == 'agree':
+        strong_confirmations.append('insurance')
+        reason_parts.append('insurance')
+    elif ins_state == 'disagree':
+        strong_contradictions.append('insurance')
+
+    # Weak signal 1: estimator first name
+    if weak_signal_estimator(report_row.get('estimator', ''), sp_candidate.get('estimator', '')):
+        weak_confirmations.append('estimator')
+
+    # Weak signal 2: color
+    if weak_signal_color(report_row.get('color', ''), sp_candidate.get('color', '')):
+        weak_confirmations.append('color')
+
+    # Weak signal 3: drop date
+    if weak_signal_drop_date(report_row.get('drop_date', ''), sp_candidate.get('drop_date', '')):
+        weak_confirmations.append('drop_date')
+
+    # Weak signal 4: promise date
+    if weak_signal_promise_date(report_row.get('promise_date', ''), sp_candidate.get('promise_date', '')):
+        weak_confirmations.append('promise_date')
+
+    return {
+        'strong_confirmations': strong_confirmations,
+        'strong_contradictions': strong_contradictions,
+        'weak_confirmations': weak_confirmations,
+        'total_strong': len(strong_confirmations),
+        'total_weak': len(weak_confirmations),
+        'has_contradiction': len(strong_contradictions) > 0,
+        'reason_parts': reason_parts,
+    }
+
+def build_match_reason(score, base_type='customer_vehicle'):
+    """Build a human-readable match_type label from signal scoring.
+
+    Examples:
+      base 'customer_vehicle', strong=['dollar']        → 'customer_vehicle_dollar'
+      base 'customer_vehicle', strong=['insurance']     → 'customer_vehicle_insurance'
+      base 'customer_vehicle', strong=['dollar', 'insurance']
+                                                        → 'customer_vehicle_dollar+insurance'
+      base 'customer_vehicle', weak=['estimator', 'color']
+                                                        → 'customer_vehicle_weak_estimator+color'
+    """
+    if score['total_strong'] > 0:
+        return base_type + '_' + '+'.join(score['strong_confirmations'])
+    if score['total_weak'] > 0:
+        return base_type + '_weak_' + '+'.join(score['weak_confirmations'])
+    return base_type
+
 def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
     """Shared matching engine. Returns (matched_pairs, unmatched, ambiguous).
 
@@ -633,23 +830,44 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
       Path A    — workfile_id           (CCC-internal unique ID, exact)
       Path A.5  — ro_number             (exact, case-insensitive, trimmed)
                   ro_number_compatible  (Tekion suffix case: SP has extra '-N')
-      Path B    — customer + vehicle    (fuzzy fallback for un-synced rows)
+      Path B    — customer + vehicle    (signal-scored fallback)
 
     Path B includes a disqualifier: any SP row whose workfile_id or
     ro_number contradicts the report row's IDs is skipped from candidates.
     This prevents already-claimed SP rows from being magnet-matched on
     shared customer + vehicle prefix (e.g., dealer accounts with many ROs).
 
-    Path B safety (added May 20, 2026 — Leedy bug fix):
-      - Source-side duplicate scan: if multiple report rows share the same
-        normalized owner + vehicle, ALL of them go to ambiguous. We can't
-        trust loose matches when the source itself has duplicates.
-      - Insurance verification: when Path B finds a single candidate, check
-        that SP and report insurance values agree (after normalization). If
-        both sides have non-blank insurance AND they disagree, the match goes
-        to ambiguous with reason "insurance mismatch". When either side is
-        blank, the check is skipped (lots of legitimate workfiles have blank
-        insurance early — customer-pay rows, deferred insurance entry).
+    Path B signal scoring (May 20 2026 refactor):
+      Strong signals (any 1 confirms):
+        - Dollar amount, ≥ PATH_B_DOLLAR_FLOOR, penny-match, unique
+        - Insurance agreement (both non-blank, normalize to same carrier)
+      Weak signals (need 2+ to confirm):
+        - Estimator first name match
+        - Vehicle color exact match
+        - Drop date within ±1 day
+        - Promise/target date within ±1 day
+
+      Single-candidate decision:
+        - Strong signal CONTRADICTS (e.g. insurance disagrees) → ambiguous
+        - ≥1 strong signal confirms → matched
+        - 0 strong + ≥2 weak signals → matched
+        - Otherwise → ambiguous (insufficient confirmation)
+
+      Multi-candidate decision (2+ by name+vehicle):
+        - Exactly 1 candidate has ≥1 strong confirmation (no contradiction) → matched
+        - Exactly 1 candidate has ≥2 weak confirmations → matched
+        - Otherwise → ambiguous with per-candidate signal breakdown
+
+      Source-side duplicate handling:
+        - If report has 2+ rows for same owner+vehicle, attempt dollar
+          disambiguation: if this report row's dollar uniquely matches one
+          SP candidate (and is unique among the duplicates) → matched.
+          Otherwise → ambiguous.
+
+    The match_type label flowing into the response encodes which signal(s)
+    confirmed the match, e.g. 'customer_vehicle_dollar+insurance' or
+    'customer_vehicle_weak_estimator+color'. This surfaces in the email
+    matched table for audit visibility.
 
     Args:
         insurance_lookup: optional Insurance Lookup list for normalization.
@@ -741,7 +959,7 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
                 })
                 continue
 
-        # Path B: customer + vehicle prefix (with disqualifier)
+        # Path B: customer + vehicle prefix (with disqualifier + signal scoring)
         if not norm_owner or not norm_vehicle:
             unmatched.append({
                 'ro_number': ro_number,
@@ -751,19 +969,7 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
             })
             continue
 
-        # Source-side duplicate check: if this report has multiple rows with
-        # same owner+vehicle, route to ambiguous regardless of SP match.
-        # We can't safely Path-B match when the source has duplicates.
-        if owner_vehicle_counts.get((norm_owner, norm_vehicle), 0) > 1:
-            ambiguous.append({
-                'ro_number': ro_number,
-                'owner': row['owner'],
-                'vehicle': row['vehicle'],
-                'candidate_ids': [],
-                'reason': f'source-side duplicate: this report has {owner_vehicle_counts[(norm_owner, norm_vehicle)]} rows with the same customer + vehicle. Manual review required.'
-            })
-            continue
-
+        # Filter SP candidates by customer + vehicle prefix, applying disqualifiers
         candidates = []
         for item in sharepoint_items:
             item_customer = (item.get('customer_name') or '').lower()
@@ -785,56 +991,133 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
             if item_customer == norm_owner and norm_vehicle.startswith(item_vehicle):
                 candidates.append(item)
 
-        if len(candidates) == 1:
-            # Insurance verification (May 20, 2026 — Leedy bug fix).
-            # If both SP and report insurance are non-blank AND they disagree
-            # (after normalization), route to ambiguous. Otherwise accept.
-            sp_insurance = (candidates[0].get('insurance') or '').strip()
-            report_carrier = (row.get('carrier_name') or '').strip()
-            if sp_insurance and report_carrier and insurance_lookup:
-                # Strip ⚠️ marker if present for fair comparison
-                sp_clean = sp_insurance
-                if sp_clean.startswith('⚠️'):
-                    sp_clean = sp_clean.replace('⚠️', '', 1).strip()
-                # Normalize both sides through the lookup helper
-                sp_normalized = normalize_insurance_name(sp_clean, insurance_lookup)
-                report_normalized = normalize_insurance_name(report_carrier, insurance_lookup)
-                # Strip ⚠️ from results too (we don't want '⚠️ ACUITY' vs '⚠️ ACUITY' to be a useful match — that's just two unnormalized strings)
-                sp_compare = sp_normalized.replace('⚠️', '').strip().lower()
-                report_compare = report_normalized.replace('⚠️', '').strip().lower()
-                if sp_compare != report_compare:
-                    ambiguous.append({
-                        'ro_number': ro_number,
-                        'owner': row['owner'],
-                        'vehicle': row['vehicle'],
-                        'candidate_ids': [candidates[0].get('id')],
-                        'reason': f'insurance mismatch: SP="{sp_insurance}", report="{report_carrier}". Likely cross-file match — verify before allowing.'
-                    })
-                    continue
-            # Insurance check passed (or skipped due to blank or no lookup)
-            provisional.append((row, candidates[0], 'customer_vehicle'))
-        elif len(candidates) == 0:
+        # Source-side duplicate handling (May 20 2026 — refined design).
+        # If this report has 2+ rows with the same owner+vehicle, we can't
+        # immediately trust loose matches. New design: try dollar
+        # disambiguation first. If a unique penny-match exists between this
+        # specific report row and one SP candidate, allow it. Otherwise
+        # fall through to ambiguous.
+        is_source_duplicate = owner_vehicle_counts.get((norm_owner, norm_vehicle), 0) > 1
+
+        if is_source_duplicate:
+            # Try dollar disambiguation: does this report row uniquely penny-match
+            # exactly one candidate? AND is the report row's dollar unique among
+            # all source duplicates? Both conditions required to safely match.
+            report_dollar = _parse_dollar(row.get('estimate_total'))
+            if report_dollar is not None and report_dollar >= PATH_B_DOLLAR_FLOOR:
+                # Check uniqueness among source duplicates
+                duplicate_dollars = []
+                for other in report_rows:
+                    other_owner = normalize_owner(other.get('owner', '') or '').lower()
+                    other_vehicle = normalize_year_4to2(other.get('vehicle', '') or '').lower()
+                    if (other_owner, other_vehicle) == (norm_owner, norm_vehicle):
+                        od = _parse_dollar(other.get('estimate_total'))
+                        if od is not None and od >= PATH_B_DOLLAR_FLOOR:
+                            duplicate_dollars.append(od)
+                # This row's dollar must appear exactly once among source duplicates
+                this_row_count = sum(1 for d in duplicate_dollars if abs(d - report_dollar) < 0.005)
+                if this_row_count == 1:
+                    # Now find candidates whose dollar penny-matches
+                    dollar_matched = [c for c in candidates if dollars_penny_match(report_dollar, c.get('estimate_total'))]
+                    if len(dollar_matched) == 1:
+                        provisional.append((row, dollar_matched[0], f'customer_vehicle_dollar_source_disambig'))
+                        continue
+
+            # Dollar disambiguation failed (or unavailable) — flag as ambiguous
+            ambiguous.append({
+                'ro_number': ro_number,
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'candidate_ids': [c.get('id') for c in candidates],
+                'reason': f'source-side duplicate: this report has {owner_vehicle_counts[(norm_owner, norm_vehicle)]} rows with the same customer + vehicle, and dollar disambiguation could not uniquely identify a match.'
+            })
+            continue
+
+        # Standard Path B (not a source-duplicate): score candidates by signals
+        if len(candidates) == 0:
             unmatched.append({
                 'ro_number': ro_number,
                 'owner': row['owner'],
                 'vehicle': row['vehicle'],
                 'reason': 'no SharePoint item with matching customer + vehicle'
             })
-        else:
-            est_matches = [
-                c for c in candidates
-                if estimator_first_name_match(report_estimator, c.get('estimator', ''))
-            ]
-            if len(est_matches) == 1:
-                provisional.append((row, est_matches[0], 'customer_vehicle_estimator'))
-            else:
+            continue
+
+        if len(candidates) == 1:
+            # Single candidate path: need 1 strong OR 2 weak to confirm.
+            # Any strong contradiction → ambiguous regardless of confirmations.
+            score = score_path_b_signals(row, candidates[0], insurance_lookup)
+
+            if score['has_contradiction']:
+                # E.g. insurance disagrees — Leedy-bug safeguard
                 ambiguous.append({
                     'ro_number': ro_number,
                     'owner': row['owner'],
                     'vehicle': row['vehicle'],
-                    'candidate_ids': [c.get('id') for c in candidates],
-                    'reason': f'{len(candidates)} SharePoint items matched same customer + vehicle prefix'
+                    'candidate_ids': [candidates[0].get('id')],
+                    'reason': f'1 candidate but strong signal contradicts: {", ".join(score["strong_contradictions"])}. Likely cross-file match — verify before allowing.'
                 })
+                continue
+
+            if score['total_strong'] >= 1 or score['total_weak'] >= 2:
+                match_type = build_match_reason(score, base_type='customer_vehicle')
+                provisional.append((row, candidates[0], match_type))
+                continue
+
+            # Insufficient confirmation: 1 candidate but no strong signals
+            # and ≤1 weak signal. Send to ambiguous so estimator can verify.
+            available = score['weak_confirmations']
+            ambiguous.append({
+                'ro_number': ro_number,
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'candidate_ids': [candidates[0].get('id')],
+                'reason': f'1 candidate but insufficient confirmation (need 1 strong or 2 weak signals; got {len(available)} weak: {", ".join(available) or "none"}).'
+            })
+            continue
+
+        # Multi-candidate path (2+ candidates by name + vehicle prefix):
+        # Score every candidate. Use signals to narrow to exactly one.
+        scored = [(c, score_path_b_signals(row, c, insurance_lookup)) for c in candidates]
+
+        # Try strong signals first: candidates with ≥1 strong confirmation and no contradiction
+        strong_winners = [(c, s) for c, s in scored if s['total_strong'] >= 1 and not s['has_contradiction']]
+        if len(strong_winners) == 1:
+            winner_candidate, winner_score = strong_winners[0]
+            match_type = build_match_reason(winner_score, base_type='customer_vehicle')
+            provisional.append((row, winner_candidate, match_type))
+            continue
+        # If multiple candidates have strong confirmations, the strong signal isn't
+        # discriminating — fall through to weak signals (don't immediately ambiguous)
+
+        # Try weak signals: candidates with ≥2 weak confirmations and no strong contradiction
+        weak_winners = [(c, s) for c, s in scored if s['total_weak'] >= 2 and not s['has_contradiction']]
+        if len(weak_winners) == 1:
+            winner_candidate, winner_score = weak_winners[0]
+            match_type = build_match_reason(winner_score, base_type='customer_vehicle')
+            provisional.append((row, winner_candidate, match_type))
+            continue
+
+        # Could not narrow to one. Compute what we learned for the email reason.
+        sig_summary = []
+        for c, s in scored:
+            cid = c.get('id')
+            parts = []
+            if s['strong_confirmations']:
+                parts.append('strong: ' + '+'.join(s['strong_confirmations']))
+            if s['weak_confirmations']:
+                parts.append('weak: ' + '+'.join(s['weak_confirmations']))
+            if s['strong_contradictions']:
+                parts.append('contradicts: ' + '+'.join(s['strong_contradictions']))
+            sig_summary.append(f'ID {cid} ({"; ".join(parts) or "no signals"})')
+
+        ambiguous.append({
+            'ro_number': ro_number,
+            'owner': row['owner'],
+            'vehicle': row['vehicle'],
+            'candidate_ids': [c.get('id') for c in candidates],
+            'reason': f'{len(candidates)} candidates by customer + vehicle prefix; signals did not uniquely identify one. Per-candidate signals: {" | ".join(sig_summary)}'
+        })
 
     # Duplicate SP detection: collapse SP items that match multiple report rows
     sp_id_to_rows = {}
@@ -879,6 +1162,9 @@ def parse_opportunities_xml(xml_bytes):
             'workfile_status':     _xml_text(o, 'workfile_status'),
             'converted_datetime':  _xml_text(o, 'converted_datetime'),
             'visit_stage_id':      _xml_text(o, 'customer_visit_stage_id'),
+            # Path B signal fields (May 20 2026 — dollar verification only;
+            # Opportunities XML lacks color, drop_date, promise_date)
+            'estimate_total':      _xml_text(o, 'opportunity_amount'),
         })
     return results
 
