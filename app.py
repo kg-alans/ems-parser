@@ -121,7 +121,7 @@ PHASE_MAPPING = {
     '5:Post-Scan':                         'QC',
 
     # Phase 6: Done / Customer
-    '6:Done, To Estimator':                'QC',
+    '6:Done, To Estimator':                'Done',
     '6:Repairs Complete, Customer Notified': 'Ready for Delivery',
     '6:Waiting on Insurance for Delivery': 'Ready for Delivery',
     '6:CustomerRequestRecall/Oilchange ef': None,  # service work — skip
