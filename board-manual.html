@@ -449,31 +449,7 @@ function renderBoard(jobs) {
 fetchBoardData();
 setInterval(fetchBoardData, REFRESH_INTERVAL);
 
-// ── AUTO-SCROLL ───────────────────────────────────────────────────
-const boardBody = document.getElementById('board-body');
-let scrollPos = 0;
-let direction = 1;
-let pauseTicks = 0;
-const SPEED = 0.5;
-const PAUSE = 10000 / 30;  // 10-second pause at top and bottom
-const TICK  = 30;
-
-setInterval(() => {
-  const maxScroll = boardBody.scrollHeight - boardBody.clientHeight;
-  if (maxScroll <= 0) return;
-  if (pauseTicks > 0) { pauseTicks--; return; }
-  scrollPos += SPEED * direction;
-  if (scrollPos >= maxScroll) {
-    scrollPos = maxScroll;
-    direction = -1;
-    pauseTicks = PAUSE;
-  } else if (scrollPos <= 0) {
-    scrollPos = 0;
-    direction = 1;
-    pauseTicks = PAUSE;
-  }
-  boardBody.scrollTop = scrollPos;
-}, TICK);
+// Manual scroll version — user scrolls with mouse wheel or touch.
 
 </script>
 </body>
