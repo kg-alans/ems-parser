@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import tempfile
 import os
 import base64
@@ -8,6 +8,8 @@ import xml.etree.ElementTree as ET
 from dbfread import DBF
 
 app = Flask(__name__)
+# ─── Display Board data store ─────────────────────────────────────
+_board_data = []
 
 # ─── Phase 3 mapping tables ───────────────────────────────────────
 
@@ -1810,6 +1812,27 @@ def match_cancelled_opportunities():
         }
     })
 
+# ─── /board-data endpoint ─────────────────────────────────────────
+
+@app.route('/board-data', methods=['POST'])
+def board_data_post():
+    global _board_data
+    data = request.get_json()
+    if not data or not isinstance(data, list):
+        return jsonify({'error': 'Expected a JSON array'}), 400
+    _board_data = data
+    return jsonify({'status': 'ok', 'rows': len(_board_data)})
+
+@app.route('/board-data', methods=['GET'])
+def board_data_get():
+    response = jsonify(_board_data)
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
+
+@app.route('/board', methods=['GET'])
+def board():
+    return send_from_directory('.', 'board.html')
+    
 # ─── /health endpoint (unchanged) ─────────────────────────────────
 
 @app.route('/health', methods=['GET'])
