@@ -10,7 +10,6 @@
     :root {
       --bg:         #0b0e14;
       --surface:    #111520;
-      --surface2:   #181e2c;
       --border:     #232b3e;
       --header-bg:  #6b1a2b;
       --header-rim: #8c2038;
@@ -18,20 +17,12 @@
       --text:       #dce6f5;
       --muted:      #56647d;
     }
-
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; overflow: hidden; }
 
-    html, body {
-      width: 100%; height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
-      overflow: hidden;
-    }
-
-    /* ── HEADER ──────────────────────────────────────────── */
+    /* ── HEADER ── */
     .board-header {
-      height: 74px;
+      height: 80px;
       background: var(--header-bg);
       border-bottom: 3px solid var(--header-rim);
       display: flex;
@@ -42,223 +33,115 @@
       z-index: 10;
     }
     .header-left { display: flex; flex-direction: column; gap: 2px; }
-    .shop-name {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 26px;
-      font-weight: 900;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: #fff;
-    }
-    .board-label {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.28em;
-      text-transform: uppercase;
-      color: var(--accent);
-    }
-    .header-center { display: flex; gap: 20px; }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      color: rgba(255,255,255,0.55);
-      text-transform: uppercase;
-    }
+    .shop-name { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; color: #fff; }
+    .board-label { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase; color: var(--accent); }
+    .header-center { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+    .legend { display: flex; gap: 20px; }
+    .legend-item { display: flex; align-items: center; gap: 7px; font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; color: rgba(255,255,255,0.6); text-transform: uppercase; }
     .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
     .header-right { text-align: right; }
-    .clock-time {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 38px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      color: #fff;
-      line-height: 1;
-    }
-    .clock-date {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.2em;
-      color: var(--accent);
-      text-transform: uppercase;
-    }
+    .clock-time { font-family: 'Barlow Condensed', sans-serif; font-size: 38px; font-weight: 700; letter-spacing: 0.06em; color: #fff; line-height: 1; }
+    .clock-date { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; }
 
-    /* ── COL HEADERS — sticky ─────────────────────────────── */
+    /* ── BOARD BODY ── */
+    .board-body { height: calc(100vh - 80px); overflow-y: scroll; padding: 0 20px 20px; scrollbar-width: none; }
+    .board-body::-webkit-scrollbar { display: none; }
+
+    /* ── COL HEADERS sticky ── */
     .col-header {
       display: grid;
-      grid-template-columns: 76px 100px 175px 1.3fr 140px 90px 90px 1.1fr 96px 96px;
+      grid-template-columns: 110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px 96px;
       gap: 0;
-      padding: 6px 12px 6px 14px;
+      padding: 7px 12px 7px 18px;
       background: var(--bg);
       position: sticky;
       top: 0;
       z-index: 5;
       border-bottom: 1px solid var(--border);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
-    .col-label {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.22em;
-      color: var(--muted);
-      text-transform: uppercase;
-    }
-    .col-label.center { text-align: center; }
+    .col-label { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; text-align: center; }
+    .col-label.left { text-align: left; }
 
-    /* ── BOARD BODY ───────────────────────────────────────── */
-    .board-body {
-      height: calc(100vh - 74px);
-      overflow-y: scroll;
-      padding: 0 20px 20px;
-      scrollbar-width: none;
-    }
-    .board-body::-webkit-scrollbar { display: none; }
-
-    /* ── GROUP ────────────────────────────────────────────── */
-    .group { margin-bottom: 14px; }
+    /* ── GROUP ── */
+    .group { margin-bottom: 12px; }
     .group-header {
       display: flex;
       align-items: center;
-      gap: 11px;
-      padding: 7px 12px 7px 14px;
+      justify-content: center;
+      gap: 10px;
+      padding: 7px 12px;
       border-radius: 4px 4px 0 0;
       margin-bottom: 3px;
       border-left: 4px solid transparent;
     }
     .group-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .group-label {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-    }
-    .group-count {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: 0.15em;
-      margin-left: auto;
-      text-transform: uppercase;
-    }
+    .group-label { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; }
+    .group-count { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 800; letter-spacing: 0.15em; text-transform: uppercase; }
     .group-divider { height: 1px; margin-bottom: 3px; opacity: 0.3; }
 
-    /* ── JOB ROW ──────────────────────────────────────────── */
+    /* ── JOB ROW ── */
     .job-row {
       display: grid;
-      grid-template-columns: 76px 100px 175px 1.3fr 140px 90px 90px 1.1fr 96px 96px;
+      grid-template-columns: 110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px 96px;
       gap: 0;
       padding: 9px 12px 9px 14px;
       border-radius: 3px;
       margin-bottom: 3px;
       align-items: center;
-      border-left: 4px solid transparent;
+      border-left: 5px solid transparent;
     }
-
-    .cell {
-      font-size: 13px;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      padding-right: 10px;
-      line-height: 1;
-    }
-    .cell-ro {
-      font-size: 14px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      letter-spacing: 0.03em;
-    }
+    .cell { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; line-height: 1; }
+    .cell-ro { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
     .cell-vehicle { font-weight: 400; opacity: 0.9; }
     .cell-insurance { font-size: 12px; opacity: 0.85; }
     .cell-center { text-align: center; }
 
-    /* ── ESTIMATOR GLOW ──────────────────────────────────── */
-    .cell-est {
-      font-size: 11px;
+    /* ── ESTIMATOR BADGE ── */
+    .cell-est { display: flex; align-items: center; }
+    .badge {
+      font-size: 13px;
       font-weight: 700;
       letter-spacing: 0.04em;
-      padding: 3px 6px;
+      padding: 5px 10px;
       border-radius: 4px;
       display: inline-block;
       white-space: nowrap;
       max-width: 100%;
       overflow: hidden;
-      text-overflow: clip;
+      text-overflow: ellipsis;
     }
-    .est-cordale { background: #0a3d18; color: #5fffaa; box-shadow: 0 0 8px #107c1099, 0 0 2px #107c10; border: 1px solid #107c1066; }
-    .est-dana    { background: #3d3200; color: #ffe066; box-shadow: 0 0 8px #d29922aa, 0 0 2px #d29922; border: 1px solid #d2992266; }
-    .est-logan   { background: #4a0a0a; color: #ff9999; box-shadow: 0 0 8px #c50f1f99, 0 0 2px #c50f1f; border: 1px solid #c50f1f66; }
-    .est-jennie  { background: #0a1a3d; color: #99c8ff; box-shadow: 0 0 8px #1464a599, 0 0 2px #1464a5; border: 1px solid #1464a566; }
+    .est-cordale { background: #0a3d18; color: #5fffaa; border: 1px solid #107c1066; }
+    .est-dana    { background: #3d3200; color: #ffe066; border: 1px solid #d2992266; }
+    .est-logan   { background: #4a0a0a; color: #ff9999; border: 1px solid #c50f1f66; }
+    .est-jennie  { background: #0a1a3d; color: #99c8ff; border: 1px solid #1464a566; }
     .est-other   { background: #1a2030; color: #8ab0d8; border: 1px solid #3a4a6a44; }
-    .cell-tech   { font-size: 12px; font-weight: 500; opacity: 0.85; }
-    .cell-painter { font-size: 12px; font-weight: 500; opacity: 0.8; }
+    .cell-tech   { font-size: 12px; opacity: 0.85; }
+    .cell-painter { font-size: 12px; opacity: 0.8; }
+    .repair-status { font-size: 12px; font-weight: 600; }
 
-    .icon { font-size: 12px; line-height: 1; }
+    /* ── DATES ── */
+    .cell-promise { font-size: 13px; font-weight: 600; opacity: 0.9; text-align: center; }
+    .cell-target { font-size: 11px; font-weight: 500; opacity: 0.75; text-align: center; }
+    .cell-target.target-late { color: #ff9999; opacity: 1; font-weight: 700; }
 
-    /* ── REPAIR STATUS ───────────────────────────────────── */
-    .repair-status {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
-    .cell-repair { text-align: center; }
-
-    /* ── PROMISE / TARGET DATE ───────────────────────────── */
-    .cell-promise {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
-      opacity: 0.9;
-      text-align: center;
-    }
-    .cell-target {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.03em;
-      opacity: 0.75;
-      text-align: center;
-    }
-    .cell-target.target-late {
-      color: #ff9999;
-      opacity: 1;
-      font-weight: 700;
-    }
-
-    /* ── LOADING / ERROR ─────────────────────────────────── */
-    .status-message {
-      text-align: center;
-      padding: 40px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 18px;
-      color: var(--muted);
-      letter-spacing: 0.1em;
-    }
+    .status-message { text-align: center; padding: 40px; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; color: var(--muted); letter-spacing: 0.1em; }
   </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <header class="board-header">
   <div class="header-left">
     <div class="shop-name">Ken Garff Body &amp; Glass — Downtown</div>
     <div class="board-label">3-Day Production Board</div>
   </div>
   <div class="header-center">
-    <div class="legend-item"><div class="legend-dot" style="background:#c50f1f"></div>Past Due / Late</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#4a9eff"></div>On Track</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>Due Tomorrow</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#4d8fd4"></div>Due in 2 Days</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#ff6060"></div>Past Due / Won't Make It</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#55ee88"></div>On Track</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffdd22"></div>Might Not Make It</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#6699ff"></div>Done Today</div>
+    </div>
   </div>
   <div class="header-right">
     <div class="clock-time" id="clock-time">–:– –</div>
@@ -266,142 +149,158 @@
   </div>
 </header>
 
-<!-- BOARD BODY -->
 <div class="board-body" id="board-body">
-
-  <!-- Column header row — sticky -->
   <div class="col-header">
-    <span class="col-label">Est.</span>
+    <span class="col-label left">Estimator</span>
     <span class="col-label">RO #</span>
     <span class="col-label">Customer</span>
     <span class="col-label">Vehicle</span>
     <span class="col-label">Insurance</span>
     <span class="col-label">Tech</span>
     <span class="col-label">Painter</span>
-    <span class="col-label center">Repair Status</span>
-    <span class="col-label center">Promise</span>
-    <span class="col-label center">Target</span>
+    <span class="col-label">Repair Status</span>
+    <span class="col-label">Promise</span>
+    <span class="col-label">Target</span>
   </div>
-
   <div id="groups-container"></div>
-
 </div>
 
 <script>
-// ── CONFIG ────────────────────────────────────────────────────────
 const JSON_URL = 'https://ems-parser.onrender.com/board-data';
-const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const REFRESH_INTERVAL = 5 * 60 * 1000;
 
-// ── CLOCK ─────────────────────────────────────────────────────────
 function updateClock() {
   const now = new Date();
   let h = now.getHours();
   const m = String(now.getMinutes()).padStart(2, '0');
   const ampm = h >= 12 ? 'PM' : 'AM';
   h = h % 12 || 12;
-  document.getElementById('clock-time').textContent = `${h}:${m} ${ampm}`;
-  const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  document.getElementById('clock-time').textContent = h + ':' + m + ' ' + ampm;
+  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const d = now;
-  document.getElementById('clock-date').textContent =
-    `${DAYS[d.getDay()]}  ·  ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  document.getElementById('clock-date').textContent = DAYS[d.getDay()] + '  ·  ' + MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
 }
 updateClock();
 setInterval(updateClock, 1000);
 
-// ── DATA FETCH ────────────────────────────────────────────────────
+function isToday(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
+
 async function fetchBoardData() {
   try {
     const res = await fetch(JSON_URL + '?_=' + Date.now());
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const raw = await res.json();
-    const jobs = raw
-      .map(r => ({
-        ro:           r.ro || '',
-        customer:     r.customer || '',
-        vehicle:      r.vehicle || '',
-        estimator:    r.estimator || '',
-        tech:         r.tech || '',
-        painter:      r.painter || '',
-        repairStatus: r.repairStatus || '',
-        insurance:    r.insurance || '',
-        promise:      r.promise || '',
-        target:       r.target || '',
-        dtp:          parseInt(r.dtp, 10),
-        totalLoss:    r.totalLoss === 'True' || r.totalLoss === true,
-        done:         r.done === 'True' || r.done === true,
-        targetLate:   r.target && r.promise ? new Date(r.target) > new Date(r.promise) : false,
-      }))
-      .filter(j =>
-        !j.done &&
-        !j.totalLoss &&
-        j.repairStatus !== '' &&
-        j.repairStatus !== 'Ready for Delivery' &&
-        j.repairStatus !== 'Total Loss' &&
-        j.repairStatus !== 'Done' &&
-        !isNaN(j.dtp) &&
-        j.dtp <= 2
-      );
-    renderBoard(jobs);
+    const jobs = raw.map(r => ({
+      ro:           r.ro || '',
+      customer:     r.customer || '',
+      vehicle:      r.vehicle || '',
+      estimator:    r.estimator || '',
+      tech:         r.tech || '',
+      painter:      r.painter || '',
+      repairStatus: r.repairStatus || '',
+      insurance:    r.insurance || '',
+      promise:      r.promise || '',
+      target:       r.target || '',
+      dtp:          r.dtp !== '' && r.dtp !== null && r.dtp !== undefined ? parseInt(r.dtp, 10) : NaN,
+      totalLoss:    r.totalLoss === 'True' || r.totalLoss === true,
+      done:         r.done === 'True' || r.done === true,
+      doneToday:    isToday(r.doneTime),
+      targetLate:   r.target && r.promise ? new Date(r.target) > new Date(r.promise) : false,
+    }));
+
+    const activeJobs = jobs.filter(j =>
+      !j.done &&
+      !j.totalLoss &&
+      j.repairStatus !== '' &&
+      j.repairStatus !== 'Ready for Delivery' &&
+      j.repairStatus !== 'Total Loss' &&
+      j.repairStatus !== 'Done' &&
+      !isNaN(j.dtp) &&
+      j.dtp <= 2
+    );
+
+    const doneTodayJobs = jobs.filter(j => j.done && j.doneToday);
+
+    renderBoard(activeJobs, doneTodayJobs);
   } catch (err) {
     document.getElementById('groups-container').innerHTML =
-      `<div class="status-message">⚠ Unable to load board data — ${err.message}</div>`;
+      '<div class="status-message">⚠ Unable to load board data — ' + err.message + '</div>';
   }
 }
 
-// ── FORMAT DATE ───────────────────────────────────────────────────
 function fmtDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso + 'T12:00:00');
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+  return MONTHS[d.getMonth()] + ' ' + d.getDate();
 }
 
-// ── COLOR SYSTEM ──────────────────────────────────────────────────
 function getRowColors(job) {
-  const { dtp, targetLate } = job;
-  if (dtp < 0)  return { bg: '#6a0a0f', border: '#c50f1f', text: '#ffd0d0' };
-  if (dtp === 0) return targetLate
-    ? { bg: '#6a0a0f', border: '#c50f1f', text: '#ffd0d0' }
-    : { bg: '#0a1f3d', border: '#4a9eff', text: '#c0d8ff' };
-  if (dtp === 1) return targetLate
-    ? { bg: '#5c2400', border: '#ca5010', text: '#ffd8b0' }
-    : { bg: '#0a3210', border: '#217c21', text: '#d0ffd0' };
-  if (dtp === 2) return targetLate
-    ? { bg: '#4a3800', border: '#c2980a', text: '#fff0b0' }
-    : { bg: '#163a16', border: '#2d8a2d', text: '#d8ffd8' };
-  return { bg: '#161c2c', border: '#3a4a6a', text: '#d8e4f8' };
+  const { dtp, targetLate, done } = job;
+  if (done) return { bg: '#0d2d6e', border_urgency: '#6699ff', text: '#c0d8ff' };
+  if (dtp < 0)  return { bg: '#8a0f16', border_urgency: '#ff6060', text: '#ffe0e0' };
+  if (dtp === 0 && targetLate) return { bg: '#8a0f16', border_urgency: '#ff6060', text: '#ffe0e0' };
+  if (dtp === 0 && !targetLate) return { bg: '#0d5229', border_urgency: '#55ee88', text: '#d0ffe0' };
+  if (dtp === 1 && !targetLate) return { bg: '#0d5229', border_urgency: '#55ee88', text: '#d0ffe0' };
+  if (dtp === 1 && targetLate) return { bg: '#5c4600', border_urgency: '#ffdd22', text: '#fff8c0' };
+  if (dtp === 2 && !targetLate) return { bg: '#0d5229', border_urgency: '#55ee88', text: '#d0ffe0' };
+  if (dtp === 2 && targetLate) return { bg: '#5c4600', border_urgency: '#ffdd22', text: '#fff8c0' };
+  return { bg: '#161c2c', border_urgency: '#3a4a6a', text: '#d8e4f8' };
 }
 
-// ── GROUP CONFIG ──────────────────────────────────────────────────
+function getEstimatorStripe(estimator) {
+  const e = (estimator || '').toLowerCase();
+  if (e === 'cordale') return '#107c10';
+  if (e === 'logan')   return '#c50f1f';
+  if (e === 'dana')    return '#d29922';
+  if (e === 'jennie')  return '#1464a5';
+  return '#3a4a6a';
+}
+
+function getEstClass(estimator) {
+  const e = (estimator || '').toLowerCase();
+  if (e === 'cordale') return 'est-cordale';
+  if (e === 'dana')    return 'est-dana';
+  if (e === 'logan')   return 'est-logan';
+  if (e === 'jennie')  return 'est-jennie';
+  return 'est-other';
+}
+
 const groups = [
-  { label: 'Past Due',      color: '#c50f1f', filter: j => j.dtp < 0  },
-  { label: 'Due Today',     color: '#4a9eff', filter: j => j.dtp === 0 },
-  { label: 'Due Tomorrow',  color: '#d29922', filter: j => j.dtp === 1 },
-  { label: 'Due in 2 Days', color: '#4d8fd4', filter: j => j.dtp === 2 },
+  { label: 'Past Due',      color: '#ff6060', filter: (j, _) => j.dtp < 0 },
+  { label: 'Due Today',     color: '#55ee88', filter: (j, _) => j.dtp === 0 },
+  { label: 'Done Today',    color: '#6699ff', filter: null },
+  { label: 'Due Tomorrow',  color: '#ffdd22', filter: (j, _) => j.dtp === 1 },
+  { label: 'Due in 2 Days', color: '#4d8fd4', filter: (j, _) => j.dtp === 2 },
 ];
 
-// ── RENDER ────────────────────────────────────────────────────────
-function renderBoard(jobs) {
+function renderBoard(activeJobs, doneTodayJobs) {
   const container = document.getElementById('groups-container');
   container.innerHTML = '';
+
   groups.forEach(group => {
-    const groupJobs = jobs.filter(group.filter);
+    const groupJobs = group.label === 'Done Today' ? doneTodayJobs : activeJobs.filter(j => group.filter(j));
     if (!groupJobs.length) return;
+
     const groupEl = document.createElement('div');
     groupEl.className = 'group';
 
     const hdr = document.createElement('div');
     hdr.className = 'group-header';
-    hdr.style.background = `${group.color}14`;
+    hdr.style.background = group.color + '14';
     hdr.style.borderLeftColor = group.color;
-    hdr.innerHTML = `
-      <div class="group-dot" style="background:${group.color}; box-shadow:0 0 7px ${group.color}88"></div>
-      <span class="group-label" style="color:${group.color}">${group.label}</span>
-      <span class="group-count" style="color:${group.color}">
-        ${groupJobs.length} vehicle${groupJobs.length !== 1 ? 's' : ''}
-      </span>
-    `;
+    hdr.innerHTML =
+      '<div class="group-dot" style="background:' + group.color + '; box-shadow:0 0 7px ' + group.color + '88"></div>' +
+      '<span class="group-label" style="color:' + group.color + '">' + group.label + '</span>' +
+      '<div class="group-dot" style="background:' + group.color + '; box-shadow:0 0 7px ' + group.color + '88"></div>' +
+      '<span class="group-count" style="color:' + group.color + '">' + groupJobs.length + ' vehicle' + (groupJobs.length !== 1 ? 's' : '') + '</span>' +
+      '<div class="group-dot" style="background:' + group.color + '; box-shadow:0 0 7px ' + group.color + '88"></div>';
     groupEl.appendChild(hdr);
 
     const div = document.createElement('div');
@@ -411,33 +310,27 @@ function renderBoard(jobs) {
 
     groupJobs.forEach(job => {
       const colors = getRowColors(job);
+      const stripe = getEstimatorStripe(job.estimator);
       const row = document.createElement('div');
       row.className = 'job-row';
       row.style.background = colors.bg;
-      row.style.borderLeftColor = colors.border;
+      row.style.borderLeftColor = stripe;
       row.style.color = colors.text;
 
-      const estLower = (job.estimator || '').toLowerCase();
-      const estClass = estLower === 'cordale' ? 'est-cordale'
-                     : estLower === 'dana'    ? 'est-dana'
-                     : estLower === 'logan'   ? 'est-logan'
-                     : estLower === 'jennie'  ? 'est-jennie'
-                     : 'est-other';
-
+      const estClass = getEstClass(job.estimator);
       const targetClass = job.targetLate ? 'cell-target target-late' : 'cell-target';
 
-      row.innerHTML = `
-        <div class="cell"><span class="cell-est ${estClass}">${job.estimator}</span></div>
-        <div class="cell cell-ro"><span>${job.ro}</span></div>
-        <div class="cell">${job.customer}</div>
-        <div class="cell cell-vehicle">${job.vehicle}</div>
-        <div class="cell cell-insurance">${job.insurance}</div>
-        <div class="cell cell-tech">${job.tech}</div>
-        <div class="cell cell-painter">${job.painter}</div>
-        <div class="cell cell-repair"><span class="repair-status">${job.repairStatus}</span></div>
-        <div class="cell cell-promise">${fmtDate(job.promise)}</div>
-        <div class="cell ${targetClass} cell-center">${fmtDate(job.target)}</div>
-      `;
+      row.innerHTML =
+        '<div class="cell cell-est"><span class="badge ' + estClass + '">' + job.estimator + '</span></div>' +
+        '<div class="cell cell-ro"><span>' + job.ro + '</span></div>' +
+        '<div class="cell">' + job.customer + '</div>' +
+        '<div class="cell cell-vehicle">' + job.vehicle + '</div>' +
+        '<div class="cell cell-insurance">' + job.insurance + '</div>' +
+        '<div class="cell cell-tech">' + job.tech + '</div>' +
+        '<div class="cell cell-painter">' + job.painter + '</div>' +
+        '<div class="cell cell-center"><span class="repair-status">' + job.repairStatus + '</span></div>' +
+        '<div class="cell cell-promise">' + fmtDate(job.promise) + '</div>' +
+        '<div class="cell ' + targetClass + ' cell-center">' + fmtDate(job.target) + '</div>';
       groupEl.appendChild(row);
     });
 
@@ -445,15 +338,11 @@ function renderBoard(jobs) {
   });
 }
 
-// ── INIT + AUTO-REFRESH ───────────────────────────────────────────
 fetchBoardData();
 setInterval(fetchBoardData, REFRESH_INTERVAL);
-
-// Full page reload every 30 minutes to clear any memory/drift
 setInterval(() => location.reload(), 30 * 60 * 1000);
 
-// Manual scroll version — user scrolls with mouse wheel or touch.
-
+// Manual scroll version.
 </script>
 </body>
 </html>
