@@ -449,6 +449,9 @@ function renderBoard(jobs) {
 fetchBoardData();
 setInterval(fetchBoardData, REFRESH_INTERVAL);
 
+// Full page reload every 30 minutes to clear any memory/drift
+setInterval(() => location.reload(), 30 * 60 * 1000);
+
 // ── AUTO-SCROLL ───────────────────────────────────────────────────
 const boardBody = document.getElementById('board-body');
 let scrollPos = 0;
