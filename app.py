@@ -1832,8 +1832,12 @@ def board_data_get():
 @app.route('/board', methods=['GET'])
 def board():
     return send_from_directory('.', 'board.html')
-    
-# ─── /health endpoint (unchanged) ─────────────────────────────────
+
+@app.route('/board-manual', methods=['GET'])
+def board_manual():
+    return send_from_directory('.', 'board-manual.html')
+
+# ─── /health endpoint ─────────────────────────────────────────────
 
 @app.route('/health', methods=['GET'])
 def health():
