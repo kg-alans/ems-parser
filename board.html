@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920">
+  <title>DTBS Production Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #0b0e14;
+      --surface:    #111520;
+      --surface2:   #181e2c;
+      --border:     #232b3e;
+      --header-bg:  #6b1a2b;
+      --header-rim: #8c2038;
+      --accent:     #e8a0b0;
+      --text:       #dce6f5;
+      --muted:      #56647d;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ──────────────────────────────────────────── */
+    .board-header {
+      height: 74px;
+      background: var(--header-bg);
+      border-bottom: 3px solid var(--header-rim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+    }
+    .header-left { display: flex; flex-direction: column; gap: 2px; }
+    .shop-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #fff;
+    }
+    .board-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+    .header-center {
+      display: flex;
+      gap: 20px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.55);
+      text-transform: uppercase;
+    }
+    .legend-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .header-right { text-align: right; }
+    .clock-time {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #fff;
+      line-height: 1;
+    }
+    .clock-date {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+
+    /* ── BODY ────────────────────────────────────────────── */
+    .board-body {
+      height: calc(100vh - 74px);
+      overflow-y: scroll;
+      padding: 14px 20px 20px;
+      scrollbar-width: none;
+    }
+    .board-body::-webkit-scrollbar { display: none; }
+
+    /* ── COL HEADERS ──────────────────────────────────────── */
+    .col-header {
+      display: grid;
+      grid-template-columns: 80px 100px 160px 1.3fr 130px 90px 90px 1.1fr 90px 90px;
+      gap: 0;
+      padding: 4px 12px 4px 14px;
+      margin-bottom: 8px;
+    }
+    .col-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+
+    /* ── GROUP ────────────────────────────────────────────── */
+    .group { margin-bottom: 14px; }
+    .group-header {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 7px 12px 7px 14px;
+      border-radius: 4px 4px 0 0;
+      margin-bottom: 3px;
+      border-left: 4px solid transparent;
+    }
+    .group-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .group-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    .group-count {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      opacity: 0.5;
+      margin-left: auto;
+      text-transform: uppercase;
+    }
+    .group-divider {
+      height: 1px;
+      margin-bottom: 3px;
+      opacity: 0.3;
+    }
+
+    /* ── JOB ROW ──────────────────────────────────────────── */
+    .job-row {
+      display: grid;
+      grid-template-columns: 80px 100px 160px 1.3fr 130px 90px 90px 1.1fr 90px 90px;
+      gap: 0;
+      padding: 9px 12px 9px 14px;
+      border-radius: 3px;
+      margin-bottom: 3px;
+      align-items: center;
+      border-left: 4px solid transparent;
+    }
+
+    .cell {
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-right: 10px;
+      line-height: 1;
+    }
+    .cell-ro {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      letter-spacing: 0.03em;
+    }
+    .cell-vehicle { font-weight: 400; opacity: 0.9; }
+    .cell-insurance { font-size: 12px; opacity: 0.85; }
+
+    /* ── ESTIMATOR GLOW ──────────────────────────────────── */
+    .cell-est {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      white-space: nowrap;
+    }
+    .est-cordale { background: #0a3d18; color: #5fffaa; box-shadow: 0 0 8px #107c1099, 0 0 2px #107c10; border: 1px solid #107c1066; }
+    .est-dana    { background: #3d3200; color: #ffe066; box-shadow: 0 0 8px #d29922aa, 0 0 2px #d29922; border: 1px solid #d2992266; }
+    .est-logan   { background: #4a0a0a; color: #ff9999; box-shadow: 0 0 8px #c50f1f99, 0 0 2px #c50f1f; border: 1px solid #c50f1f66; }
+    .est-jennie  { background: #0a1a3d; color: #99c8ff; box-shadow: 0 0 8px #1464a599, 0 0 2px #1464a5; border: 1px solid #1464a566; }
+    .est-other   { background: #1a2030; color: #8ab0d8; border: 1px solid #3a4a6a44; }
+    .cell-tech { font-size: 12px; font-weight: 500; opacity: 0.85; }
+    .cell-painter { font-size: 12px; font-weight: 500; opacity: 0.8; }
+
+    .icon { font-size: 12px; line-height: 1; }
+
+    /* ── REPAIR STATUS ───────────────────────────────────── */
+    .repair-status {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── PROMISE / TARGET DATE ───────────────────────────── */
+    .cell-promise {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      opacity: 0.9;
+    }
+    .cell-target {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      opacity: 0.75;
+    }
+    .cell-target.target-late {
+      color: #ff9999;
+      opacity: 1;
+      font-weight: 700;
+    }
+
+    /* ── LOADING / ERROR ─────────────────────────────────── */
+    .status-message {
+      text-align: center;
+      padding: 40px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="board-header">
+  <div class="header-left">
+    <div class="shop-name">Ken Garff Body &amp; Glass — Downtown</div>
+    <div class="board-label">3-Day Production Board</div>
+  </div>
+
+  <div class="header-center">
+    <div class="legend-item"><div class="legend-dot" style="background:#c50f1f"></div>Past Due / Late</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#107c10"></div>On Track</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#d29922"></div>Due Tomorrow</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4d8fd4"></div>Due in 2 Days</div>
+  </div>
+
+  <div class="header-right">
+    <div class="clock-time" id="clock-time">–:– –</div>
+    <div class="clock-date" id="clock-date">–––</div>
+  </div>
+</header>
+
+<!-- BOARD BODY -->
+<div class="board-body" id="board-body">
+
+  <!-- Column header row -->
+  <div class="col-header">
+    <span class="col-label">Est.</span>
+    <span class="col-label">RO #</span>
+    <span class="col-label">Customer</span>
+    <span class="col-label">Vehicle</span>
+    <span class="col-label">Insurance</span>
+    <span class="col-label">Tech</span>
+    <span class="col-label">Painter</span>
+    <span class="col-label">Repair Status</span>
+    <span class="col-label">Promise</span>
+    <span class="col-label">Target</span>
+  </div>
+
+  <div id="groups-container"></div>
+
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────
+const JSON_URL = 'https://ems-parser.onrender.com/board-data';
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+// ── CLOCK ─────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  let h = now.getHours();
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  document.getElementById('clock-time').textContent = `${h}:${m} ${ampm}`;
+
+  const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const d = now;
+  document.getElementById('clock-date').textContent =
+    `${DAYS[d.getDay()]}  ·  ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── DATA FETCH ────────────────────────────────────────────────────
+async function fetchBoardData() {
+  try {
+    const res = await fetch(JSON_URL + '?_=' + Date.now());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const raw = await res.json();
+
+    // Normalize and filter
+    const jobs = raw
+      .map(r => ({
+        ro:           r.ro || '',
+        customer:     r.customer || '',
+        vehicle:      r.vehicle || '',
+        estimator:    r.estimator || '',
+        tech:         r.tech || '',
+        painter:      r.painter || '',
+        repairStatus: r.repairStatus || '',
+        insurance:    r.insurance || '',
+        promise:      r.promise || '',
+        target:       r.target || '',
+        dtp:          parseInt(r.dtp, 10),
+        totalLoss:    r.totalLoss === 'True' || r.totalLoss === true,
+        done:         r.done === 'True' || r.done === true,
+        targetLate:   r.target && r.promise ? new Date(r.target) > new Date(r.promise) : false,
+      }))
+      .filter(j =>
+        !j.done &&
+        !j.totalLoss &&
+        j.repairStatus !== '' &&
+        j.repairStatus !== 'Ready for Delivery' &&
+        j.repairStatus !== 'Total Loss' &&
+        j.repairStatus !== 'Done' &&
+        !isNaN(j.dtp) &&
+        j.dtp <= 2
+      );
+
+    renderBoard(jobs);
+  } catch (err) {
+    document.getElementById('groups-container').innerHTML =
+      `<div class="status-message">⚠ Unable to load board data — ${err.message}</div>`;
+  }
+}
+
+// ── FORMAT DATE ───────────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T12:00:00'); // noon to avoid timezone shift
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}`;
+}
+
+// ── COLOR SYSTEM ──────────────────────────────────────────────────
+function getRowColors(job) {
+  const { dtp, targetLate } = job;
+  if (dtp < 0)  return { bg: '#6a0a0f', border: '#c50f1f', text: '#ffd0d0' };
+  if (dtp === 0) return targetLate
+    ? { bg: '#6a0a0f', border: '#c50f1f', text: '#ffd0d0' }
+    : { bg: '#0a3d18', border: '#107c10', text: '#c0ffd0' };
+  if (dtp === 1) return targetLate
+    ? { bg: '#5c2400', border: '#ca5010', text: '#ffd8b0' }
+    : { bg: '#0a3210', border: '#217c21', text: '#d0ffd0' };
+  if (dtp === 2) return targetLate
+    ? { bg: '#4a3800', border: '#c2980a', text: '#fff0b0' }
+    : { bg: '#163a16', border: '#2d8a2d', text: '#d8ffd8' };
+  return { bg: '#161c2c', border: '#3a4a6a', text: '#d8e4f8' };
+}
+
+// ── GROUP CONFIG ──────────────────────────────────────────────────
+const groups = [
+  { label: 'Past Due',      color: '#c50f1f', filter: j => j.dtp < 0  },
+  { label: 'Due Today',     color: '#107c10', filter: j => j.dtp === 0 },
+  { label: 'Due Tomorrow',  color: '#d29922', filter: j => j.dtp === 1 },
+  { label: 'Due in 2 Days', color: '#4d8fd4', filter: j => j.dtp === 2 },
+];
+
+// ── RENDER ────────────────────────────────────────────────────────
+function renderBoard(jobs) {
+  const container = document.getElementById('groups-container');
+  container.innerHTML = '';
+
+  groups.forEach(group => {
+    const groupJobs = jobs.filter(group.filter);
+    if (!groupJobs.length) return;
+
+    const groupEl = document.createElement('div');
+    groupEl.className = 'group';
+
+    // Group header
+    const hdr = document.createElement('div');
+    hdr.className = 'group-header';
+    hdr.style.background = `${group.color}14`;
+    hdr.style.borderLeftColor = group.color;
+    hdr.innerHTML = `
+      <div class="group-dot" style="background:${group.color}; box-shadow:0 0 7px ${group.color}88"></div>
+      <span class="group-label" style="color:${group.color}">${group.label}</span>
+      <span class="group-count" style="color:${group.color}">
+        ${groupJobs.length} vehicle${groupJobs.length !== 1 ? 's' : ''}
+      </span>
+    `;
+    groupEl.appendChild(hdr);
+
+    // Divider
+    const div = document.createElement('div');
+    div.className = 'group-divider';
+    div.style.background = group.color;
+    groupEl.appendChild(div);
+
+    // Job rows
+    groupJobs.forEach(job => {
+      const colors = getRowColors(job);
+      const row = document.createElement('div');
+      row.className = 'job-row';
+      row.style.background = colors.bg;
+      row.style.borderLeftColor = colors.border;
+      row.style.color = colors.text;
+
+      // Estimator glow badge
+      const estLower = (job.estimator || '').toLowerCase();
+      const estClass = estLower === 'cordale' ? 'est-cordale'
+                     : estLower === 'dana'    ? 'est-dana'
+                     : estLower === 'logan'   ? 'est-logan'
+                     : estLower === 'jennie'  ? 'est-jennie'
+                     : 'est-other';
+
+      // Target date
+      const targetClass = job.targetLate ? 'cell-target target-late' : 'cell-target';
+
+      row.innerHTML = `
+        <div class="cell"><span class="cell-est ${estClass}">${job.estimator}</span></div>
+        <div class="cell cell-ro"><span>${job.ro}</span></div>
+        <div class="cell">${job.customer}</div>
+        <div class="cell cell-vehicle">${job.vehicle}</div>
+        <div class="cell cell-insurance">${job.insurance}</div>
+        <div class="cell cell-tech">${job.tech}</div>
+        <div class="cell cell-painter">${job.painter}</div>
+        <div class="cell"><span class="repair-status">${job.repairStatus}</span></div>
+        <div class="cell cell-promise">${fmtDate(job.promise)}</div>
+        <div class="cell ${targetClass}">${fmtDate(job.target)}</div>
+      `;
+      groupEl.appendChild(row);
+    });
+
+    container.appendChild(groupEl);
+  });
+}
+
+// ── INIT + AUTO-REFRESH ───────────────────────────────────────────
+fetchBoardData();
+setInterval(fetchBoardData, REFRESH_INTERVAL);
+
+// ── AUTO-SCROLL ───────────────────────────────────────────────────
+const boardBody = document.getElementById('board-body');
+let scrollPos = 0;
+let direction = 1;
+let pauseTicks = 0;
+const SPEED = 0.5;
+const PAUSE = 3000 / 30;
+const TICK  = 30;
+
+setInterval(() => {
+  const maxScroll = boardBody.scrollHeight - boardBody.clientHeight;
+  if (maxScroll <= 0) return;
+  if (pauseTicks > 0) { pauseTicks--; return; }
+  scrollPos += SPEED * direction;
+  if (scrollPos >= maxScroll) {
+    scrollPos = maxScroll;
+    direction = -1;
+    pauseTicks = PAUSE;
+  } else if (scrollPos <= 0) {
+    scrollPos = 0;
+    direction = 1;
+    pauseTicks = PAUSE;
+  }
+  boardBody.scrollTop = scrollPos;
+}, TICK);
+</script>
+</body>
+</html>
