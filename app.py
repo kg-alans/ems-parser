@@ -1836,6 +1836,14 @@ def board():
 @app.route('/board-manual', methods=['GET'])
 def board_manual():
     return send_from_directory('.', 'board-manual.html')
+    
+@app.route('/3day', methods=['GET'])
+def three_day():
+    return send_from_directory('.', '3day.html')
+
+@app.route('/3day-manual', methods=['GET'])
+def three_day_manual():
+    return send_from_directory('.', '3day-manual.html')
 
 # ─── /health endpoint ─────────────────────────────────────────────
 
