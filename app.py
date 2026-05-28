@@ -1846,6 +1846,10 @@ def three_day():
 def three_day_manual():
     return send_from_directory('.', '3day-manual.html')
 
+@app.route('/3day-tv', methods=['GET'])
+def three_day_tv():
+    return send_from_directory('.', '3day-tv.html')
+
 # ─── /last-sync endpoint ──────────────────────────────────────────
 
 _last_sync = None
