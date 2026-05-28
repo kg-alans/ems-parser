@@ -17,27 +17,33 @@
 
     /* ── HEADER ── */
     .board-header {
-      height: 76px; background: var(--header-bg); border-bottom: 3px solid var(--header-rim);
+      height: 82px; background: var(--header-bg); border-bottom: 3px solid var(--header-rim);
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 20px; position: relative; z-index: 10;
     }
     .header-left { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; }
     .shop-name { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; white-space: nowrap; }
     .board-label { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase; color: var(--accent); }
-    .header-center { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; padding: 0 16px; }
-    .legend { display: flex; gap: 14px; flex-wrap: nowrap; }
+
+    .header-center { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; padding: 0 16px; }
+    .legend { display: flex; gap: 14px; }
     .legend-item { display: flex; align-items: center; gap: 5px; font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: rgba(255,255,255,0.55); text-transform: uppercase; white-space: nowrap; }
     .legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-    .last-sync { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: rgba(255,255,255,0.3); text-transform: uppercase; }
-    .header-right { text-align: right; flex-shrink: 0; }
-    .clock-time { font-family: 'Barlow Condensed', sans-serif; font-size: 32px; font-weight: 700; letter-spacing: 0.06em; color: #fff; line-height: 1; white-space: nowrap; }
-    .clock-date { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; white-space: nowrap; }
+
+    /* ── HEADER RIGHT — two time columns ── */
+    .header-right { display: flex; gap: 20px; align-items: flex-end; flex-shrink: 0; }
+    .time-block { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+    .time-sublabel { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+    .time-value { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; letter-spacing: 0.04em; color: #fff; line-height: 1; white-space: nowrap; }
+    .time-value.sync { color: rgba(255,255,255,0.65); font-size: 24px; }
+    .time-divider { width: 1px; height: 36px; background: rgba(255,255,255,0.15); align-self: center; }
+    .date-row { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; white-space: nowrap; text-align: center; }
 
     /* ── BOARD BODY ── */
-    .board-body { height: calc(100vh - 76px); overflow-y: scroll; padding: 0 14px 20px; scrollbar-width: none; }
+    .board-body { height: calc(100vh - 82px); overflow-y: scroll; padding: 0 14px 20px; scrollbar-width: none; }
     .board-body::-webkit-scrollbar { display: none; }
 
-    /* ── COL HEADERS sticky — 9 cols, no target ── */
+    /* ── COL HEADERS sticky — 9 cols ── */
     .col-header {
       display: grid;
       grid-template-columns: 96px 90px 150px 1.4fr 120px 82px 82px 1fr 88px;
@@ -59,7 +65,7 @@
     .group-count { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
     .group-divider { height: 1px; margin-bottom: 2px; opacity: 0.3; }
 
-    /* ── JOB ROW — 9 cols, no target ── */
+    /* ── JOB ROW ── */
     .job-row {
       display: grid;
       grid-template-columns: 96px 90px 150px 1.4fr 120px 82px 82px 1fr 88px;
@@ -71,14 +77,14 @@
     .cell-vehicle { font-weight: 400; opacity: 0.9; }
     .cell-center { text-align: center; }
     .cell-est { display: flex; align-items: center; }
-    .badge { font-size: 12px; font-weight: 700; letter-spacing: 0.03em; padding: 4px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+    .badge { font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     .est-cordale { background: #0a3d18; color: #5fffaa; border: 1px solid #107c1066; }
     .est-dana    { background: #3d3200; color: #ffe066; border: 1px solid #d2992266; }
     .est-logan   { background: #4a0a0a; color: #ff9999; border: 1px solid #c50f1f66; }
     .est-jennie  { background: #0a1a3d; color: #99c8ff; border: 1px solid #1464a566; }
     .est-other   { background: #1a2030; color: #8ab0d8; border: 1px solid #3a4a6a44; }
-    .cell-tech   { font-size: 11px; opacity: 0.85; text-align: center; }
-    .cell-painter { font-size: 11px; opacity: 0.8; text-align: center; }
+    .cell-tech    { font-size: 11px; opacity: 0.85; text-align: center; }
+    .cell-painter { font-size: 11px; opacity: 0.8;  text-align: center; }
     .cell-insurance { font-size: 11px; opacity: 0.85; text-align: center; }
     .repair-status { font-size: 12px; font-weight: 600; }
     .cell-promise { font-size: 13px; font-weight: 600; opacity: 0.9; text-align: center; }
@@ -98,11 +104,22 @@
       <div class="legend-item"><div class="legend-dot" style="background:#ffdd22"></div>Might Not Make It</div>
       <div class="legend-item"><div class="legend-dot" style="background:#6699ff"></div>Done Today</div>
     </div>
-    <div class="last-sync" id="last-sync-label">Last sync: —</div>
   </div>
   <div class="header-right">
-    <div class="clock-time" id="clock-time">–:– –</div>
-    <div class="clock-date" id="clock-date">–––</div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+      <div style="display:flex;gap:20px;align-items:flex-end;">
+        <div class="time-block">
+          <span class="time-sublabel">Current Time</span>
+          <span class="time-value" id="clock-time">–:– –</span>
+        </div>
+        <div class="time-divider"></div>
+        <div class="time-block">
+          <span class="time-sublabel">Last Sync</span>
+          <span class="time-value sync" id="sync-time">—</span>
+        </div>
+      </div>
+      <div class="date-row" id="clock-date">–––</div>
+    </div>
   </div>
 </header>
 
@@ -135,15 +152,20 @@ const STATUS_RANK = {
   'Ready for Delivery': 18, 'Delivered': 19, 'Total Loss': 99
 };
 
+const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function fmtTime(d) {
+  let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return h + ':' + m + ' ' + ap;
+}
+
 function updateClock() {
   const now = new Date();
-  let h = now.getHours();
-  const m = String(now.getMinutes()).padStart(2, '0');
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  document.getElementById('clock-time').textContent = h + ':' + m + ' ' + ampm;
-  const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('clock-time').textContent = fmtTime(now);
   document.getElementById('clock-date').textContent = DAYS[now.getDay()] + ' · ' + MONTHS[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
 }
 updateClock();
@@ -156,68 +178,55 @@ async function fetchLastSync() {
     const data = await res.json();
     if (data.last_sync) {
       const d = new Date(data.last_sync);
-      let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      h = h % 12 || 12;
-      document.getElementById('last-sync-label').textContent = 'Last sync: ' + h + ':' + m + ' ' + ampm;
+      const now = new Date();
+      const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      const label = sameDay ? fmtTime(d) : MONTHS_SHORT[d.getMonth()] + ' ' + d.getDate() + ' · ' + fmtTime(d);
+      document.getElementById('sync-time').textContent = label;
     }
   } catch(e) {}
 }
 
 function isToday(dateStr) {
   if (!dateStr) return false;
-  const d = new Date(dateStr);
-  const now = new Date();
+  const d = new Date(dateStr), now = new Date();
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 }
 
 function getRowColors(job) {
-  const { dtp, targetLate, repairStatus, done } = job;
-  const rank = STATUS_RANK[repairStatus] !== undefined ? STATUS_RANK[repairStatus] : 0;
-  if (done) return { bg: '#0d2d6e', text: '#c0d8ff' };
-  if (dtp < 0) return { bg: '#8a0f16', text: '#ffe0e0' };
-  if (dtp === 0) {
+  const rank = STATUS_RANK[job.repairStatus] !== undefined ? STATUS_RANK[job.repairStatus] : 0;
+  if (job.done) return { bg: '#0d2d6e', text: '#c0d8ff' };
+  if (job.dtp < 0) return { bg: '#8a0f16', text: '#ffe0e0' };
+  if (job.dtp === 0) {
     if (rank <= 11) return { bg: '#8a0f16', text: '#ffe0e0' };
     if (rank <= 13) return { bg: '#5c4600', text: '#fff8c0' };
-    if (targetLate) return { bg: '#8a0f16', text: '#ffe0e0' };
+    if (job.targetLate) return { bg: '#8a0f16', text: '#ffe0e0' };
     return { bg: '#0d5229', text: '#d0ffe0' };
   }
-  if (dtp === 1) {
+  if (job.dtp === 1) {
     if (rank <= 7)  return { bg: '#8a0f16', text: '#ffe0e0' };
     if (rank <= 11) return { bg: '#5c4600', text: '#fff8c0' };
-    if (targetLate) return { bg: '#5c4600', text: '#fff8c0' };
+    if (job.targetLate) return { bg: '#5c4600', text: '#fff8c0' };
     return { bg: '#0d5229', text: '#d0ffe0' };
   }
-  if (dtp === 2) {
-    if (targetLate) return { bg: '#5c4600', text: '#fff8c0' };
+  if (job.dtp === 2) {
+    if (job.targetLate) return { bg: '#5c4600', text: '#fff8c0' };
     return { bg: '#0d5229', text: '#d0ffe0' };
   }
   return { bg: '#161c2c', text: '#d8e4f8' };
 }
 
-function getEstimatorStripe(e) {
-  e = (e || '').toLowerCase();
-  if (e === 'cordale') return '#107c10';
-  if (e === 'logan')   return '#c50f1f';
-  if (e === 'dana')    return '#d29922';
-  if (e === 'jennie')  return '#1464a5';
-  return '#3a4a6a';
+function stripe(e) {
+  e = (e||'').toLowerCase();
+  return e==='cordale'?'#107c10':e==='logan'?'#c50f1f':e==='dana'?'#d29922':e==='jennie'?'#1464a5':'#3a4a6a';
 }
-
-function getEstClass(e) {
-  e = (e || '').toLowerCase();
-  if (e === 'cordale') return 'est-cordale';
-  if (e === 'dana')    return 'est-dana';
-  if (e === 'logan')   return 'est-logan';
-  if (e === 'jennie')  return 'est-jennie';
-  return 'est-other';
+function estClass(e) {
+  e = (e||'').toLowerCase();
+  return e==='cordale'?'est-cordale':e==='dana'?'est-dana':e==='logan'?'est-logan':e==='jennie'?'est-jennie':'est-other';
 }
-
 function fmtDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso + 'T12:00:00');
-  const M = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return M[d.getMonth()] + ' ' + d.getDate();
+  return MONTHS_SHORT[d.getMonth()] + ' ' + d.getDate();
 }
 
 const groups = [
@@ -234,41 +243,28 @@ async function fetchBoardData() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const raw = await res.json();
     const jobs = raw.map(r => ({
-      ro:           r.ro || '',
-      customer:     r.customer || '',
-      vehicle:      r.vehicle || '',
-      estimator:    r.estimator || '',
-      tech:         r.tech || '',
-      painter:      r.painter || '',
-      repairStatus: r.repairStatus || '',
-      insurance:    r.insurance || '',
-      promise:      r.promise || '',
-      dtp:          r.dtp !== '' && r.dtp !== null ? parseInt(r.dtp, 10) : NaN,
-      totalLoss:    r.totalLoss === 'True' || r.totalLoss === true,
-      done:         r.done === 'True' || r.done === true,
-      doneToday:    isToday(r.doneTime),
-      targetLate:   r.target && r.promise ? new Date(r.target) > new Date(r.promise) : false,
+      ro: r.ro||'', customer: r.customer||'', vehicle: r.vehicle||'',
+      estimator: r.estimator||'', tech: r.tech||'', painter: r.painter||'',
+      repairStatus: r.repairStatus||'', insurance: r.insurance||'', promise: r.promise||'',
+      dtp: (r.dtp!==''&&r.dtp!==null&&r.dtp!==undefined) ? parseInt(r.dtp,10) : NaN,
+      totalLoss: r.totalLoss==='True'||r.totalLoss===true,
+      done: r.done==='True'||r.done===true,
+      doneToday: isToday(r.doneTime),
+      targetLate: r.target&&r.promise ? new Date(r.target)>new Date(r.promise) : false,
     }));
-
     const active = jobs.filter(j =>
-      !j.done && !j.totalLoss &&
-      j.repairStatus !== '' &&
-      j.repairStatus !== 'Ready for Delivery' &&
-      j.repairStatus !== 'Total Loss' &&
-      j.repairStatus !== 'Done' &&
-      !isNaN(j.dtp) && j.dtp <= 2
+      !j.done && !j.totalLoss && j.repairStatus && j.repairStatus!=='Ready for Delivery' &&
+      j.repairStatus!=='Total Loss' && j.repairStatus!=='Done' && !isNaN(j.dtp) && j.dtp<=2
     );
-
     renderBoard({
-      pastdue:  active.filter(j => j.dtp < 0),
-      today:    active.filter(j => j.dtp === 0),
-      done:     jobs.filter(j => j.done && j.doneToday),
-      tomorrow: active.filter(j => j.dtp === 1),
-      twodays:  active.filter(j => j.dtp === 2),
+      pastdue:  active.filter(j=>j.dtp<0),
+      today:    active.filter(j=>j.dtp===0),
+      done:     jobs.filter(j=>j.done&&j.doneToday),
+      tomorrow: active.filter(j=>j.dtp===1),
+      twodays:  active.filter(j=>j.dtp===2),
     });
   } catch(err) {
-    document.getElementById('groups-container').innerHTML =
-      '<div class="status-message">⚠ ' + err.message + '</div>';
+    document.getElementById('groups-container').innerHTML = '<div class="status-message">⚠ '+err.message+'</div>';
   }
 }
 
@@ -276,53 +272,51 @@ function renderBoard(grouped) {
   const container = document.getElementById('groups-container');
   container.innerHTML = '';
   groups.forEach(group => {
-    const jobs = grouped[group.key] || [];
+    const jobs = grouped[group.key]||[];
     if (!jobs.length) return;
     const groupEl = document.createElement('div');
     groupEl.className = 'group';
     const hdr = document.createElement('div');
     hdr.className = 'group-header';
-    hdr.style.background = group.color + '14';
+    hdr.style.background = group.color+'14';
     hdr.style.borderLeftColor = group.color;
     hdr.innerHTML =
-      '<div class="group-dot" style="background:' + group.color + ';box-shadow:0 0 6px ' + group.color + '88"></div>' +
-      '<span class="group-label" style="color:' + group.color + '">' + group.label + '</span>' +
-      '<div class="group-dot" style="background:' + group.color + ';box-shadow:0 0 6px ' + group.color + '88"></div>' +
-      '<span class="group-count" style="color:' + group.color + '">' + jobs.length + ' vehicle' + (jobs.length !== 1 ? 's' : '') + '</span>' +
-      '<div class="group-dot" style="background:' + group.color + ';box-shadow:0 0 6px ' + group.color + '88"></div>';
+      '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 6px '+group.color+'88"></div>'+
+      '<span class="group-label" style="color:'+group.color+'">'+group.label+'</span>'+
+      '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 6px '+group.color+'88"></div>'+
+      '<span class="group-count" style="color:'+group.color+'">'+jobs.length+' vehicle'+(jobs.length!==1?'s':'')+'</span>'+
+      '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 6px '+group.color+'88"></div>';
     groupEl.appendChild(hdr);
     const div = document.createElement('div');
-    div.className = 'group-divider';
-    div.style.background = group.color;
+    div.className='group-divider'; div.style.background=group.color;
     groupEl.appendChild(div);
     jobs.forEach(job => {
       const colors = getRowColors(job);
       const row = document.createElement('div');
-      row.className = 'job-row';
-      row.style.background = colors.bg;
-      row.style.borderLeftColor = getEstimatorStripe(job.estimator);
-      row.style.color = colors.text;
-      row.innerHTML =
-        '<div class="cell cell-est"><span class="badge ' + getEstClass(job.estimator) + '">' + job.estimator + '</span></div>' +
-        '<div class="cell cell-ro">' + job.ro + '</div>' +
-        '<div class="cell">' + job.customer + '</div>' +
-        '<div class="cell cell-vehicle">' + job.vehicle + '</div>' +
-        '<div class="cell cell-insurance">' + job.insurance + '</div>' +
-        '<div class="cell cell-tech">' + job.tech + '</div>' +
-        '<div class="cell cell-painter">' + job.painter + '</div>' +
-        '<div class="cell cell-center"><span class="repair-status">' + job.repairStatus + '</span></div>' +
-        '<div class="cell cell-promise">' + fmtDate(job.promise) + '</div>';
+      row.className='job-row';
+      row.style.background=colors.bg;
+      row.style.borderLeftColor=stripe(job.estimator);
+      row.style.color=colors.text;
+      row.innerHTML=
+        '<div class="cell cell-est"><span class="badge '+estClass(job.estimator)+'">'+job.estimator+'</span></div>'+
+        '<div class="cell cell-ro">'+job.ro+'</div>'+
+        '<div class="cell">'+job.customer+'</div>'+
+        '<div class="cell cell-vehicle">'+job.vehicle+'</div>'+
+        '<div class="cell cell-insurance">'+job.insurance+'</div>'+
+        '<div class="cell cell-tech">'+job.tech+'</div>'+
+        '<div class="cell cell-painter">'+job.painter+'</div>'+
+        '<div class="cell cell-center"><span class="repair-status">'+job.repairStatus+'</span></div>'+
+        '<div class="cell cell-promise">'+fmtDate(job.promise)+'</div>';
       groupEl.appendChild(row);
     });
     container.appendChild(groupEl);
   });
 }
 
-fetchBoardData();
-fetchLastSync();
+fetchBoardData(); fetchLastSync();
 setInterval(fetchBoardData, REFRESH_INTERVAL);
 setInterval(fetchLastSync, REFRESH_INTERVAL);
-setInterval(() => location.reload(), 30 * 60 * 1000);
+setInterval(()=>location.reload(), 30*60*1000);
 
 // ── AUTO-SCROLL ───────────────────────────────────────────────────
 const boardBody = document.getElementById('board-body');
@@ -330,8 +324,8 @@ let scrollPos = 0;
 let direction = 1;
 let pauseTicks = 0;
 const SPEED = 0.7;
-const PAUSE_TOP    = 10000 / 30;  // 10 seconds at top
-const PAUSE_BOTTOM = 5000 / 30;   // 5 seconds at bottom
+const PAUSE_TOP    = 10000 / 30;
+const PAUSE_BOTTOM = 5000 / 30;
 const TICK = 30;
 
 setInterval(() => {
