@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
+from datetime import datetime
 import tempfile
 import os
 import base64
@@ -1844,6 +1845,22 @@ def three_day():
 @app.route('/3day-manual', methods=['GET'])
 def three_day_manual():
     return send_from_directory('.', '3day-manual.html')
+
+# ─── /last-sync endpoint ──────────────────────────────────────────
+
+_last_sync = None
+
+@app.route('/last-sync', methods=['POST'])
+def last_sync_post():
+    global _last_sync
+    _last_sync = datetime.utcnow().isoformat() + 'Z'
+    return jsonify({'status': 'ok', 'last_sync': _last_sync})
+
+@app.route('/last-sync', methods=['GET'])
+def last_sync_get():
+    response = jsonify({'last_sync': _last_sync})
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
 
 # ─── /health endpoint ─────────────────────────────────────────────
 
