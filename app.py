@@ -11,6 +11,7 @@ from dbfread import DBF
 app = Flask(__name__)
 # ─── Display Board data store ─────────────────────────────────────
 _board_data = []
+_SYNC_FILE = os.path.join(os.path.dirname(__file__), 'last_sync.txt')
 
 # ─── Phase 3 mapping tables ───────────────────────────────────────
 
@@ -1856,13 +1857,23 @@ _last_sync = None
 
 @app.route('/last-sync', methods=['POST'])
 def last_sync_post():
-    global _last_sync
-    _last_sync = datetime.utcnow().isoformat() + 'Z'
-    return jsonify({'status': 'ok', 'last_sync': _last_sync})
+    ts = datetime.utcnow().isoformat() + 'Z'
+    try:
+        with open(_SYNC_FILE, 'w') as f:
+            f.write(ts)
+    except Exception:
+        pass
+    return jsonify({'status': 'ok', 'last_sync': ts})
 
 @app.route('/last-sync', methods=['GET'])
 def last_sync_get():
-    response = jsonify({'last_sync': _last_sync})
+    ts = None
+    try:
+        with open(_SYNC_FILE, 'r') as f:
+            ts = f.read().strip()
+    except Exception:
+        pass
+    response = jsonify({'last_sync': ts})
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
 
