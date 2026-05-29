@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1280">
+  <meta name="viewport" content="width=1024">
   <title>DTBS Production Board</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
       --accent: #e8a0b0; --text: #dce6f5; --muted: #56647d;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 1280px; height: 100%; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; overflow: hidden; }
+    html, body { width: 1024px; height: 100%; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; overflow-x: hidden; }
 
     /* ── HEADER ── */
     .board-header {
@@ -46,7 +46,7 @@
     /* ── COL HEADERS sticky — 9 cols ── */
     .col-header {
       display: grid;
-      grid-template-columns: 96px 90px 150px 1.4fr 120px 82px 82px 1fr 88px;
+      grid-template-columns: 88px 82px 130px 1.3fr 110px 74px 74px 1fr 80px;
       gap: 0; padding: 6px 10px 6px 16px;
       background: var(--bg); position: sticky; top: 0; z-index: 5;
       border-bottom: 1px solid var(--border); margin-bottom: 5px;
@@ -68,7 +68,7 @@
     /* ── JOB ROW ── */
     .job-row {
       display: grid;
-      grid-template-columns: 96px 90px 150px 1.4fr 120px 82px 82px 1fr 88px;
+      grid-template-columns: 88px 82px 130px 1.3fr 110px 74px 74px 1fr 80px;
       gap: 0; padding: 8px 10px 8px 12px; border-radius: 3px; margin-bottom: 2px;
       align-items: center; border-left: 5px solid transparent;
     }
