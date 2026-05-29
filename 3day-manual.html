@@ -292,7 +292,7 @@ async function fetchBoardData() {
     }));
 
     const activeJobs = jobs.filter(j =>
-      !j.done && !j.totalLoss &&
+      !j.doneToday && !j.totalLoss &&
       j.repairStatus !== '' &&
       j.repairStatus !== 'Ready for Delivery' &&
       j.repairStatus !== 'Total Loss' &&
@@ -300,7 +300,7 @@ async function fetchBoardData() {
       !isNaN(j.dtp) && j.dtp <= 2
     );
 
-    const doneTodayJobs = jobs.filter(j => j.done && j.doneToday);
+    const doneTodayJobs = jobs.filter(j => j.doneToday);
 
     const grouped = {
       pastdue:   activeJobs.filter(j => j.dtp < 0),
