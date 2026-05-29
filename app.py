@@ -102,6 +102,7 @@ PHASE_MAPPING = {
     '2:Repair In Process':                 'Repair in Process',
     '2:Repair Ready to Start':             'Repair in Process',
     '2:Re-Work Reqd - Body':               'Repair in Process',
+    '2:Re-Work Requd - Body':              'Repair in Process',  # CCC's actual phase name (added May 28)
 
     # Phase 3: Paint
     '3:Prep / Prime':                      'Paint',
@@ -113,10 +114,12 @@ PHASE_MAPPING = {
     '3:Re-Work Reqd - Paint':              'Paint',
     '3.1:Paint':                           'Paint',
     '3.2:Paint ANNEX':                     'Paint',
+    '3:Re-Work Requd - Paint':             'Paint',  # CCC's actual phase name (added May 28)
 
     # Phase 4: Reassembly
     '4:Reassembly':                        'Reassembly',
     '4:Reassembly ANNEX':                  'Reassembly',
+    '4:Glass Install':                     'Reassembly',  # Added May 28 — distinct from deprecated 3:Glass Install
 
     # Phase 5: QC / Detail
     '5:Detail':                            'QC',
@@ -129,6 +132,7 @@ PHASE_MAPPING = {
     '6:Repairs Complete, Customer Notified': 'Ready for Delivery',
     '6:Waiting on Insurance for Delivery': 'Ready for Delivery',
     '6:CustomerRequestRecall/Oilchange ef': None,  # service work — skip
+    '6:CustomerRequestRecall/Oilchange etc': None,  # CCC's actual phase name — service work, skip (added May 28)
 
     # Phase 7: Sublet (special — always overwrites)
     '7:Sublet Alignment':                  'Sublet',
@@ -152,6 +156,7 @@ PHASE_MAPPING = {
     '8:parts:Repair Delay':                'Waiting on Parts',
     '8:parts:See Notes':                   'Waiting on Parts',
     '8:parts:Sublet Delay':                'Waiting on Parts',
+    '8:parts:Dispatch Delay':              'Waiting on Parts',  # Added May 28 — not in current CCC phase list but confirmed real
 
     # Phase 9: Holds & Total Loss (Total Loss = special, always overwrites)
     '9:1st Suppl Hold':                    'Supp-Estimator',
@@ -169,6 +174,7 @@ PHASE_MAPPING = {
 
     # Phase 10
     '10: sublet detail':                   'Sublet',
+    '10:Detail':                           'QC',  # Added May 28 — same logic as 5:Detail
 }
 
 PHASES_ALWAYS_OVERWRITE = {'Sublet', 'Total Loss'}
@@ -575,16 +581,22 @@ def map_phase_to_status(ccc_phase):
     return PHASE_MAPPING.get(key)
 
 def should_write_status(new_status, current_status):
-    """Apply rank-based progression rule.
-    Returns True if new_status should overwrite current_status."""
+    """CCC Production Sync is authoritative — any mapped status overwrites.
+    
+    Policy changed May 28, 2026: removed rank-based progression rule. CCC is now
+    the source of truth for RepairStatus. Previous rule blocked backward moves
+    (e.g., kick-backs to re-work or parts holds) which were silently leaving SP
+    out of sync with reality. Only exception is None mappings — phases explicitly
+    flagged as non-production (Admin Delay, Production Delay, etc.) still don't write.
+    
+    PHASES_ALWAYS_OVERWRITE is preserved as a no-op set for now (Sublet, Total Loss)
+    since they're naturally included by the always-overwrite policy. The constant
+    is retained for documentation value and potential future use if a more nuanced
+    policy returns.
+    """
     if new_status is None:
         return False
-    # Sublet and Total Loss always overwrite
-    if new_status in PHASES_ALWAYS_OVERWRITE:
-        return True
-    new_rank = DTBS_STATUS_RANK.get(new_status, 0)
-    cur_rank = DTBS_STATUS_RANK.get(current_status or '', 0)
-    return new_rank > cur_rank
+    return True
 
 def map_tech(ccc_full_name):
     """Map CCC body tech full name to DTBS Tech choice value.
