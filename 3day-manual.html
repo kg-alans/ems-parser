@@ -79,6 +79,13 @@
     .cell-promise { font-size: 13px; font-weight: 600; opacity: 0.9; text-align: center; }
     .cell-target { font-size: 11px; font-weight: 500; opacity: 0.75; text-align: center; }
     .cell-target.target-late { color: #ff9999; opacity: 1; font-weight: 700; }
+    .header-right { display: flex; gap: 20px; align-items: flex-end; flex-shrink: 0; }
+    .time-block { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+    .time-sublabel { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
+    .time-value { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; letter-spacing: 0.04em; color: #fff; line-height: 1; white-space: nowrap; }
+    .time-value.sync { color: rgba(255,255,255,0.65); font-size: 24px; }
+    .time-divider { width: 1px; height: 36px; background: rgba(255,255,255,0.15); align-self: center; }
+    .date-row { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; white-space: nowrap; text-align: center; }
     .status-message { text-align: center; padding: 40px; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; color: var(--muted); letter-spacing: 0.1em; }
   </style>
 </head>
@@ -98,8 +105,20 @@
     <div class="last-sync" id="last-sync-label">Last sync: —</div>
   </div>
   <div class="header-right">
-    <div class="clock-time" id="clock-time">–:– –</div>
-    <div class="clock-date" id="clock-date">–––</div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+      <div style="display:flex;gap:20px;align-items:flex-end;">
+        <div class="time-block">
+          <span class="time-sublabel">Current Time</span>
+          <span class="time-value" id="clock-time">–:– –</span>
+        </div>
+        <div class="time-divider"></div>
+        <div class="time-block">
+          <span class="time-sublabel">Last Sync</span>
+          <span class="time-value sync" id="sync-time">—</span>
+        </div>
+      </div>
+      <div class="date-row" id="clock-date">–––</div>
+    </div>
   </div>
 </header>
 
@@ -122,6 +141,7 @@
 <script>
 const JSON_URL = 'https://kgdtbs.onrender.com/board-data';
 const SYNC_URL = 'https://kgdtbs.onrender.com/last-sync';
+const SYNC_URL = 'https://kgdtbs.onrender.com/last-sync';
 const REFRESH_INTERVAL = 5 * 60 * 1000;
 
 // Status rank map
@@ -143,8 +163,7 @@ function updateClock() {
   document.getElementById('clock-time').textContent = h + ':' + m + ' ' + ampm;
   const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const d = now;
-  document.getElementById('clock-date').textContent = DAYS[d.getDay()] + '  ·  ' + MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+  document.getElementById('clock-date').textContent = DAYS[now.getDay()] + ' · ' + MONTHS[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
 }
 updateClock();
 setInterval(updateClock, 1000);
@@ -156,11 +175,17 @@ async function fetchLastSync() {
     const data = await res.json();
     if (data.last_sync) {
       const d = new Date(data.last_sync);
+      const now = new Date();
+      const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+      const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
       const ampm = h >= 12 ? 'PM' : 'AM';
       h = h % 12 || 12;
-      document.getElementById('last-sync-label').textContent = 'Last sync: ' + h + ':' + m + ' ' + ampm;
+      const label = sameDay ? h+':'+m+' '+ampm : MONTHS_SHORT[d.getMonth()]+' '+d.getDate()+' · '+h+':'+m+' '+ampm;
+      document.getElementById('sync-time').textContent = label;
     }
+  } catch(e) {}
+}
   } catch(e) {}
 }
 
