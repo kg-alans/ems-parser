@@ -7,84 +7,48 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+
     :root {
       --bg: #0b0e14; --border: #232b3e;
       --header-bg: #6b1a2b; --header-rim: #8c2038;
       --accent: #e8a0b0; --text: #dce6f5; --muted: #56647d;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 1024px; height: 100%; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; overflow-x: hidden; }
 
-    /* ── HEADER ── */
-    .board-header {
-      height: 82px; background: var(--header-bg); border-bottom: 3px solid var(--header-rim);
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 20px; position: relative; z-index: 10;
-    }
+    html, body { width: 1024px; height: 100%; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; overflow: hidden; }
+    .board-header { height: 80px; background: var(--header-bg); border-bottom: 3px solid var(--header-rim); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; position: relative; z-index: 10; }
     .header-left { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; }
     .shop-name { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; white-space: nowrap; }
     .board-label { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase; color: var(--accent); }
-
     .header-center { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; padding: 0 16px; }
-    .legend { display: flex; gap: 14px; }
-    .legend-item { display: flex; align-items: center; gap: 5px; font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: rgba(255,255,255,0.55); text-transform: uppercase; white-space: nowrap; }
-    .legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-
-    /* ── HEADER RIGHT — two time columns ── */
+    .legend { display: flex; gap: 16px; flex-wrap: nowrap; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: rgba(255,255,255,0.55); text-transform: uppercase; white-space: nowrap; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .header-right { display: flex; gap: 20px; align-items: flex-end; flex-shrink: 0; }
     .time-block { display: flex; flex-direction: column; align-items: center; gap: 1px; }
     .time-sublabel { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
-    .time-value { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: 0.04em; color: #fff; line-height: 1; white-space: nowrap; }
-    .time-value.sync { color: rgba(255,255,255,0.65); font-size: 26px; }
+    .time-value { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; color: #fff; line-height: 1; white-space: nowrap; }
+    .time-value.sync { color: rgba(255,255,255,0.65); font-size: 22px; }
     .time-divider { width: 1px; height: 36px; background: rgba(255,255,255,0.15); align-self: center; }
     .date-row { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; white-space: nowrap; text-align: center; }
-
-    /* ── BOARD BODY ── */
-    .board-body { height: calc(100vh - 82px); overflow-y: scroll; padding: 0 14px 20px; scrollbar-width: none; }
+    .board-body { height: calc(100vh - 80px); overflow-y: scroll; padding: 0 20px 20px; scrollbar-width: none; }
     .board-body::-webkit-scrollbar { display: none; }
-
-    /* ── COL HEADERS sticky — 9 cols ── */
-    .col-header {
-      display: grid;
-      grid-template-columns: 88px 82px 130px 1.3fr 110px 74px 74px 1fr 80px;
-      gap: 0; padding: 6px 10px 6px 16px;
-      background: var(--bg); position: sticky; top: 0; z-index: 5;
-      border-bottom: 1px solid var(--border); margin-bottom: 5px;
-    }
-    .col-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; text-align: center; }
+    .col-header { display: grid; grid-template-columns: 88px 82px 130px 1.3fr 110px 74px 74px 1fr 80px; gap: 0; padding: 7px 12px 7px 18px; background: var(--bg); position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+    .col-label { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; text-align: center; }
     .col-label.left { text-align: left; }
-
-    /* ── GROUP ── */
-    .group { margin-bottom: 10px; }
-    .group-header {
-      display: flex; align-items: center; justify-content: center; gap: 9px;
-      padding: 6px 10px; border-radius: 4px 4px 0 0; margin-bottom: 2px; border-left: 4px solid transparent;
-    }
+    .group { margin-bottom: 12px; }
+    .group-header { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 6px 10px; border-radius: 4px 4px 0 0; margin-bottom: 2px; border-left: 4px solid transparent; }
     .group-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .group-label { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; }
     .group-count { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
     .group-divider { height: 1px; margin-bottom: 2px; opacity: 0.3; }
-
-    /* ── JOB ROW ── */
-    .job-row {
-      display: grid;
-      grid-template-columns: 88px 82px 130px 1.3fr 110px 74px 74px 1fr 80px;
-      gap: 0; padding: 8px 10px 8px 12px; border-radius: 3px; margin-bottom: 2px;
-      align-items: center; border-left: 5px solid transparent;
-    }
-    .cell { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 8px; line-height: 1; }
-    .cell-ro { font-size: 13px; font-weight: 700; }
-    .cell-vehicle { font-weight: 400; opacity: 0.9; }
+    .job-row { display: grid; grid-template-columns: 88px 82px 130px 1.3fr 110px 74px 74px 1fr 80px; gap: 0; padding: 9px 12px 9px 14px; border-radius: 3px; margin-bottom: 2px; align-items: center; border-left: 5px solid transparent; }
+    .cell { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; line-height: 1; }
     .cell-center { text-align: center; }
     .cell-est { display: flex; align-items: center; }
-    .badge { font-size: 12px; font-weight: 700; padding: 4px 8px; border-radius: 4px; display: inline-block; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-    .est-cordale { background: #0a3d18; color: #5fffaa; border: 1px solid #107c1066; }
-    .est-dana    { background: #3d3200; color: #ffe066; border: 1px solid #d2992266; }
-    .est-logan   { background: #4a0a0a; color: #ff9999; border: 1px solid #c50f1f66; }
-    .est-jennie  { background: #0a1a3d; color: #99c8ff; border: 1px solid #1464a566; }
-    .est-other   { background: #1a2030; color: #8ab0d8; border: 1px solid #3a4a6a44; }
-    .cell-tech    { font-size: 11px; opacity: 0.85; text-align: center; }
-    .cell-painter { font-size: 11px; opacity: 0.8;  text-align: center; }
+    .badge { font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 4px; display: inline-block; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+    .cell-tech { font-size: 11px; opacity: 0.85; text-align: center; }
+    .cell-painter { font-size: 11px; opacity: 0.8; text-align: center; }
     .cell-insurance { font-size: 11px; opacity: 0.85; text-align: center; }
     .repair-status { font-size: 12px; font-weight: 600; }
     .cell-promise { font-size: 13px; font-weight: 600; opacity: 0.9; text-align: center; }
@@ -101,28 +65,21 @@
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background:#ff6060"></div>Past Due / Won't Make It</div>
       <div class="legend-item"><div class="legend-dot" style="background:#55ee88"></div>On Track</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#ffdd22"></div>Might Not Make It</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#6699ff"></div>Done Today</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ffaa00"></div>Might Not Make It</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#55aaff"></div>Done Today</div>
     </div>
   </div>
   <div class="header-right">
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <div style="display:flex;gap:20px;align-items:flex-end;">
-        <div class="time-block">
-          <span class="time-sublabel">Current Time</span>
-          <span class="time-value" id="clock-time">–:– –</span>
-        </div>
+        <div class="time-block"><span class="time-sublabel">Current Time</span><span class="time-value" id="clock-time">–:– –</span></div>
         <div class="time-divider"></div>
-        <div class="time-block">
-          <span class="time-sublabel">Last Sync</span>
-          <span class="time-value sync" id="sync-time">—</span>
-        </div>
+        <div class="time-block"><span class="time-sublabel">Last Sync</span><span class="time-value sync" id="sync-time">—</span></div>
       </div>
       <div class="date-row" id="clock-date">–––</div>
     </div>
   </div>
 </header>
-
 <div class="board-body" id="board-body">
   <div class="col-header">
     <span class="col-label left">Estimator</span>
@@ -133,12 +90,12 @@
     <span class="col-label">Tech</span>
     <span class="col-label">Painter</span>
     <span class="col-label">Repair Status</span>
-    <span class="col-label">Promise</span>
+    <span class="col-label">CCC Promise</span>
   </div>
   <div id="groups-container"></div>
 </div>
-
 <script>
+
 const JSON_URL = 'https://kgdtbs.onrender.com/board-data';
 const SYNC_URL = 'https://kgdtbs.onrender.com/last-sync';
 const REFRESH_INTERVAL = 5 * 60 * 1000;
@@ -158,15 +115,16 @@ const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct
 
 function fmtTime(d) {
   let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
-  const ap = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
+  const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
   return h + ':' + m + ' ' + ap;
 }
 
 function updateClock() {
   const now = new Date();
-  document.getElementById('clock-time').textContent = fmtTime(now);
-  document.getElementById('clock-date').textContent = DAYS[now.getDay()] + ' · ' + MONTHS[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+  if (document.getElementById('clock-time'))
+    document.getElementById('clock-time').textContent = fmtTime(now);
+  if (document.getElementById('clock-date'))
+    document.getElementById('clock-date').textContent = DAYS[now.getDay()] + ' · ' + MONTHS[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
 }
 updateClock();
 setInterval(updateClock, 1000);
@@ -179,9 +137,9 @@ async function fetchLastSync() {
     if (data.last_sync) {
       const d = new Date(data.last_sync);
       const now = new Date();
-      const sameDay = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-      const label = sameDay ? fmtTime(d) : MONTHS_SHORT[d.getMonth()] + ' ' + d.getDate() + ' · ' + fmtTime(d);
-      document.getElementById('sync-time').textContent = label;
+      const sameDay = d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate();
+      const label = sameDay ? fmtTime(d) : MONTHS_SHORT[d.getMonth()]+' '+d.getDate()+' · '+fmtTime(d);
+      if (document.getElementById('sync-time')) document.getElementById('sync-time').textContent = label;
     }
   } catch(e) {}
 }
@@ -189,55 +147,51 @@ async function fetchLastSync() {
 function isToday(dateStr) {
   if (!dateStr) return false;
   const d = new Date(dateStr), now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+  return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate();
 }
 
 function getRowColors(job) {
   const rank = STATUS_RANK[job.repairStatus] !== undefined ? STATUS_RANK[job.repairStatus] : 0;
-  if (job.done) return { bg: '#0d2d6e', text: '#c0d8ff' };
-  if (job.dtp < 0) return { bg: '#8a0f16', text: '#ffe0e0' };
+  if (job.doneToday) return {bg:'#0a2a5c', border:'#55aaff', text:'#c8e0ff'};
+  if (job.dtp < 0) return {bg:'#8a0f16', border:'#ff6060', text:'#ffe0e0'};
   if (job.dtp === 0) {
-    if (rank <= 11) return { bg: '#8a0f16', text: '#ffe0e0' };
-    if (rank <= 13) return { bg: '#5c4600', text: '#fff8c0' };
-    if (job.targetLate) return { bg: '#8a0f16', text: '#ffe0e0' };
-    return { bg: '#0d5229', text: '#d0ffe0' };
+    if (rank <= 11) return {bg:'#8a0f16', border:'#ff6060', text:'#ffe0e0'};
+    if (rank <= 13) return {bg:'#5c3a00', border:'#ffaa00', text:'#fff0c0'};
+    if (job.targetLate) return {bg:'#8a0f16', border:'#ff6060', text:'#ffe0e0'};
+    return {bg:'#0d5229', border:'#55ee88', text:'#d0ffe0'};
   }
   if (job.dtp === 1) {
-    if (rank <= 7)  return { bg: '#8a0f16', text: '#ffe0e0' };
-    if (rank <= 11) return { bg: '#5c4600', text: '#fff8c0' };
-    if (job.targetLate) return { bg: '#5c4600', text: '#fff8c0' };
-    return { bg: '#0d5229', text: '#d0ffe0' };
+    if (rank <= 7)  return {bg:'#8a0f16', border:'#ff6060', text:'#ffe0e0'};
+    if (rank <= 11) return {bg:'#5c3a00', border:'#ffaa00', text:'#fff0c0'};
+    if (job.targetLate) return {bg:'#5c3a00', border:'#ffaa00', text:'#fff0c0'};
+    return {bg:'#0d5229', border:'#55ee88', text:'#d0ffe0'};
   }
   if (job.dtp === 2) {
-    if (job.targetLate) return { bg: '#5c4600', text: '#fff8c0' };
-    return { bg: '#0d5229', text: '#d0ffe0' };
+    if (job.targetLate) return {bg:'#5c3a00', border:'#ffaa00', text:'#fff0c0'};
+    return {bg:'#0d5229', border:'#55ee88', text:'#d0ffe0'};
   }
-  return { bg: '#161c2c', text: '#d8e4f8' };
+  return {bg:'#161c2c', border:'#3a4a6a', text:'#d8e4f8'};
 }
 
-function stripe(e) {
+function getEstColors(e) {
   e = (e||'').toLowerCase();
-  return e==='cordale'?'#107c10':e==='logan'?'#c50f1f':e==='dana'?'#d29922':e==='jennie'?'#1464a5':'#3a4a6a';
+  const map = {
+    'cordale': {bg:'#0a3d18', text:'#5fffaa', border:'#107c10', glow:'#107c1088'},
+    'dana':    {bg:'#3d3200', text:'#ffe066', border:'#d29922', glow:'#d2992288'},
+    'logan':   {bg:'#4a0a0a', text:'#ff9999', border:'#c50f1f', glow:'#c50f1f88'},
+    'jennie':  {bg:'#2d0a4a', text:'#cc99ff', border:'#8822cc', glow:'#8822cc88'},
+    'alan':    {bg:'#0a1a3d', text:'#99c8ff', border:'#1464a5', glow:'#1464a588'},
+  };
+  return map[e] || {bg:'#1a2030', text:'#8ab0d8', border:'#3a4a6a', glow:'#3a4a6a88'};
 }
-function estClass(e) {
-  e = (e||'').toLowerCase();
-  return e==='cordale'?'est-cordale':e==='dana'?'est-dana':e==='logan'?'est-logan':e==='jennie'?'est-jennie':'est-other';
-}
+
 function fmtDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso + 'T12:00:00');
   return MONTHS_SHORT[d.getMonth()] + ' ' + d.getDate();
 }
 
-const groups = [
-  { label: 'Past Due',      color: '#ff6060', key: 'pastdue' },
-  { label: 'Due Today',     color: '#55ee88', key: 'today' },
-  { label: 'Done Today',    color: '#6699ff', key: 'done' },
-  { label: 'Due Tomorrow',  color: '#ffdd22', key: 'tomorrow' },
-  { label: 'Due in 2 Days', color: '#4d8fd4', key: 'twodays' },
-];
-
-async function fetchBoardData() {
+async function fetchBoardData(renderFn) {
   try {
     const res = await fetch(JSON_URL + '?_=' + Date.now());
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -253,10 +207,11 @@ async function fetchBoardData() {
       targetLate: r.target&&r.promise ? new Date(r.target)>new Date(r.promise) : false,
     }));
     const active = jobs.filter(j =>
-      !j.doneToday && !j.totalLoss && j.repairStatus && j.repairStatus!=='Ready for Delivery' &&
-      j.repairStatus!=='Total Loss' && j.repairStatus!=='Done' && !isNaN(j.dtp) && j.dtp<=2
+      !j.doneToday && !j.totalLoss && j.repairStatus &&
+      j.repairStatus!=='Ready for Delivery' && j.repairStatus!=='Total Loss' &&
+      j.repairStatus!=='Done' && !isNaN(j.dtp) && j.dtp<=2
     );
-    renderBoard({
+    renderFn({
       pastdue:  active.filter(j=>j.dtp<0),
       today:    active.filter(j=>j.dtp===0),
       done:     jobs.filter(j=>j.doneToday),
@@ -264,44 +219,58 @@ async function fetchBoardData() {
       twodays:  active.filter(j=>j.dtp===2),
     });
   } catch(err) {
-    document.getElementById('groups-container').innerHTML = '<div class="status-message">⚠ '+err.message+'</div>';
+    const c = document.getElementById('groups-container');
+    if (c) c.innerHTML = '<div class="status-message">⚠ ' + err.message + '</div>';
   }
+}
+
+const GROUPS = [
+  { label: 'Past Due',      color: '#ff6060', key: 'pastdue' },
+  { label: 'Due Today',     color: '#55ee88', key: 'today' },
+  { label: 'Done Today',    color: '#55aaff', key: 'done' },
+  { label: 'Due Tomorrow',  color: '#ffaa00', key: 'tomorrow' },
+  { label: 'Due in 2 Days', color: '#4d8fd4', key: 'twodays' },
+];
+
+function renderGroupHeader(group, count) {
+  const hdr = document.createElement('div');
+  hdr.className = 'group-header';
+  hdr.style.background = group.color + '14';
+  hdr.style.borderLeftColor = group.color;
+  hdr.innerHTML =
+    '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 7px '+group.color+'88"></div>' +
+    '<span class="group-label" style="color:'+group.color+'">'+group.label+'</span>' +
+    '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 7px '+group.color+'88"></div>' +
+    '<span class="group-count" style="color:'+group.color+'">'+count+' vehicle'+(count!==1?'s':'')+'</span>' +
+    '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 7px '+group.color+'88"></div>';
+  return hdr;
 }
 
 function renderBoard(grouped) {
   const container = document.getElementById('groups-container');
   container.innerHTML = '';
-  groups.forEach(group => {
+  GROUPS.forEach(group => {
     const jobs = grouped[group.key]||[];
     if (!jobs.length) return;
     const groupEl = document.createElement('div');
     groupEl.className = 'group';
-    const hdr = document.createElement('div');
-    hdr.className = 'group-header';
-    hdr.style.background = group.color+'14';
-    hdr.style.borderLeftColor = group.color;
-    hdr.innerHTML =
-      '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 6px '+group.color+'88"></div>'+
-      '<span class="group-label" style="color:'+group.color+'">'+group.label+'</span>'+
-      '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 6px '+group.color+'88"></div>'+
-      '<span class="group-count" style="color:'+group.color+'">'+jobs.length+' vehicle'+(jobs.length!==1?'s':'')+'</span>'+
-      '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 6px '+group.color+'88"></div>';
-    groupEl.appendChild(hdr);
+    groupEl.appendChild(renderGroupHeader(group, jobs.length));
     const div = document.createElement('div');
     div.className='group-divider'; div.style.background=group.color;
     groupEl.appendChild(div);
     jobs.forEach(job => {
       const colors = getRowColors(job);
+      const ec = getEstColors(job.estimator);
       const row = document.createElement('div');
       row.className='job-row';
       row.style.background=colors.bg;
-      row.style.borderLeftColor=stripe(job.estimator);
+      row.style.borderLeftColor=ec.border;
       row.style.color=colors.text;
       row.innerHTML=
-        '<div class="cell cell-est"><span class="badge '+estClass(job.estimator)+'">'+job.estimator+'</span></div>'+
-        '<div class="cell cell-ro">'+job.ro+'</div>'+
+        '<div class="cell cell-est"><span class="badge" style="background:'+ec.bg+';color:'+ec.text+';border:1px solid '+ec.border+'44;box-shadow:0 0 8px '+ec.glow+',0 0 2px '+ec.border+'">'+job.estimator+'</span></div>'+
+        '<div class="cell" style="font-weight:700">'+job.ro+'</div>'+
         '<div class="cell">'+job.customer+'</div>'+
-        '<div class="cell cell-vehicle">'+job.vehicle+'</div>'+
+        '<div class="cell" style="opacity:0.9;font-weight:400">'+job.vehicle+'</div>'+
         '<div class="cell cell-insurance">'+job.insurance+'</div>'+
         '<div class="cell cell-tech">'+job.tech+'</div>'+
         '<div class="cell cell-painter">'+job.painter+'</div>'+
@@ -313,37 +282,24 @@ function renderBoard(grouped) {
   });
 }
 
-fetchBoardData(); fetchLastSync();
-setInterval(fetchBoardData, REFRESH_INTERVAL);
+fetchBoardData(renderBoard); fetchLastSync();
+setInterval(()=>fetchBoardData(renderBoard), REFRESH_INTERVAL);
 setInterval(fetchLastSync, REFRESH_INTERVAL);
 setInterval(()=>location.reload(), 30*60*1000);
 
-// ── AUTO-SCROLL ───────────────────────────────────────────────────
+// Auto-scroll
 const boardBody = document.getElementById('board-body');
-let scrollPos = 0;
-let direction = 1;
-let pauseTicks = 0;
-const SPEED = 0.7;
-const PAUSE_TOP    = 10000 / 30;
-const PAUSE_BOTTOM = 5000 / 30;
-const TICK = 30;
-
-setInterval(() => {
-  const maxScroll = boardBody.scrollHeight - boardBody.clientHeight;
-  if (maxScroll <= 0) return;
-  if (pauseTicks > 0) { pauseTicks--; return; }
-  scrollPos += SPEED * direction;
-  if (scrollPos >= maxScroll) {
-    scrollPos = maxScroll;
-    direction = -1;
-    pauseTicks = PAUSE_BOTTOM;
-  } else if (scrollPos <= 0) {
-    scrollPos = 0;
-    direction = 1;
-    pauseTicks = PAUSE_TOP;
-  }
-  boardBody.scrollTop = scrollPos;
-}, TICK);
+let scrollPos=0, direction=1, pauseTicks=0;
+const SPEED=0.7, PAUSE_TOP=10000/30, PAUSE_BOTTOM=5000/30, TICK=30;
+setInterval(()=>{
+  const max=boardBody.scrollHeight-boardBody.clientHeight;
+  if(max<=0)return;
+  if(pauseTicks>0){pauseTicks--;return;}
+  scrollPos+=SPEED*direction;
+  if(scrollPos>=max){scrollPos=max;direction=-1;pauseTicks=PAUSE_BOTTOM;}
+  else if(scrollPos<=0){scrollPos=0;direction=1;pauseTicks=PAUSE_TOP;}
+  boardBody.scrollTop=scrollPos;
+},TICK);
 </script>
 </body>
 </html>

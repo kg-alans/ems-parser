@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920">
-  <title>DTBS Production Board</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>DTBS Board</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
 
     :root {
@@ -15,85 +15,65 @@
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; overflow: hidden; }
-    .board-header { height: 80px; background: var(--header-bg); border-bottom: 3px solid var(--header-rim); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; position: relative; z-index: 10; }
-    .header-left { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; }
-    .shop-name { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; white-space: nowrap; }
-    .board-label { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase; color: var(--accent); }
-    .header-center { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; padding: 0 16px; }
-    .legend { display: flex; gap: 16px; flex-wrap: nowrap; }
-    .legend-item { display: flex; align-items: center; gap: 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: rgba(255,255,255,0.55); text-transform: uppercase; white-space: nowrap; }
-    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .header-right { display: flex; gap: 20px; align-items: flex-end; flex-shrink: 0; }
-    .time-block { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-    .time-sublabel { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
-    .time-value { font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; color: #fff; line-height: 1; white-space: nowrap; }
-    .time-value.sync { color: rgba(255,255,255,0.65); font-size: 26px; }
-    .time-divider { width: 1px; height: 36px; background: rgba(255,255,255,0.15); align-self: center; }
-    .date-row { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; white-space: nowrap; text-align: center; }
-    .board-body { height: calc(100vh - 80px); overflow-y: scroll; padding: 0 20px 20px; scrollbar-width: none; }
-    .board-body::-webkit-scrollbar { display: none; }
-    .col-header { display: grid; grid-template-columns: 110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px; gap: 0; padding: 7px 12px 7px 18px; background: var(--bg); position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
-    .col-label { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; text-align: center; }
+    html, body { width: 100%; min-height: 100%; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; overflow-x: hidden; }
+    
+    .board-header { background: var(--header-bg); border-bottom: 3px solid var(--header-rim); padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .header-left { display: flex; flex-direction: column; gap: 1px; }
+    .shop-name { font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: #fff; }
+    .board-label { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); }
+    .header-right { text-align: right; }
+    .clock-time { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; color: #fff; line-height: 1; }
+    .clock-date { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 600; letter-spacing: 0.1em; color: var(--accent); text-transform: uppercase; }
+    
+    .col-header { display: grid; grid-template-columns: 34px 76px 1fr 1fr 70px; gap: 0; padding: 5px 8px; background: var(--bg); position: sticky; top: 63px; z-index: 5; border-bottom: 1px solid var(--border); }
+    .col-label { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase; text-align: center; }
     .col-label.left { text-align: left; }
-    .group { margin-bottom: 12px; }
-    .group-header { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 6px 10px; border-radius: 4px 4px 0 0; margin-bottom: 2px; border-left: 4px solid transparent; }
-    .group-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .group-label { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; }
-    .group-count { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+    
+    .board-body { padding: 0 8px 20px; }
+    
+    .group { margin-bottom: 8px; }
+    .group-header { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 5px 8px; border-radius: 3px 3px 0 0; margin-bottom: 2px; border-left: 3px solid transparent; }
+    .group-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .group-label { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; }
+    .group-count { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
     .group-divider { height: 1px; margin-bottom: 2px; opacity: 0.3; }
-    .job-row { display: grid; grid-template-columns: 110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px; gap: 0; padding: 9px 12px 9px 14px; border-radius: 3px; margin-bottom: 2px; align-items: center; border-left: 5px solid transparent; }
-    .cell { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; line-height: 1; }
+    
+    .job-row { display: grid; grid-template-columns: 34px 76px 1fr 1fr 70px; gap: 0; padding: 7px 8px; border-radius: 3px; margin-bottom: 2px; align-items: center; border-left: 4px solid transparent; }
+    .cell { font-size: 11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 6px; line-height: 1.2; }
     .cell-center { text-align: center; }
-    .cell-est { display: flex; align-items: center; }
-    .badge { font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 4px; display: inline-block; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-    .cell-tech { font-size: 11px; opacity: 0.85; text-align: center; }
-    .cell-painter { font-size: 11px; opacity: 0.8; text-align: center; }
-    .cell-insurance { font-size: 11px; opacity: 0.85; text-align: center; }
-    .repair-status { font-size: 12px; font-weight: 600; }
-    .cell-promise { font-size: 13px; font-weight: 600; opacity: 0.9; text-align: center; }
-    .status-message { text-align: center; padding: 40px; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; color: var(--muted); }
+    
+    .est-circle { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 900; flex-shrink: 0; }
+    
+    .cell-ro { font-size: 11px; font-weight: 700; }
+    .cell-status { font-size: 10px; font-weight: 600; }
+    .cell-promise { font-size: 11px; font-weight: 600; text-align: center; }
+    .status-message { text-align: center; padding: 30px; font-family: 'Barlow Condensed', sans-serif; font-size: 16px; color: var(--muted); }
   </style>
 </head>
 <body>
 <header class="board-header">
   <div class="header-left">
-    <div class="shop-name">Ken Garff Body &amp; Glass — Downtown</div>
+    <div class="shop-name">KG Body &amp; Glass — DT</div>
     <div class="board-label">3-Day Production Board</div>
   </div>
-  <div class="header-center">
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#ff6060"></div>Past Due / Won't Make It</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#55ee88"></div>On Track</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#ffaa00"></div>Might Not Make It</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#55aaff"></div>Done Today</div>
-    </div>
-  </div>
   <div class="header-right">
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-      <div style="display:flex;gap:20px;align-items:flex-end;">
-        <div class="time-block"><span class="time-sublabel">Current Time</span><span class="time-value" id="clock-time">–:– –</span></div>
-        <div class="time-divider"></div>
-        <div class="time-block"><span class="time-sublabel">Last Sync</span><span class="time-value sync" id="sync-time">—</span></div>
-      </div>
-      <div class="date-row" id="clock-date">–––</div>
-    </div>
+    <div class="clock-time" id="clock-time">–:– –</div>
+    <div class="clock-date" id="clock-date">–––</div>
   </div>
 </header>
-<div class="board-body" id="board-body">
-  <div class="col-header">
-    <span class="col-label left">Estimator</span>
-    <span class="col-label">RO #</span>
-    <span class="col-label">Customer</span>
-    <span class="col-label">Vehicle</span>
-    <span class="col-label">Insurance</span>
-    <span class="col-label">Tech</span>
-    <span class="col-label">Painter</span>
-    <span class="col-label">Repair Status</span>
-    <span class="col-label">CCC Promise</span>
-  </div>
+
+<div class="col-header">
+  <span class="col-label">Est</span>
+  <span class="col-label">RO #</span>
+  <span class="col-label left">Customer</span>
+  <span class="col-label left">Vehicle</span>
+  <span class="col-label">Promise</span>
+</div>
+
+<div class="board-body">
   <div id="groups-container"></div>
 </div>
+
 <script>
 
 const JSON_URL = 'https://kgdtbs.onrender.com/board-data';
@@ -246,6 +226,21 @@ function renderGroupHeader(group, count) {
   return hdr;
 }
 
+function getLastName(customer) {
+  if (!customer) return '';
+  // Handle "Last, First" format
+  if (customer.includes(',')) return customer.split(',')[0].trim();
+  // Handle "First Last" format
+  const parts = customer.trim().split(' ');
+  return parts[parts.length - 1];
+}
+
+function getInitial(estimator) {
+  const e = (estimator||'').toLowerCase();
+  const map = {cordale:'C', dana:'D', logan:'L', jennie:'J', alan:'A'};
+  return map[e] || estimator.charAt(0).toUpperCase();
+}
+
 function renderBoard(grouped) {
   const container = document.getElementById('groups-container');
   container.innerHTML = '';
@@ -267,14 +262,10 @@ function renderBoard(grouped) {
       row.style.borderLeftColor=ec.border;
       row.style.color=colors.text;
       row.innerHTML=
-        '<div class="cell cell-est"><span class="badge" style="background:'+ec.bg+';color:'+ec.text+';border:1px solid '+ec.border+'44;box-shadow:0 0 8px '+ec.glow+',0 0 2px '+ec.border+'">'+job.estimator+'</span></div>'+
-        '<div class="cell" style="font-weight:700">'+job.ro+'</div>'+
-        '<div class="cell">'+job.customer+'</div>'+
-        '<div class="cell" style="opacity:0.9;font-weight:400">'+job.vehicle+'</div>'+
-        '<div class="cell cell-insurance">'+job.insurance+'</div>'+
-        '<div class="cell cell-tech">'+job.tech+'</div>'+
-        '<div class="cell cell-painter">'+job.painter+'</div>'+
-        '<div class="cell cell-center"><span class="repair-status">'+job.repairStatus+'</span></div>'+
+        '<div class="cell"><div class="est-circle" style="background:'+ec.bg+';color:'+ec.text+';border:1px solid '+ec.border+';box-shadow:0 0 6px '+ec.glow+'">'+getInitial(job.estimator)+'</div></div>'+
+        '<div class="cell cell-ro">'+job.ro+'</div>'+
+        '<div class="cell">'+getLastName(job.customer)+'</div>'+
+        '<div class="cell" style="font-weight:400;opacity:0.9">'+job.vehicle+'</div>'+
         '<div class="cell cell-promise">'+fmtDate(job.promise)+'</div>';
       groupEl.appendChild(row);
     });
@@ -286,8 +277,6 @@ fetchBoardData(renderBoard); fetchLastSync();
 setInterval(()=>fetchBoardData(renderBoard), REFRESH_INTERVAL);
 setInterval(fetchLastSync, REFRESH_INTERVAL);
 setInterval(()=>location.reload(), 30*60*1000);
-
-// Manual scroll
 </script>
 </body>
 </html>
