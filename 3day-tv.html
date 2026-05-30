@@ -259,7 +259,7 @@ async function fetchBoardData() {
     renderBoard({
       pastdue:  active.filter(j=>j.dtp<0),
       today:    active.filter(j=>j.dtp===0),
-      done:     jobs.filter(j=>j.done&&j.doneToday),
+      done:     jobs.filter(j=>j.doneToday),
       tomorrow: active.filter(j=>j.dtp===1),
       twodays:  active.filter(j=>j.dtp===2),
     });
