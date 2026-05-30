@@ -5,79 +5,79 @@
   <meta name="viewport" content="width=1920">
   <title>DTBS Production Board</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
 
-    :root {
-      --bg: #0b0e14; --border: #232b3e;
-      --header-bg: #6b1a2b; --header-rim: #8c2038;
-      --accent: #e8a0b0; --text: #dce6f5; --muted: #56647d;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --bg:#0b0e14; --border:#232b3e; --hbg:#6b1a2b; --hrim:#8c2038; --accent:#e8a0b0; --text:#dce6f5; --muted:#56647d; }
+    * { margin:0; padding:0; box-sizing:border-box; }
 
-    html, body { width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; overflow: hidden; }
-    .board-header { height: 80px; background: var(--header-bg); border-bottom: 3px solid var(--header-rim); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; position: relative; z-index: 10; }
-    .header-left { display: flex; flex-direction: column; gap: 1px; flex-shrink: 0; }
-    .shop-name { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; white-space: nowrap; }
-    .board-label { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.28em; text-transform: uppercase; color: var(--accent); }
-    .header-center { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; padding: 0 16px; }
-    .legend { display: flex; gap: 16px; flex-wrap: nowrap; }
-    .legend-item { display: flex; align-items: center; gap: 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: rgba(255,255,255,0.55); text-transform: uppercase; white-space: nowrap; }
-    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .header-right { display: flex; gap: 20px; align-items: flex-end; flex-shrink: 0; }
-    .time-block { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-    .time-sublabel { font-family: 'Barlow Condensed', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.4); }
-    .time-value { font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; color: #fff; line-height: 1; white-space: nowrap; }
-    .time-value.sync { color: rgba(255,255,255,0.65); font-size: 26px; }
-    .time-divider { width: 1px; height: 36px; background: rgba(255,255,255,0.15); align-self: center; }
-    .date-row { font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 600; letter-spacing: 0.15em; color: var(--accent); text-transform: uppercase; white-space: nowrap; text-align: center; }
-    .board-body { height: calc(100vh - 80px); overflow-y: scroll; padding: 0 20px 20px; scrollbar-width: none; }
-    .board-body::-webkit-scrollbar { display: none; }
-    .col-header { display: grid; grid-template-columns: 110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px; gap: 0; padding: 7px 12px 7px 18px; background: var(--bg); position: sticky; top: 0; z-index: 5; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
-    .col-label { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.18em; color: var(--muted); text-transform: uppercase; text-align: center; }
-    .col-label.left { text-align: left; }
-    .group { margin-bottom: 12px; }
-    .group-header { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 6px 10px; border-radius: 4px 4px 0 0; margin-bottom: 2px; border-left: 4px solid transparent; }
-    .group-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-    .group-label { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.2em; text-transform: uppercase; }
-    .group-count { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
-    .group-divider { height: 1px; margin-bottom: 2px; opacity: 0.3; }
-    .job-row { display: grid; grid-template-columns: 110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px; gap: 0; padding: 9px 12px 9px 14px; border-radius: 3px; margin-bottom: 2px; align-items: center; border-left: 5px solid transparent; }
-    .cell { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; line-height: 1; }
-    .cell-center { text-align: center; }
-    .cell-est { display: flex; align-items: center; }
-    .badge { font-size: 13px; font-weight: 700; padding: 5px 10px; border-radius: 4px; display: inline-block; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-    .cell-tech { font-size: 11px; opacity: 0.85; text-align: center; }
-    .cell-painter { font-size: 11px; opacity: 0.8; text-align: center; }
-    .cell-insurance { font-size: 11px; opacity: 0.85; text-align: center; }
-    .repair-status { font-size: 12px; font-weight: 600; }
-    .cell-promise { font-size: 13px; font-weight: 600; opacity: 0.9; text-align: center; }
-    .status-message { text-align: center; padding: 40px; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; color: var(--muted); }
+    html, body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; overflow-x:hidden;  }
+    .board-header { height:80px;  background:var(--hbg); border-bottom:3px solid var(--hrim); display:flex; align-items:center; justify-content:space-between; padding:0 20px; position:sticky; top:0; z-index:10;  }
+
+    .board-header { background:var(--hbg); border-bottom:3px solid var(--hrim); display:flex; align-items:center; justify-content:space-between; padding:0 20px; position:sticky; top:0; z-index:10; }
+    .shop-name { font-family:'Barlow Condensed',sans-serif; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#fff; white-space:nowrap; }
+    .board-label { font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.28em; text-transform:uppercase; color:var(--accent); }
+    .legend { display:flex; gap:14px; flex-wrap:nowrap; }
+    .legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
+    .legend-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .time-grid { display:flex; gap:16px; align-items:flex-end; }
+    .time-col { display:flex; flex-direction:column; align-items:center; gap:1px; }
+    .time-sublabel { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:rgba(255,255,255,0.4); }
+    .time-value { font-family:'Barlow Condensed',sans-serif; font-weight:700; color:#fff; line-height:1; white-space:nowrap; }
+    .time-value.sync { color:rgba(255,255,255,0.65); }
+    .time-date { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:600; letter-spacing:0.1em; color:var(--accent); text-transform:uppercase; white-space:nowrap; text-align:center; }
+    .time-divider { width:1px; height:36px; background:rgba(255,255,255,0.15); align-self:center; }
+
+
+    .board-footer { position:fixed; bottom:0; left:0; right:0; height:44px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:10; }
+    .footer-mtd { display:flex; gap:28px; align-items:center; }
+    .footer-stat { display:flex; flex-direction:column; align-items:flex-start; }
+    .footer-stat-label { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); }
+    .footer-stat-value { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:800; letter-spacing:0.04em; color:#fff; }
+    .footer-legend { display:flex; gap:16px; }
+    .footer-legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.5); text-transform:uppercase; white-space:nowrap; }
+    .footer-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+
+    .group { margin-bottom:10px; }
+    .group-divider { height:1px; margin-bottom:2px; opacity:0.3; }
+    .job-row { display:grid; padding:9px 12px 9px 14px; border-radius:3px; margin-bottom:2px; align-items:center; border-left:5px solid transparent; }
+    .cell { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:8px; line-height:1; }
+    .cell-center { text-align:center; }
+    .cell-sm { font-size:11px; opacity:0.85; text-align:center; }
+    .repair-status { font-size:12px; font-weight:600; }
+    .status-msg { text-align:center; padding:40px; font-family:'Barlow Condensed',sans-serif; font-size:18px; color:var(--muted); }
+
+    .board-body { height:calc(100vh - 80px - 44px); overflow-y:scroll; padding:0 20px 8px; scrollbar-width:none; }
+    .board-body::-webkit-scrollbar { display:none; }
+    .col-header { display:grid; grid-template-columns:110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px; gap:0; padding:7px 12px 7px 18px; background:var(--bg); position:sticky; top:0; z-index:5; border-bottom:1px solid var(--border); margin-bottom:6px; }
+    .col-label { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; text-align:center; }
+    .col-label.left { text-align:left; }
   </style>
 </head>
 <body>
 <header class="board-header">
-  <div class="header-left">
-    <div class="shop-name">Ken Garff Body &amp; Glass — Downtown</div>
+  <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+    <div class="shop-name" style="font-size:22px">Ken Garff Body &amp; Glass — Downtown</div>
     <div class="board-label">3-Day Production Board</div>
   </div>
-  <div class="header-center">
-    <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#ff6060"></div>Past Due / Won't Make It</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#55ee88"></div>On Track</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#ffaa00"></div>Might Not Make It</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#55aaff"></div>Done Today</div>
-    </div>
+  <div style="flex:1;padding:0 16px;display:flex;flex-direction:column;align-items:center;gap:4px">
   </div>
-  <div class="header-right">
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-      <div style="display:flex;gap:20px;align-items:flex-end;">
-        <div class="time-block"><span class="time-sublabel">Current Time</span><span class="time-value" id="clock-time">–:– –</span></div>
+  <div style="flex-shrink:0">
+
+      <div class="time-grid">
+        <div class="time-col">
+          <span class="time-sublabel">Current Time</span>
+          <span class="time-value" id="clock-time" style="font-size:28px">–:– –</span>
+          <span class="time-date" id="clock-date">–––</span>
+        </div>
         <div class="time-divider"></div>
-        <div class="time-block"><span class="time-sublabel">Last Sync</span><span class="time-value sync" id="sync-time">—</span></div>
+        <div class="time-col">
+          <span class="time-sublabel">Last Sync</span>
+          <span class="time-value sync" id="sync-time" style="font-size:24px">—</span>
+          <span class="time-date" id="sync-date">—</span>
+        </div>
       </div>
-      <div class="date-row" id="clock-date">–––</div>
-    </div>
   </div>
 </header>
 <div class="board-body" id="board-body">
@@ -94,122 +94,191 @@
   </div>
   <div id="groups-container"></div>
 </div>
+
+<footer class="board-footer">
+  <div class="footer-mtd">
+    <div class="footer-stat">
+      <span class="footer-stat-label">MTD Revenue</span>
+      <span class="footer-stat-value" id="mtd-dollars">—</span>
+    </div>
+    <div class="footer-stat">
+      <span class="footer-stat-label">MTD Labor</span>
+      <span class="footer-stat-value" id="mtd-labor">—</span>
+    </div>
+  </div>
+  <div class="footer-legend">
+    <div class="footer-legend-item"><div class="footer-dot" style="background:#e3324f"></div>Past Due / Won't Make It</div>
+    <div class="footer-legend-item"><div class="footer-dot" style="background:#0cc258"></div>On Track</div>
+    <div class="footer-legend-item"><div class="footer-dot" style="background:#e8b715"></div>Might Not Make It</div>
+    <div class="footer-legend-item"><div class="footer-dot" style="background:#15b8e6"></div>Done Today</div>
+  </div>
+</footer>
 <script>
 
-const JSON_URL = 'https://kgdtbs.onrender.com/board-data';
-const SYNC_URL = 'https://kgdtbs.onrender.com/last-sync';
-const REFRESH_INTERVAL = 5 * 60 * 1000;
+const JSON_URL  = 'https://kgdtbs.onrender.com/board-data';
+const SYNC_URL  = 'https://kgdtbs.onrender.com/last-sync';
+const MTD_URL   = 'https://kgdtbs.onrender.com/mtd';
+const REFRESH   = 5 * 60 * 1000;
 
 const STATUS_RANK = {
-  '': 0, 'Prelim': 1, 'Pre-Production': 2, 'Dispatch': 3,
-  'Teardown': 4, 'Waiting on Insurance': 5, 'Supp-Estimator': 6,
-  'Supp-Insurance': 7, 'Waiting on Parts': 8, 'Need Parts Update': 9,
-  'Frame': 10, 'Repair in Process': 11, 'Paint': 12, 'Sublet': 13,
-  'Reassembly': 14, 'QC': 15, 'Wash': 16, 'Done': 17,
-  'Ready for Delivery': 18, 'Delivered': 19, 'Total Loss': 99
+  '':0,'Prelim':1,'Pre-Production':2,'Dispatch':3,'Teardown':4,
+  'Waiting on Insurance':5,'Supp-Estimator':6,'Supp-Insurance':7,
+  'Waiting on Parts':8,'Need Parts Update':9,'Frame':10,
+  'Repair in Process':11,'Paint':12,'Sublet':13,'Reassembly':14,
+  'QC':15,'Wash':16,'Done':17,'Ready for Delivery':18,
+  'Delivered':19,'Total Loss':99
 };
 
-const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DAYS_L   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS_L = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function fmtTime(d) {
+function fmtTimeParts(d) {
   let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
-  const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
-  return h + ':' + m + ' ' + ap;
+  const ap = h>=12?'PM':'AM'; h=h%12||12;
+  return { time: h+':'+m+' '+ap, date: DAYS_L[d.getDay()]+' · '+MONTHS_L[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear() };
 }
 
 function updateClock() {
-  const now = new Date();
-  if (document.getElementById('clock-time'))
-    document.getElementById('clock-time').textContent = fmtTime(now);
-  if (document.getElementById('clock-date'))
-    document.getElementById('clock-date').textContent = DAYS[now.getDay()] + ' · ' + MONTHS[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+  const p = fmtTimeParts(new Date());
+  const t = document.getElementById('clock-time');
+  const d = document.getElementById('clock-date');
+  if(t) t.textContent = p.time;
+  if(d) d.textContent = p.date;
 }
-updateClock();
-setInterval(updateClock, 1000);
+updateClock(); setInterval(updateClock,1000);
 
 async function fetchLastSync() {
   try {
-    const res = await fetch(SYNC_URL + '?_=' + Date.now());
-    if (!res.ok) return;
+    const res = await fetch(SYNC_URL+'?_='+Date.now());
+    if(!res.ok) return;
     const data = await res.json();
-    if (data.last_sync) {
+    if(data.last_sync) {
       const d = new Date(data.last_sync);
       const now = new Date();
-      const sameDay = d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate();
-      const label = sameDay ? fmtTime(d) : MONTHS_SHORT[d.getMonth()]+' '+d.getDate()+' · '+fmtTime(d);
-      if (document.getElementById('sync-time')) document.getElementById('sync-time').textContent = label;
+      const sameDay = d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate();
+      let h=d.getHours(),m=String(d.getMinutes()).padStart(2,'0');
+      const ap=h>=12?'PM':'AM'; h=h%12||12;
+      const timeStr = h+':'+m+' '+ap;
+      const dateStr = sameDay ? DAYS_L[d.getDay()]+' · '+MONTHS_L[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()
+                               : MONTHS_S[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
+      const st = document.getElementById('sync-time');
+      const sd = document.getElementById('sync-date');
+      if(st) st.textContent = timeStr;
+      if(sd) sd.textContent = dateStr;
     }
-  } catch(e) {}
+  } catch(e){}
 }
 
-function isToday(dateStr) {
-  if (!dateStr) return false;
-  const d = new Date(dateStr), now = new Date();
-  return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate();
+async function fetchMTD() {
+  try {
+    const res = await fetch(MTD_URL+'?_='+Date.now());
+    if(!res.ok) return;
+    const data = await res.json();
+    const dEl = document.getElementById('mtd-dollars');
+    const lEl = document.getElementById('mtd-labor');
+    if(dEl) dEl.textContent = data.dollars != null
+      ? '$'+Number(data.dollars).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})
+      : '—';
+    if(lEl) lEl.textContent = data.labor != null
+      ? Number(data.labor).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})+' hrs'
+      : '—';
+  } catch(e){}
+}
+
+function isToday(s) {
+  if(!s) return false;
+  const d=new Date(s),n=new Date();
+  return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate();
 }
 
 function getRowColors(job) {
-  const rank = STATUS_RANK[job.repairStatus] !== undefined ? STATUS_RANK[job.repairStatus] : 0;
-  if (job.doneToday) return {bg:'#0a2a5c', border:'#55aaff', text:'#c8e0ff'};
-  if (job.dtp < 0) return {bg:'#8a0f16', border:'#ff6060', text:'#ffe0e0'};
-  if (job.dtp === 0) {
-    if (rank <= 11) return {bg:'#8a0f16', border:'#ff6060', text:'#ffe0e0'};
-    if (rank <= 13) return {bg:'#5c3a00', border:'#ffaa00', text:'#fff0c0'};
-    if (job.targetLate) return {bg:'#8a0f16', border:'#ff6060', text:'#ffe0e0'};
-    return {bg:'#0d5229', border:'#55ee88', text:'#d0ffe0'};
+  const rank = STATUS_RANK[job.repairStatus]??0;
+  if(job.doneToday)           return {bg:'#0b5c73',text:'#ccf0ff'};
+  if(job.dtp<0)               return {bg:'#721928',text:'#ffd0d6'};
+  if(job.dtp===0){
+    if(rank<=11)               return {bg:'#721928',text:'#ffd0d6'};
+    if(rank<=13)               return {bg:'#e8b715',text:'#1a1000'};
+    if(job.targetLate)         return {bg:'#721928',text:'#ffd0d6'};
+    return                           {bg:'#06612c',text:'#ccffde'};
   }
-  if (job.dtp === 1) {
-    if (rank <= 7)  return {bg:'#8a0f16', border:'#ff6060', text:'#ffe0e0'};
-    if (rank <= 11) return {bg:'#5c3a00', border:'#ffaa00', text:'#fff0c0'};
-    if (job.targetLate) return {bg:'#5c3a00', border:'#ffaa00', text:'#fff0c0'};
-    return {bg:'#0d5229', border:'#55ee88', text:'#d0ffe0'};
+  if(job.dtp===1){
+    if(rank<=7)                return {bg:'#721928',text:'#ffd0d6'};
+    if(rank<=11)               return {bg:'#e8b715',text:'#1a1000'};
+    if(job.targetLate)         return {bg:'#e8b715',text:'#1a1000'};
+    return                           {bg:'#06612c',text:'#ccffde'};
   }
-  if (job.dtp === 2) {
-    if (job.targetLate) return {bg:'#5c3a00', border:'#ffaa00', text:'#fff0c0'};
-    return {bg:'#0d5229', border:'#55ee88', text:'#d0ffe0'};
+  if(job.dtp===2){
+    if(job.targetLate)         return {bg:'#e8b715',text:'#1a1000'};
+    return                           {bg:'#06612c',text:'#ccffde'};
   }
-  return {bg:'#161c2c', border:'#3a4a6a', text:'#d8e4f8'};
+  return {bg:'#161c2c',text:'#d8e4f8'};
 }
 
-function getEstColors(e) {
-  e = (e||'').toLowerCase();
-  const map = {
-    'cordale': {bg:'#0a3d18', text:'#5fffaa', border:'#107c10', glow:'#107c1088'},
-    'dana':    {bg:'#3d3200', text:'#ffe066', border:'#d29922', glow:'#d2992288'},
-    'logan':   {bg:'#4a0a0a', text:'#ff9999', border:'#c50f1f', glow:'#c50f1f88'},
-    'jennie':  {bg:'#2d0a4a', text:'#cc99ff', border:'#8822cc', glow:'#8822cc88'},
-    'alan':    {bg:'#0a1a3d', text:'#99c8ff', border:'#1464a5', glow:'#1464a588'},
+function getEst(name) {
+  const MAP = {
+    'cord':   {bg:'#28de37',dark:'#064014',glow:'#28de37'},
+    'cordale':{bg:'#28de37',dark:'#064014',glow:'#28de37'},
+    'logan':  {bg:'#fa2d25',dark:'#500606',glow:'#fa2d25'},
+    'dana':   {bg:'#faf034',dark:'#5a4400',glow:'#faf034'},
+    'jennie': {bg:'#e319b7',dark:'#6a0055',glow:'#e319b7'},
+    'alan':   {bg:'#4e82c7',dark:'#0a1830',glow:'#4e82c7'},
+    'troy':   {bg:'#4e82c7',dark:'#0a1830',glow:'#4e82c7'},
   };
-  return map[e] || {bg:'#1a2030', text:'#8ab0d8', border:'#3a4a6a', glow:'#3a4a6a88'};
+  return MAP[(name||'').toLowerCase()] || {bg:'#555566',dark:'#1a1a22',glow:'#555566'};
+}
+
+function badgeHTML(name, fontSize='14px') {
+  const e = getEst(name);
+  const display = (name||'').toLowerCase()==='cordale' ? 'CORD' : (name||'').toUpperCase();
+  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 20px ${e.glow}ee,0 0 8px ${e.glow},0 0 2px ${e.glow}">${display}</span>`;
 }
 
 function fmtDate(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso + 'T12:00:00');
-  return MONTHS_SHORT[d.getMonth()] + ' ' + d.getDate();
+  if(!iso) return '—';
+  const d=new Date(iso+'T12:00:00');
+  return MONTHS_S[d.getMonth()]+' '+d.getDate();
 }
 
-async function fetchBoardData(renderFn) {
+const GROUPS = [
+  {label:'Past Due',     color:'#e3324f',key:'pastdue'},
+  {label:'Due Today',    color:'#0cc258',key:'today'},
+  {label:'Done Today',   color:'#15b8e6',key:'done'},
+  {label:'Due Tomorrow', color:'#e8b715',key:'tomorrow'},
+  {label:'Due in 2 Days',color:'#4e82c7',key:'twodays'},
+];
+
+function groupHeader(group, count) {
+  const g = document.createElement('div');
+  g.style.cssText = `display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid ${group.color};background:${group.color}18`;
+  g.innerHTML =
+    `<div style="width:8px;height:8px;border-radius:50%;background:${group.color};box-shadow:0 0 7px ${group.color}88;flex-shrink:0"></div>`+
+    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:${group.color}">${group.label}</span>`+
+    `<div style="width:8px;height:8px;border-radius:50%;background:${group.color};box-shadow:0 0 7px ${group.color}88;flex-shrink:0"></div>`+
+    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:${group.color}">${count} vehicle${count!==1?'s':''}</span>`+
+    `<div style="width:8px;height:8px;border-radius:50%;background:${group.color};box-shadow:0 0 7px ${group.color}88;flex-shrink:0"></div>`;
+  return g;
+}
+
+async function loadBoardData(renderFn) {
   try {
-    const res = await fetch(JSON_URL + '?_=' + Date.now());
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const res = await fetch(JSON_URL+'?_='+Date.now());
+    if(!res.ok) throw new Error('HTTP '+res.status);
     const raw = await res.json();
-    const jobs = raw.map(r => ({
-      ro: r.ro||'', customer: r.customer||'', vehicle: r.vehicle||'',
-      estimator: r.estimator||'', tech: r.tech||'', painter: r.painter||'',
-      repairStatus: r.repairStatus||'', insurance: r.insurance||'', promise: r.promise||'',
-      dtp: (r.dtp!==''&&r.dtp!==null&&r.dtp!==undefined) ? parseInt(r.dtp,10) : NaN,
-      totalLoss: r.totalLoss==='True'||r.totalLoss===true,
-      done: r.done==='True'||r.done===true,
-      doneToday: isToday(r.doneTime),
-      targetLate: r.target&&r.promise ? new Date(r.target)>new Date(r.promise) : false,
+    const jobs = raw.map(r=>({
+      ro:r.ro||'', customer:r.customer||'', vehicle:r.vehicle||'',
+      estimator:r.estimator||'', tech:r.tech||'', painter:r.painter||'',
+      repairStatus:r.repairStatus||'', insurance:r.insurance||'',
+      promise:r.promise||'', target:r.target||'',
+      dtp:(r.dtp!==''&&r.dtp!=null)?parseInt(r.dtp,10):NaN,
+      totalLoss:r.totalLoss==='True'||r.totalLoss===true,
+      doneToday:isToday(r.doneTime),
+      targetLate:r.target&&r.promise?new Date(r.target)>new Date(r.promise):false,
     }));
-    const active = jobs.filter(j =>
-      !j.doneToday && !j.totalLoss && j.repairStatus &&
-      j.repairStatus!=='Ready for Delivery' && j.repairStatus!=='Total Loss' &&
-      j.repairStatus!=='Done' && !isNaN(j.dtp) && j.dtp<=2
+    const active = jobs.filter(j=>
+      !j.doneToday&&!j.totalLoss&&j.repairStatus&&
+      j.repairStatus!=='Ready for Delivery'&&j.repairStatus!=='Total Loss'&&
+      j.repairStatus!=='Done'&&!isNaN(j.dtp)&&j.dtp<=2
     );
     renderFn({
       pastdue:  active.filter(j=>j.dtp<0),
@@ -218,88 +287,57 @@ async function fetchBoardData(renderFn) {
       tomorrow: active.filter(j=>j.dtp===1),
       twodays:  active.filter(j=>j.dtp===2),
     });
-  } catch(err) {
-    const c = document.getElementById('groups-container');
-    if (c) c.innerHTML = '<div class="status-message">⚠ ' + err.message + '</div>';
+  } catch(err){
+    const c=document.getElementById('groups-container');
+    if(c) c.innerHTML='<div style="text-align:center;padding:40px;font-family:Barlow Condensed,sans-serif;font-size:18px;color:#56647d">⚠ '+err.message+'</div>';
   }
 }
 
-const GROUPS = [
-  { label: 'Past Due',      color: '#ff6060', key: 'pastdue' },
-  { label: 'Due Today',     color: '#55ee88', key: 'today' },
-  { label: 'Done Today',    color: '#55aaff', key: 'done' },
-  { label: 'Due Tomorrow',  color: '#ffaa00', key: 'tomorrow' },
-  { label: 'Due in 2 Days', color: '#4d8fd4', key: 'twodays' },
-];
-
-function renderGroupHeader(group, count) {
-  const hdr = document.createElement('div');
-  hdr.className = 'group-header';
-  hdr.style.background = group.color + '14';
-  hdr.style.borderLeftColor = group.color;
-  hdr.innerHTML =
-    '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 7px '+group.color+'88"></div>' +
-    '<span class="group-label" style="color:'+group.color+'">'+group.label+'</span>' +
-    '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 7px '+group.color+'88"></div>' +
-    '<span class="group-count" style="color:'+group.color+'">'+count+' vehicle'+(count!==1?'s':'')+'</span>' +
-    '<div class="group-dot" style="background:'+group.color+';box-shadow:0 0 7px '+group.color+'88"></div>';
-  return hdr;
+function startRefresh(renderFn) {
+  loadBoardData(renderFn); fetchLastSync(); fetchMTD();
+  setInterval(()=>loadBoardData(renderFn), REFRESH);
+  setInterval(fetchLastSync, REFRESH);
+  setInterval(fetchMTD, REFRESH);
+  setInterval(()=>location.reload(), 30*60*1000);
 }
+
 
 function renderBoard(grouped) {
   const container = document.getElementById('groups-container');
   container.innerHTML = '';
   GROUPS.forEach(group => {
     const jobs = grouped[group.key]||[];
-    if (!jobs.length) return;
+    if(!jobs.length) return;
     const groupEl = document.createElement('div');
     groupEl.className = 'group';
-    groupEl.appendChild(renderGroupHeader(group, jobs.length));
+    groupEl.appendChild(groupHeader(group, jobs.length));
     const div = document.createElement('div');
     div.className='group-divider'; div.style.background=group.color;
     groupEl.appendChild(div);
     jobs.forEach(job => {
       const colors = getRowColors(job);
-      const ec = getEstColors(job.estimator);
+      const e = getEst(job.estimator);
       const row = document.createElement('div');
-      row.className='job-row';
-      row.style.background=colors.bg;
-      row.style.borderLeftColor=ec.border;
-      row.style.color=colors.text;
-      row.innerHTML=
-        '<div class="cell cell-est"><span class="badge" style="background:'+ec.bg+';color:'+ec.text+';border:1px solid '+ec.border+'44;box-shadow:0 0 8px '+ec.glow+',0 0 2px '+ec.border+'">'+job.estimator+'</span></div>'+
-        '<div class="cell" style="font-weight:700">'+job.ro+'</div>'+
-        '<div class="cell">'+job.customer+'</div>'+
-        '<div class="cell" style="opacity:0.9;font-weight:400">'+job.vehicle+'</div>'+
-        '<div class="cell cell-insurance">'+job.insurance+'</div>'+
-        '<div class="cell cell-tech">'+job.tech+'</div>'+
-        '<div class="cell cell-painter">'+job.painter+'</div>'+
-        '<div class="cell cell-center"><span class="repair-status">'+job.repairStatus+'</span></div>'+
-        '<div class="cell cell-promise">'+fmtDate(job.promise)+'</div>';
+      row.className = 'job-row';
+      row.style.cssText = `grid-template-columns:110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px;background:${colors.bg};border-left-color:${e.bg};color:${colors.text}`;
+      row.innerHTML =
+        `<div class="cell">${badgeHTML(job.estimator)}</div>`+
+        `<div class="cell" style="font-weight:700">${job.ro}</div>`+
+        `<div class="cell">${job.customer}</div>`+
+        `<div class="cell" style="font-weight:400;opacity:0.9">${job.vehicle}</div>`+
+        `<div class="cell cell-sm">${job.insurance}</div>`+
+        `<div class="cell cell-sm">${job.tech}</div>`+
+        `<div class="cell cell-sm">${job.painter}</div>`+
+        `<div class="cell cell-center"><span class="repair-status">${job.repairStatus}</span></div>`+
+        `<div class="cell cell-center" style="font-size:13px;font-weight:600;opacity:0.9">${fmtDate(job.promise)}</div>`;
       groupEl.appendChild(row);
     });
     container.appendChild(groupEl);
   });
 }
+startRefresh(renderBoard);
 
-fetchBoardData(renderBoard); fetchLastSync();
-setInterval(()=>fetchBoardData(renderBoard), REFRESH_INTERVAL);
-setInterval(fetchLastSync, REFRESH_INTERVAL);
-setInterval(()=>location.reload(), 30*60*1000);
 
-// Auto-scroll
-const boardBody = document.getElementById('board-body');
-let scrollPos=0, direction=1, pauseTicks=0;
-const SPEED=0.5, PAUSE_TOP=10000/30, PAUSE_BOTTOM=5000/30, TICK=30;
-setInterval(()=>{
-  const max=boardBody.scrollHeight-boardBody.clientHeight;
-  if(max<=0)return;
-  if(pauseTicks>0){pauseTicks--;return;}
-  scrollPos+=SPEED*direction;
-  if(scrollPos>=max){scrollPos=max;direction=-1;pauseTicks=PAUSE_BOTTOM;}
-  else if(scrollPos<=0){scrollPos=0;direction=1;pauseTicks=PAUSE_TOP;}
-  boardBody.scrollTop=scrollPos;
-},TICK);
 </script>
 </body>
 </html>

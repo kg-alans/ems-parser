@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
-  <title>DTBS Board</title>
+  <meta name="viewport" content="width=1920">
+  <title>DTBS Production Board</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -11,14 +11,33 @@
     :root { --bg:#0b0e14; --border:#232b3e; --hbg:#6b1a2b; --hrim:#8c2038; --accent:#e8a0b0; --text:#dce6f5; --muted:#56647d; }
     * { margin:0; padding:0; box-sizing:border-box; }
 
-    html, body { width:100%; min-height:100%; background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; overflow-x:hidden; }
-    .board-header { background:var(--hbg); border-bottom:3px solid var(--hrim); padding:10px 12px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
-    .shop-name { font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:900; letter-spacing:0.06em; text-transform:uppercase; color:#fff; }
-    .board-label { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:600; letter-spacing:0.2em; text-transform:uppercase; color:var(--accent); }
-    .col-header { display:grid; grid-template-columns:36px 78px 1fr 1fr 72px 68px; padding:5px 8px; background:var(--bg); position:sticky; top:63px; z-index:5; border-bottom:1px solid var(--border); }
-    .col-label { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.12em; color:var(--muted); text-transform:uppercase; text-align:center; }
-    .col-label.left { text-align:left; }
-    .board-body { padding:0 8px 60px; }
+    html, body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; overflow-x:hidden; overflow-y:hidden; }
+    .board-header { height:80px;  background:var(--hbg); border-bottom:3px solid var(--hrim); display:flex; align-items:center; justify-content:space-between; padding:0 20px; position:sticky; top:0; z-index:10;  }
+
+    .board-header { background:var(--hbg); border-bottom:3px solid var(--hrim); display:flex; align-items:center; justify-content:space-between; padding:0 20px; position:sticky; top:0; z-index:10; }
+    .shop-name { font-family:'Barlow Condensed',sans-serif; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#fff; white-space:nowrap; }
+    .board-label { font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.28em; text-transform:uppercase; color:var(--accent); }
+    .legend { display:flex; gap:14px; flex-wrap:nowrap; }
+    .legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
+    .legend-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .time-grid { display:flex; gap:16px; align-items:flex-end; }
+    .time-col { display:flex; flex-direction:column; align-items:center; gap:1px; }
+    .time-sublabel { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:rgba(255,255,255,0.4); }
+    .time-value { font-family:'Barlow Condensed',sans-serif; font-weight:700; color:#fff; line-height:1; white-space:nowrap; }
+    .time-value.sync { color:rgba(255,255,255,0.65); }
+    .time-date { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:600; letter-spacing:0.1em; color:var(--accent); text-transform:uppercase; white-space:nowrap; text-align:center; }
+    .time-divider { width:1px; height:36px; background:rgba(255,255,255,0.15); align-self:center; }
+
+
+    .board-footer { position:fixed; bottom:0; left:0; right:0; height:44px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:10; }
+    .footer-mtd { display:flex; gap:28px; align-items:center; }
+    .footer-stat { display:flex; flex-direction:column; align-items:flex-start; }
+    .footer-stat-label { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); }
+    .footer-stat-value { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:800; letter-spacing:0.04em; color:#fff; }
+    .footer-legend { display:flex; gap:16px; }
+    .footer-legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.5); text-transform:uppercase; white-space:nowrap; }
+    .footer-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
 
     .group { margin-bottom:10px; }
     .group-divider { height:1px; margin-bottom:2px; opacity:0.3; }
@@ -29,45 +48,69 @@
     .repair-status { font-size:12px; font-weight:600; }
     .status-msg { text-align:center; padding:40px; font-family:'Barlow Condensed',sans-serif; font-size:18px; color:var(--muted); }
 
-    .job-row { padding:7px 8px; }
-    .board-footer-mobile { position:fixed; bottom:0; left:0; right:0; height:44px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-around; padding:0 16px; z-index:10; }
-    .footer-stat-m { display:flex; flex-direction:column; align-items:center; }
-    .footer-stat-label-m { font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
-    .footer-stat-value-m { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:800; color:#fff; }
+    .board-body { height:calc(100vh - 80px - 44px); overflow-y:scroll; padding:0 20px 8px; scrollbar-width:none; }
+    .board-body::-webkit-scrollbar { display:none; }
+    .col-header { display:grid; grid-template-columns:110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px; gap:0; padding:7px 12px 7px 18px; background:var(--bg); position:sticky; top:0; z-index:5; border-bottom:1px solid var(--border); margin-bottom:6px; }
+    .col-label { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; text-align:center; }
+    .col-label.left { text-align:left; }
   </style>
 </head>
 <body>
 <header class="board-header">
-  <div>
-    <div class="shop-name">KG Body &amp; Glass — DT</div>
+  <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+    <div class="shop-name" style="font-size:22px">Ken Garff Body &amp; Glass — Downtown</div>
     <div class="board-label">3-Day Production Board</div>
   </div>
-  <div style="text-align:right">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4)">Last Sync</div>
-    <div class="time-value sync" id="sync-time" style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:rgba(255,255,255,0.7)">—</div>
-    <div id="sync-date" style="font-family:'Barlow Condensed',sans-serif;font-size:8px;font-weight:600;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase">—</div>
+  <div style="flex:1;padding:0 16px;display:flex;flex-direction:column;align-items:center;gap:4px">
+  </div>
+  <div style="flex-shrink:0">
+
+      <div class="time-grid">
+        <div class="time-col">
+          <span class="time-sublabel">Current Time</span>
+          <span class="time-value" id="clock-time" style="font-size:28px">–:– –</span>
+          <span class="time-date" id="clock-date">–––</span>
+        </div>
+        <div class="time-divider"></div>
+        <div class="time-col">
+          <span class="time-sublabel">Last Sync</span>
+          <span class="time-value sync" id="sync-time" style="font-size:24px">—</span>
+          <span class="time-date" id="sync-date">—</span>
+        </div>
+      </div>
   </div>
 </header>
-<div class="col-header">
-  <span class="col-label">Est</span>
-  <span class="col-label">RO #</span>
-  <span class="col-label left">Customer</span>
-  <span class="col-label left">Vehicle</span>
-  <span class="col-label">Status</span>
-  <span class="col-label">Promise</span>
-</div>
 <div class="board-body" id="board-body">
+  <div class="col-header">
+    <span class="col-label left">Estimator</span>
+    <span class="col-label">RO #</span>
+    <span class="col-label">Customer</span>
+    <span class="col-label">Vehicle</span>
+    <span class="col-label">Insurance</span>
+    <span class="col-label">Tech</span>
+    <span class="col-label">Painter</span>
+    <span class="col-label">Repair Status</span>
+    <span class="col-label">CCC Promise</span>
+  </div>
   <div id="groups-container"></div>
 </div>
-<footer class="board-footer-mobile">
-  <div class="footer-stat-m">
-    <span class="footer-stat-label-m">MTD Revenue</span>
-    <span class="footer-stat-value-m" id="mtd-dollars">—</span>
+
+<footer class="board-footer">
+  <div class="footer-mtd">
+    <div class="footer-stat">
+      <span class="footer-stat-label">MTD Revenue</span>
+      <span class="footer-stat-value" id="mtd-dollars">—</span>
+    </div>
+    <div class="footer-stat">
+      <span class="footer-stat-label">MTD Labor</span>
+      <span class="footer-stat-value" id="mtd-labor">—</span>
+    </div>
   </div>
-  <div style="width:1px;height:28px;background:var(--border)"></div>
-  <div class="footer-stat-m">
-    <span class="footer-stat-label-m">MTD Labor</span>
-    <span class="footer-stat-value-m" id="mtd-labor">—</span>
+  <div class="footer-legend">
+    <div class="footer-legend-item"><div class="footer-dot" style="background:#e3324f"></div>Past Due / Won't Make It</div>
+    <div class="footer-legend-item"><div class="footer-dot" style="background:#0cc258"></div>On Track</div>
+    <div class="footer-legend-item"><div class="footer-dot" style="background:#e8b715"></div>Might Not Make It</div>
+    <div class="footer-legend-item"><div class="footer-dot" style="background:#15b8e6"></div>Done Today</div>
   </div>
 </footer>
 <script>
@@ -259,27 +302,6 @@ function startRefresh(renderFn) {
 }
 
 
-function getInitials(name) {
-  const MAP = {cord:'CB',cordale:'CB',logan:'LL',dana:'DH',jennie:'JN',alan:'MGMT',troy:'MGMT'};
-  return MAP[(name||'').toLowerCase()] || (name||'?').charAt(0).toUpperCase();
-}
-function getLastName(customer) {
-  if(!customer) return '';
-  if(customer.includes(',')) return customer.split(',')[0].trim();
-  const parts = customer.trim().split(' ');
-  return parts[parts.length-1];
-}
-function truncVehicle(v) {
-  if(!v) return '';
-  const parts = v.trim().split(' ');
-  if(parts.length<=3) return v;
-  return parts[0]+' '+parts[1]+' '+parts[2];
-}
-function mBadge(name) {
-  const e = getEst(name);
-  const initials = getInitials(name);
-  return `<div style="width:30px;height:30px;border-radius:50%;background:${e.bg};color:${e.dark};border:2px solid ${e.dark};box-shadow:0 0 12px ${e.glow}cc,0 0 4px ${e.glow};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;letter-spacing:0.05em;flex-shrink:0">${initials}</div>`;
-}
 function renderBoard(grouped) {
   const container = document.getElementById('groups-container');
   container.innerHTML = '';
@@ -297,20 +319,37 @@ function renderBoard(grouped) {
       const e = getEst(job.estimator);
       const row = document.createElement('div');
       row.className = 'job-row';
-      row.style.cssText = `grid-template-columns:36px 78px 1fr 1fr 72px 68px;background:${colors.bg};border-left-color:${e.bg};color:${colors.text}`;
+      row.style.cssText = `grid-template-columns:110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px;background:${colors.bg};border-left-color:${e.bg};color:${colors.text}`;
       row.innerHTML =
-        `<div class="cell" style="display:flex;align-items:center">${mBadge(job.estimator)}</div>`+
-        `<div class="cell" style="font-size:11px;font-weight:700">${job.ro}</div>`+
-        `<div class="cell" style="font-size:11px">${getLastName(job.customer)}</div>`+
-        `<div class="cell" style="font-size:11px;opacity:0.9">${truncVehicle(job.vehicle)}</div>`+
-        `<div class="cell cell-center" style="font-size:10px;font-weight:600">${job.repairStatus}</div>`+
-        `<div class="cell cell-center" style="font-size:11px;font-weight:600;opacity:0.9">${fmtDate(job.promise)}</div>`;
+        `<div class="cell">${badgeHTML(job.estimator)}</div>`+
+        `<div class="cell" style="font-weight:700">${job.ro}</div>`+
+        `<div class="cell">${job.customer}</div>`+
+        `<div class="cell" style="font-weight:400;opacity:0.9">${job.vehicle}</div>`+
+        `<div class="cell cell-sm">${job.insurance}</div>`+
+        `<div class="cell cell-sm">${job.tech}</div>`+
+        `<div class="cell cell-sm">${job.painter}</div>`+
+        `<div class="cell cell-center"><span class="repair-status">${job.repairStatus}</span></div>`+
+        `<div class="cell cell-center" style="font-size:13px;font-weight:600;opacity:0.9">${fmtDate(job.promise)}</div>`;
       groupEl.appendChild(row);
     });
     container.appendChild(groupEl);
   });
 }
 startRefresh(renderBoard);
+
+
+const _body = document.getElementById('board-body');
+let _sp=0,_dir=1,_pt=0;
+const _SPEED=0.5,_PTOP=10000/30,_PBOT=5000/30,_TICK=30;
+setInterval(()=>{
+  const max=_body.scrollHeight-_body.clientHeight;
+  if(max<=0)return;
+  if(_pt>0){_pt--;return;}
+  _sp+=_SPEED*_dir;
+  if(_sp>=max){_sp=max;_dir=-1;_pt=_PBOT;}
+  else if(_sp<=0){_sp=0;_dir=1;_pt=_PTOP;}
+  _body.scrollTop=_sp;
+},_TICK);
 
 </script>
 </body>
