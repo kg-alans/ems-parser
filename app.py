@@ -1855,10 +1855,6 @@ def board_manual():
 def three_day():
     return send_from_directory('.', '3day.html')
 
-@app.route('/3day-manual', methods=['GET'])
-def three_day_manual():
-    return send_from_directory('.', '3day-manual.html')
-
 @app.route('/3day-tv', methods=['GET'])
 def three_day_tv():
     return send_from_directory('.', '3day-tv.html')
@@ -1866,6 +1862,10 @@ def three_day_tv():
 @app.route('/3day-mobile', methods=['GET'])
 def three_day_mobile():
     return send_from_directory('.', '3day-mobile.html')
+
+@app.route('/3day-auto', methods=['GET'])
+def three_day_auto():
+    return send_from_directory('.', '3day-auto.html')
 
 # ─── /last-sync endpoint ──────────────────────────────────────────
 
