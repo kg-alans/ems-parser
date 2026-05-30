@@ -1893,6 +1893,43 @@ def last_sync_get():
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
 
+# ─── /mtd endpoint ────────────────────────────────────────────────
+
+_mtd_data = {'dollars': 0, 'labor': 0, 'updated': None}
+
+@app.route('/mtd', methods=['POST'])
+def mtd_post():
+    global _mtd_data
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Expected JSON'}), 400
+    _mtd_data = {
+        'dollars': data.get('dollars', 0),
+        'labor': data.get('labor', 0),
+        'updated': datetime.utcnow().isoformat() + 'Z'
+    }
+    try:
+        with open(os.path.join(os.path.dirname(__file__), 'mtd.txt'), 'w') as f:
+            import json as _json
+            f.write(_json.dumps(_mtd_data))
+    except Exception:
+        pass
+    return jsonify({'status': 'ok', 'data': _mtd_data})
+
+@app.route('/mtd', methods=['GET'])
+def mtd_get():
+    global _mtd_data
+    if _mtd_data['updated'] is None:
+        try:
+            with open(os.path.join(os.path.dirname(__file__), 'mtd.txt'), 'r') as f:
+                import json as _json
+                _mtd_data = _json.loads(f.read())
+        except Exception:
+            pass
+    response = jsonify(_mtd_data)
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
+    
 # ─── /health endpoint ─────────────────────────────────────────────
 
 @app.route('/health', methods=['GET'])
