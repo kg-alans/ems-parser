@@ -41,7 +41,7 @@
 
     .group { margin-bottom:10px; }
     .group-divider { height:1px; margin-bottom:2px; opacity:0.3; }
-    .job-row { display:grid; padding:9px 12px 9px 14px; border-radius:3px; margin-bottom:2px; align-items:center; border-left:5px solid transparent; }
+    .job-row { display:grid; padding:6px 12px 6px 14px; border-radius:3px; margin-bottom:2px; align-items:center; border-left:5px solid transparent; }
     .cell { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:8px; line-height:1; }
     .cell-center { text-align:center; }
     .cell-sm { font-size:11px; opacity:0.85; text-align:center; }
@@ -68,7 +68,7 @@
       <div class="time-grid">
         <div class="time-col">
           <span class="time-sublabel">Current Time</span>
-          <span class="time-value" id="clock-time" style="font-size:26px">–:– –</span>
+          <span class="time-value" id="clock-time" style="font-size:22px">–:– –</span>
           <span class="time-date" id="clock-date">–––</span>
         </div>
         <div class="time-divider"></div>
@@ -231,7 +231,7 @@ function getEst(name) {
 function badgeHTML(name, fontSize='14px') {
   const e = getEst(name);
   const display = (name||'').toLowerCase()==='cordale' ? 'CORD' : (name||'').toUpperCase();
-  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 20px ${e.glow}ee,0 0 8px ${e.glow},0 0 2px ${e.glow}">${display}</span>`;
+  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 6px ${e.glow},0 0 2px ${e.border}">${display}</span>`;
 }
 
 function fmtDate(iso) {
@@ -250,13 +250,13 @@ const GROUPS = [
 
 function groupHeader(group, count) {
   const g = document.createElement('div');
-  g.style.cssText = `display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid ${group.color};background:${group.color}18`;
+  g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid #3a4255;background:#1a1e2a';
   g.innerHTML =
-    `<div style="width:8px;height:8px;border-radius:50%;background:${group.color};box-shadow:0 0 7px ${group.color}88;flex-shrink:0"></div>`+
-    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:${group.color}">${group.label}</span>`+
-    `<div style="width:8px;height:8px;border-radius:50%;background:${group.color};box-shadow:0 0 7px ${group.color}88;flex-shrink:0"></div>`+
-    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:${group.color}">${count} vehicle${count!==1?'s':''}</span>`+
-    `<div style="width:8px;height:8px;border-radius:50%;background:${group.color};box-shadow:0 0 7px ${group.color}88;flex-shrink:0"></div>`;
+    `<div style="width:8px;height:8px;border-radius:50%;background:#5a6272;flex-shrink:0"></div>` +
+    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9aa5b8">${group.label}</span>` +
+    `<div style="width:8px;height:8px;border-radius:50%;background:#5a6272;flex-shrink:0"></div>` +
+    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#6b7585">${count} vehicle${count!==1?'s':''}</span>` +
+    `<div style="width:8px;height:8px;border-radius:50%;background:#5a6272;flex-shrink:0"></div>`;
   return g;
 }
 
