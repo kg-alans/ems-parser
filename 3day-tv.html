@@ -18,8 +18,8 @@
     .shop-name { font-family:'Barlow Condensed',sans-serif; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#fff; white-space:nowrap; }
     .board-label { font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.28em; text-transform:uppercase; color:var(--accent); }
     .legend { display:flex; gap:14px; flex-wrap:nowrap; }
-    .legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
-    .legend-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
+    .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
     .time-grid { display:flex; gap:16px; align-items:flex-end; }
     .time-col { display:flex; flex-direction:column; align-items:center; gap:1px; }
     .time-sublabel { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:rgba(255,255,255,0.4); }
@@ -252,11 +252,9 @@ function groupHeader(group, count) {
   const g = document.createElement('div');
   g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid #3a4255;background:#1a1e2a';
   g.innerHTML =
-    `<div style="width:8px;height:8px;border-radius:50%;background:#5a6272;flex-shrink:0"></div>` +
-    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9aa5b8">${group.label}</span>` +
-    `<div style="width:8px;height:8px;border-radius:50%;background:#5a6272;flex-shrink:0"></div>` +
-    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#6b7585">${count} vehicle${count!==1?'s':''}</span>` +
-    `<div style="width:8px;height:8px;border-radius:50%;background:#5a6272;flex-shrink:0"></div>`;
+    `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>` +
+    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${group.label}</span>` +
+    `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>`;
   return g;
 }
 

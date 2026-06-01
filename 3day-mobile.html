@@ -22,7 +22,7 @@
 
     .group { margin-bottom:10px; }
     .group-divider { height:1px; margin-bottom:2px; opacity:0.3; }
-    .job-row { display:grid; padding:6px 12px 6px 14px; border-radius:3px; margin-bottom:2px; align-items:center; border-left:5px solid transparent; }
+    .job-row { display:grid; padding:9px 12px 9px 14px; border-radius:3px; margin-bottom:2px; align-items:center; border-left:5px solid transparent; }
     .cell { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:8px; line-height:1; }
     .cell-center { text-align:center; }
     .cell-sm { font-size:11px; opacity:0.85; text-align:center; }
@@ -207,13 +207,11 @@ const GROUPS = [
 
 function groupHeader(group, count) {
   const g = document.createElement('div');
-  g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid #3a4255;background:#1a1e2a';
+  g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:7px;padding:5px 8px;border-radius:3px 3px 0 0;margin-bottom:2px;border-left:3px solid #3a4255;background:#1a1e2a';
   g.innerHTML =
-    `<div style="width:8px;height:8px;border-radius:50%;background:#5a6272;flex-shrink:0"></div>` +
-    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#9aa5b8">${group.label}</span>` +
-    `<div style="width:8px;height:8px;border-radius:50%;background:#5a6272;flex-shrink:0"></div>` +
-    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:#6b7585">${count} vehicle${count!==1?'s':''}</span>` +
-    `<div style="width:8px;height:8px;border-radius:50%;background:#5a6272;flex-shrink:0"></div>`;
+    `<div style="width:6px;height:6px;border-radius:50%;background:#8a95a8;box-shadow:0 0 5px #8a95a8cc,0 0 10px #8a95a855;flex-shrink:0"></div>` +
+    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 6px #b0bccfaa">${group.label}</span>` +
+    `<div style="width:6px;height:6px;border-radius:50%;background:#8a95a8;box-shadow:0 0 5px #8a95a8cc,0 0 10px #8a95a855;flex-shrink:0"></div>`;
   return g;
 }
 
