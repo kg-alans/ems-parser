@@ -119,6 +119,7 @@ PHASE_MAPPING = {
     # Phase 4: Reassembly
     '4:Reassembly':                        'Reassembly',
     '4:Reassembly ANNEX':                  'Reassembly',
+    '4:Reassy':                            'Reassembly',  # Added May 28 — CCC shortened "Reassembly" to "Reassy" (sync output showed unmapped)
     '4:Glass Install':                     'Reassembly',  # Added May 28 — distinct from deprecated 3:Glass Install
 
     # Phase 5: QC / Detail
@@ -126,6 +127,7 @@ PHASE_MAPPING = {
     '5:QC':                                'QC',
     '5:QC FAIL':                           'QC',
     '5:Post-Scan':                         'QC',
+    '5:Wash':                              'Wash',  # Added May 28 — CCC phase not in admin list but appearing in production (sync output showed unmapped)
 
     # Phase 6: Done / Customer
     '6:Done, To Estimator':                'Done',
