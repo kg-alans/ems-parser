@@ -1828,6 +1828,264 @@ def match_cancelled_opportunities():
         }
     })
 
+# ─── /match-scan-report endpoint (Phase 7 — Scan Report Sync, June 2026) ──
+
+def parse_scan_report_xml(xml_bytes):
+    """Parse Diagnostic Scan Report XML.
+    
+    Returns list of dicts with: workfile_id, ro_number, vin, carrier_name,
+    vehicle_year, vehicle_make_name, vehicle_model_name, scan_phase_description,
+    created_datetime, scan_type.
+    
+    A single car may have multiple scan records (pre-repair + post-repair).
+    Caller is responsible for grouping by workfile_id or vin as needed.
+    """
+    import xml.etree.ElementTree as ET
+    
+    def _strip_ns(tag):
+        return tag.split('}')[-1]
+    
+    tree = ET.fromstring(xml_bytes)
+    records = []
+    for elem in tree.iter():
+        children = {_strip_ns(c.tag): (c.text or '').strip() for c in elem}
+        if 'vehicle_vin' in children and 'workfile_id' in children:
+            records.append({
+                'workfile_id':              children.get('workfile_id', ''),
+                'ro_number':                children.get('repair_order_number', ''),
+                'vin':                      children.get('vehicle_vin', ''),
+                'carrier_name':             children.get('carrier_name', ''),
+                'vehicle_year':             children.get('vehicle_year', ''),
+                'vehicle_make_name':        children.get('vehicle_make_name', ''),
+                'vehicle_model_name':       children.get('vehicle_model_name', ''),
+                'scan_phase_description':   children.get('scan_phase_description', ''),
+                'created_datetime':         children.get('created_datetime', ''),
+                'scan_type':                children.get('scan_type', ''),
+            })
+    return records
+
+
+def _parse_iso_date(s):
+    """Parse YYYY-MM-DD or full ISO datetime, return date object or None."""
+    if not s:
+        return None
+    try:
+        from datetime import datetime
+        return datetime.fromisoformat(s.split('T')[0]).date()
+    except Exception:
+        return None
+
+
+def _days_between(d1_str, d2_str):
+    """Days between two ISO date strings. Returns None if either is blank/invalid."""
+    d1 = _parse_iso_date(d1_str)
+    d2 = _parse_iso_date(d2_str)
+    if d1 is None or d2 is None:
+        return None
+    return abs((d1 - d2).days)
+
+
+def _disambiguate_scan_workfiles(sp_row, candidate_workfiles, insurance_lookup):
+    """Given an SP row and multiple candidate scan workfiles for the same VIN,
+    try to identify a single correct workfile using carrier and dates.
+    
+    Returns (chosen_workfile_dict, reason_text) or (None, reason_text).
+    
+    Disambiguation order:
+      1. Carrier match — normalize sp_row.insurance and each candidate's
+         carrier_name; if exactly one candidate matches, choose it.
+      2. Pre-repair scan within 4 days of SP DropDate — if exactly one.
+      3. Post-repair scan within 4 days of SP CCCPromisDate — if exactly one.
+      Otherwise ambiguous.
+    """
+    # Step 1 — carrier match
+    sp_insurance = (sp_row.get('insurance') or '').strip()
+    if sp_insurance and not sp_insurance.startswith('⚠️'):
+        sp_normalized = normalize_insurance_name(sp_insurance, insurance_lookup)
+        carrier_matches = []
+        for wf in candidate_workfiles:
+            wf_normalized = normalize_insurance_name(wf['carrier_name'], insurance_lookup)
+            if sp_normalized and wf_normalized and sp_normalized == wf_normalized:
+                carrier_matches.append(wf)
+        if len(carrier_matches) == 1:
+            return carrier_matches[0], f"matched by carrier ({sp_normalized})"
+    
+    # Step 2 — pre-repair scan near drop date
+    drop_date = sp_row.get('drop_date', '')
+    if drop_date:
+        pre_near_drop = []
+        for wf in candidate_workfiles:
+            phase = (wf.get('scan_phase_description') or '').lower()
+            if 'pre' not in phase:
+                continue
+            delta = _days_between(wf.get('created_datetime', ''), drop_date)
+            if delta is not None and delta <= 4:
+                pre_near_drop.append(wf)
+        if len(pre_near_drop) == 1:
+            return pre_near_drop[0], "matched by pre-repair scan near DropDate"
+    
+    # Step 3 — post-repair scan near CCCPromisDate
+    promise_date = sp_row.get('cccpromisdate', '')
+    if promise_date:
+        post_near_promise = []
+        for wf in candidate_workfiles:
+            phase = (wf.get('scan_phase_description') or '').lower()
+            if 'post' not in phase:
+                continue
+            delta = _days_between(wf.get('created_datetime', ''), promise_date)
+            if delta is not None and delta <= 4:
+                post_near_promise.append(wf)
+        if len(post_near_promise) == 1:
+            return post_near_promise[0], "matched by post-repair scan near CCCPromisDate"
+    
+    return None, f"VIN matched {len(candidate_workfiles)} workfiles, no disambiguator succeeded"
+
+
+@app.route('/match-scan-report', methods=['POST'])
+def match_scan_report():
+    """Phase 7 — Scan Report Sync (June 2026).
+
+    Uses CCC ONE's Diagnostic Scan Report (OPUS IVS) to enrich SP rows that
+    have a VIN populated but are missing WorkfileID or RO#. Particularly
+    useful for rows previously stuck in the ambiguous bucket due to
+    multiple CCC workfiles matching customer+vehicle — the scan report
+    provides VIN, which uniquely identifies a physical car, plus
+    scan_phase_description + created_datetime which enable date-based
+    disambiguation between multiple repair episodes for the same car.
+
+    Match logic (per SP row):
+      1. SP row must have VIN populated. Rows without VIN skip.
+      2. Look up all scan records with matching VIN.
+      3. If those scans all belong to a single workfile_id → confident match.
+      4. If multiple workfile_ids → try disambiguators (carrier, then dates).
+      5. If still ambiguous → report as ambiguous.
+
+    Stamps on confident match:
+      - RO# (if blank in SP)
+      - WorkfileID (if blank in SP)
+      - Insurance (normalized, if blank in SP)
+      - Vehicle (year+make+model concat, if blank in SP)
+      - VIN (already populated, but stamps if missing for some reason)
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No JSON body received'}), 400
+    if 'xml' not in data:
+        return jsonify({'error': 'Missing xml field (base64 of report XML)'}), 400
+
+    sharepoint_items, err = coerce_sharepoint_items(data.get('sharepoint_items'))
+    if err:
+        return jsonify({'error': err}), 400
+
+    insurance_lookup, err = coerce_sharepoint_items(data.get('insurance_lookup'))
+    if err:
+        return jsonify({'error': f'insurance_lookup parse error: {err}'}), 400
+
+    try:
+        xml_bytes = base64.b64decode(data['xml'])
+        scan_rows = parse_scan_report_xml(xml_bytes)
+    except Exception as e:
+        return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
+
+    # Build VIN → list of scan records lookup
+    from collections import defaultdict
+    vin_to_scans = defaultdict(list)
+    for s in scan_rows:
+        if s['vin']:
+            vin_to_scans[s['vin'].upper().strip()].append(s)
+
+    matched = []
+    ambiguous = []
+    skipped_no_vin = 0
+    skipped_no_scan = 0
+
+    for sp in sharepoint_items:
+        sp_vin = (sp.get('vin') or '').upper().strip()
+        if not sp_vin:
+            skipped_no_vin += 1
+            continue
+
+        candidate_scans = vin_to_scans.get(sp_vin, [])
+        if not candidate_scans:
+            skipped_no_scan += 1
+            continue
+
+        # Collapse scans to unique workfile_ids
+        wfid_to_scans = defaultdict(list)
+        for s in candidate_scans:
+            wfid_to_scans[s['workfile_id']].append(s)
+
+        # Pick one representative scan per workfile for disambiguation
+        candidate_workfiles = []
+        for wfid, scans in wfid_to_scans.items():
+            # Prefer a scan that has a real RO# attached; otherwise first
+            chosen = next((s for s in scans if s.get('ro_number')), scans[0])
+            candidate_workfiles.append(chosen)
+
+        if len(candidate_workfiles) == 1:
+            chosen = candidate_workfiles[0]
+            reason = "single workfile_id for VIN"
+        else:
+            chosen, reason = _disambiguate_scan_workfiles(sp, candidate_workfiles, insurance_lookup)
+            if chosen is None:
+                ambiguous.append({
+                    'list_item_id':   sp.get('id'),
+                    'customer_name':  sp.get('customer_name'),
+                    'vehicle':        sp.get('vehicle'),
+                    'vin':            sp_vin,
+                    'reason':         reason,
+                    'candidate_workfile_ids': [wf['workfile_id'] for wf in candidate_workfiles],
+                    'candidate_ros':  [wf.get('ro_number', '') for wf in candidate_workfiles],
+                })
+                continue
+
+        # Build new values to potentially stamp. Only stamps blank fields in SP.
+        raw_carrier = chosen.get('carrier_name', '')
+        vehicle_combined = ' '.join(filter(None, [
+            chosen.get('vehicle_year', ''),
+            chosen.get('vehicle_make_name', ''),
+            chosen.get('vehicle_model_name', ''),
+        ])).strip()
+
+        new_values = {
+            'ro_number':           chosen.get('ro_number', '') if not (sp.get('ro_number') or '').strip() else '',
+            'workfile_id':         chosen.get('workfile_id', '') if not (sp.get('workfile_id') or '').strip() else '',
+            'insurance':           normalize_insurance_name(raw_carrier, insurance_lookup) if not (sp.get('insurance') or '').strip() else '',
+            'vehicle':             vehicle_combined if not (sp.get('vehicle') or '').strip() else '',
+            'vin':                 sp_vin if not (sp.get('vin') or '').strip() else '',
+        }
+        # Filter out empty/no-op writes
+        new_values = {k: v for k, v in new_values.items() if v}
+
+        if not new_values:
+            # Match confirmed but nothing to stamp — SP already has all the data
+            continue
+
+        matched.append({
+            'list_item_id':       sp.get('id'),
+            'customer_name':      sp.get('customer_name'),
+            'vehicle':            sp.get('vehicle'),
+            'vin':                sp_vin,
+            'matched_workfile_id': chosen.get('workfile_id', ''),
+            'matched_ro':         chosen.get('ro_number', ''),
+            'match_reason':       reason,
+            'new_values':         new_values,
+        })
+
+    return jsonify({
+        'matched': matched,
+        'ambiguous': ambiguous,
+        'summary': {
+            'scan_report_rows': len(scan_rows),
+            'unique_vins_in_report': len(vin_to_scans),
+            'sharepoint_items': len(sharepoint_items),
+            'skipped_no_vin_in_sp': skipped_no_vin,
+            'skipped_no_scan_for_vin': skipped_no_scan,
+            'matched': len(matched),
+            'ambiguous': len(ambiguous),
+        }
+    })
+    
 # ─── /board-data endpoint ─────────────────────────────────────────
 
 @app.route('/board-data', methods=['POST'])
