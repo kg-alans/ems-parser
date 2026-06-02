@@ -1300,29 +1300,48 @@ def parse():
         policy_no = get_val(ad1, 'POLICY_NO')
         ded_amt = get_val(ad1, 'DED_AMT')
         loss_date = get_val(ad1, 'LOSS_DATE')
+# CUST_PR distinguishes who the Ken Garff customer is:
+        #   'P' (Policyholder): INSD_ is the customer (their policy is paying)
+        #   'C' (Claimant): OWNR_ is the customer (their car was hit; another
+        #        party's policy is paying for the repair). INSD_ in this case
+        #        is the at-fault driver / policyholder of the paying insurer.
+        # Reading CUST_PR is essential for third-party claims — without it,
+        # claimant workfiles came into DTBS with the at-fault driver's name as
+        # the customer (e.g., Schiffman/Kalden case where Travelers is paying
+        # for Tenzin Kalden's car after Amanda Schiffman caused the loss).
+        cust_pr = get_val(ad1, 'CUST_PR')
+
         cust_first = get_val(ad1, 'INSD_FN')
         cust_last = get_val(ad1, 'INSD_LN')
         cust_co = get_val(ad1, 'INSD_CO_NM')
-        # OWNR_ fallback fields: for third-party claims (CUST_PR='C', claimant)
-        # where the car owner is the Ken Garff customer but the policy holder
-        # (INSD_) is a different person (the at-fault driver). CCC stores the
-        # claimant's info under OWNR_. Without this fallback, third-party claim
-        # workfiles come into DTBS with blank CustomerName.
         ownr_first = get_val(ad1, 'OWNR_FN')
         ownr_last = get_val(ad1, 'OWNR_LN')
         ownr_co = get_val(ad1, 'OWNR_CO_NM')
 
-        if cust_first or cust_last:
-            # "Last, First" format — matches how shop staff reference cars
-            # (by last name) and how CCC ONE reports come in for human customers.
-            customer_name = f"{cust_last}, {cust_first}".strip(', ').strip()
-        elif cust_co:
-            customer_name = cust_co
-        elif ownr_first or ownr_last:
-            # Third-party claim fallback — owner is the Ken Garff customer.
-            customer_name = f"{ownr_last}, {ownr_first}".strip(', ').strip()
+        if cust_pr == 'C':
+            # Claimant scenario — OWNR is the Ken Garff customer.
+            if ownr_first or ownr_last:
+                customer_name = f"{ownr_last}, {ownr_first}".strip(', ').strip()
+            elif ownr_co:
+                customer_name = ownr_co
+            elif cust_first or cust_last:
+                # Defensive fallback — claimant flag set but no OWNR data.
+                customer_name = f"{cust_last}, {cust_first}".strip(', ').strip()
+            else:
+                customer_name = cust_co
         else:
-            customer_name = ownr_co
+            # Policyholder ('P') or unset — INSD is the customer.
+            # "Last, First" format matches how shop staff reference cars
+            # and how CCC ONE reports come in for human customers.
+            if cust_first or cust_last:
+                customer_name = f"{cust_last}, {cust_first}".strip(', ').strip()
+            elif cust_co:
+                customer_name = cust_co
+            elif ownr_first or ownr_last:
+                # Defensive fallback — empty INSD with person OWNR.
+                customer_name = f"{ownr_last}, {ownr_first}".strip(', ').strip()
+            else:
+                customer_name = ownr_co
 
         est_first = get_val(ad2, 'EST_CT_FN')
         est_last = get_val(ad2, 'EST_CT_LN')
