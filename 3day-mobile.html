@@ -134,7 +134,7 @@ async function fetchLastSync() {
   } catch(e){}
 }
 
-async async function fetchMTD() {
+async function fetchMTD() {
   try {
     const res = await fetch(MTD_URL+'?_='+Date.now());
     if(!res.ok) return;
