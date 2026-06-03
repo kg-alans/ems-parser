@@ -5,24 +5,24 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
   <title>DTBS Board</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Changa+One&family=Saira:wght@400;600;700;800&family=Lexend+Deca:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
 
     :root { --bg:#0b0e14; --border:#232b3e; --hbg:#6b1a2b; --hrim:#8c2038; --accent:#e8a0b0; --text:#dce6f5; --muted:#56647d; }
     * { margin:0; padding:0; box-sizing:border-box; }
 
-    html, body { width:100%; min-height:100%; background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; overflow-x:hidden; }
+    html, body { width:100%; min-height:100%; background:var(--bg); color:var(--text); font-family:'Lexend Deca',sans-serif; overflow-x:hidden; }
     .board-header { background:var(--hbg); border-bottom:3px solid var(--hrim); padding:10px 12px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
     .shop-name { font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:900; letter-spacing:0.06em; text-transform:uppercase; color:#fff; }
     .board-label { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:600; letter-spacing:0.2em; text-transform:uppercase; color:var(--accent); }
     .col-header { display:grid; grid-template-columns:36px 78px 1fr 1fr 72px 68px; padding:5px 8px; background:var(--bg); position:sticky; top:63px; z-index:5; border-bottom:1px solid var(--border); }
     .col-label { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.12em; color:var(--muted); text-transform:uppercase; text-align:center; }
     .col-label.left { text-align:left; }
-    .board-body { padding:0 8px 60px; }
+    .board-body { padding:0 8px 72px; }
 
     .group { margin-bottom:10px; }
     .group-divider { height:1px; margin-bottom:2px; opacity:0.3; }
-    .job-row { display:grid; padding:6px 12px 6px 14px; border-radius:3px; margin-bottom:2px; align-items:center; border-left:5px solid transparent; }
+    .job-row { display:grid; padding:9px 12px 9px 14px; border-radius:3px; margin-bottom:2px; align-items:center; border-left:5px solid transparent; }
     .cell { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:8px; line-height:1; }
     .cell-center { text-align:center; }
     .cell-sm { font-size:11px; opacity:0.85; text-align:center; }
@@ -31,25 +31,22 @@
 
     .job-row { padding:7px 8px; }
     .board-footer-mobile { position:fixed; bottom:0; left:0; right:0; height:44px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-around; padding:0 16px; z-index:10; }
-  
-    .board-footer { position:fixed; bottom:0; left:0; right:0; height:52px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:center; padding:0 14px; z-index:10; }
-    .footer-section { display:flex; flex-direction:column; align-items:center; gap:2px; }
-    .footer-section-label { font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:#3a6abf; }
-    .footer-stats { display:flex; gap:20px; align-items:baseline; }
-    .footer-stat { display:flex; flex-direction:column; align-items:center; }
-    .footer-stat-value { font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:800; color:#fff; }
+    .footer-stat-m { display:flex; flex-direction:column; align-items:center; }
+    .footer-stat-label-m { font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
+    .footer-stat-value-m { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:800; color:#fff; }
   </style>
 </head>
 <body>
 <header class="board-header">
-  <div>
-    <div class="shop-name">KG Body &amp; Glass — DT</div>
-    <div class="board-label">3-Day Production Board</div>
+  <div class="header-left">
+    <div style="font-family:'Changa One',sans-serif;font-size:16px;letter-spacing:0.04em;text-transform:uppercase;color:#fff;line-height:1.15">Ken Garff Body &amp; Glass</div>
+    <div style="font-family:'Lexend Deca',sans-serif;font-size:10px;font-weight:600;letter-spacing:0.25em;text-transform:uppercase;color:#e8a0b0;line-height:1.3">Downtown</div>
+    <div style="font-family:'Lexend Deca',sans-serif;font-size:8px;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:1px">3-Day Production Board</div>
   </div>
-  <div style="text-align:right">
-    <div style="font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4)">Last Sync</div>
-    <div class="time-value sync" id="sync-time" style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:rgba(255,255,255,0.7)">—</div>
-    <div id="sync-date" style="font-family:'Barlow Condensed',sans-serif;font-size:8px;font-weight:600;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase">—</div>
+  <div class="header-right">
+    <div style="font-size:8px;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4)">Last Sync</div>
+    <div class="clock-time" id="clock-time" style="font-family:'Lexend Deca',sans-serif;font-size:20px;font-weight:600;color:#fff;line-height:1">–:– –</div>
+    <div class="clock-date" id="clock-date" style="font-family:'Lexend Deca',sans-serif;font-size:8px;color:#e8a0b0;text-transform:uppercase;letter-spacing:0.1em">–––</div>
   </div>
 </header>
 <div class="col-header">
@@ -64,11 +61,11 @@
   <div id="groups-container"></div>
 </div>
 <footer class="board-footer">
-  <div class="footer-section">
-    <span class="footer-section-label">Completed MTD</span>
-    <div class="footer-stats">
-      <div class="footer-stat"><span class="footer-stat-value" id="done-dollars">—</span></div>
-      <div class="footer-stat"><span class="footer-stat-value" id="done-labor">—</span></div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:100%">
+    <div style="font-family:'Lexend Deca',sans-serif;font-size:8px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#3a6abf">Completed MTD</div>
+    <div style="display:flex;gap:20px;align-items:baseline">
+      <span style="font-family:'Lexend Deca',sans-serif;font-size:18px;font-weight:700;color:#fff" id="done-dollars">—</span>
+      <span style="font-family:'Lexend Deca',sans-serif;font-size:18px;font-weight:700;color:#fff" id="done-labor">—</span>
     </div>
   </div>
 </footer>
@@ -134,16 +131,14 @@ async function fetchMTD() {
     const res = await fetch(MTD_URL+'?_='+Date.now());
     if(!res.ok) return;
     const data = await res.json();
-    const fmt$ = v => v != null ? '$'+Math.round(v).toLocaleString('en-US') : '—';
-    const fmtH = v => v != null ? Number(v).toFixed(1)+' hrs' : '—';
-    const dd = document.getElementById('done-dollars');
-    const dl = document.getElementById('done-labor');
-    const cd = document.getElementById('closed-dollars');
-    const cl = document.getElementById('closed-labor');
-    if(dd) dd.textContent = fmt$(data.doneDollars);
-    if(dl) dl.textContent = fmtH(data.doneLabor);
-    if(cd) cd.textContent = fmt$(data.closedDollars);
-    if(cl) cl.textContent = fmtH(data.closedLabor);
+    const dEl = document.getElementById('mtd-dollars');
+    const lEl = document.getElementById('mtd-labor');
+    if(dEl) dEl.textContent = data.dollars != null
+      ? '$'+Number(data.dollars).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})
+      : '—';
+    if(lEl) lEl.textContent = data.labor != null
+      ? Number(data.labor).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})+' hrs'
+      : '—';
   } catch(e){}
 }
 
@@ -192,7 +187,7 @@ function getEst(name) {
 function badgeHTML(name, fontSize='14px') {
   const e = getEst(name);
   const display = (name||'').toLowerCase()==='cordale' ? 'CORD' : (name||'').toUpperCase();
-  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 6px ${e.glow},0 0 2px ${e.border}">${display}</span>`;
+  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 20px ${e.glow}ee,0 0 8px ${e.glow},0 0 2px ${e.glow}">${display}</span>`;
 }
 
 function fmtDate(iso) {
@@ -213,9 +208,9 @@ function groupHeader(group, count) {
   const g = document.createElement('div');
   g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:7px;padding:5px 8px;border-radius:3px 3px 0 0;margin-bottom:2px;border-left:3px solid #3a4255;background:#1a1e2a';
   g.innerHTML =
-    `<div style="width:6px;height:6px;border-radius:50%;background:#8a95a8;box-shadow:0 0 5px #8a95a8cc,0 0 10px #8a95a855;flex-shrink:0"></div>` +
-    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:800;letter-spacing:0.18em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 6px #b0bccfaa">${group.label}</span>` +
-    `<div style="width:6px;height:6px;border-radius:50%;background:#8a95a8;box-shadow:0 0 5px #8a95a8cc,0 0 10px #8a95a855;flex-shrink:0"></div>`;
+    `<div style="width:6px;height:6px;border-radius:50%;background:#8a95a8;box-shadow:0 0 5px #8a95a8cc;flex-shrink:0"></div>` +
+    `<span style="font-family:'Saira',sans-serif;font-size:12px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;color:#c5cfd8;text-shadow:0 0 6px #c5cfd888">${group.label}</span>` +
+    `<div style="width:6px;height:6px;border-radius:50%;background:#8a95a8;box-shadow:0 0 5px #8a95a8cc;flex-shrink:0"></div>`;
   return g;
 }
 
@@ -316,4 +311,11 @@ startRefresh(renderBoard);
 
 </script>
 </body>
-</html>
+</html
+function yearMake(vehicle) {
+  if (!vehicle) return '';
+  const parts = vehicle.trim().split(' ');
+  return parts.slice(0, 2).join(' ');
+}
+
+>
