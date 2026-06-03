@@ -2174,7 +2174,7 @@ def last_sync_get():
 
 # ─── /mtd endpoint ────────────────────────────────────────────────
 
-_mtd_data = {'dollars': 0, 'labor': 0, 'updated': None}
+_mtd_data = {'doneDollars': 0, 'doneLabor': 0, 'closedDollars': 0, 'closedLabor': 0, 'updated': None}
 
 @app.route('/mtd', methods=['POST'])
 def mtd_post():
@@ -2183,9 +2183,11 @@ def mtd_post():
     if not data:
         return jsonify({'error': 'Expected JSON'}), 400
     _mtd_data = {
-        'dollars': data.get('dollars', 0),
-        'labor': data.get('labor', 0),
-        'updated': datetime.utcnow().isoformat() + 'Z'
+        'doneDollars':   data.get('doneDollars', 0),
+        'doneLabor':     data.get('doneLabor', 0),
+        'closedDollars': data.get('closedDollars', 0),
+        'closedLabor':   data.get('closedLabor', 0),
+        'updated':       datetime.utcnow().isoformat() + 'Z'
     }
     try:
         with open(os.path.join(os.path.dirname(__file__), 'mtd.txt'), 'w') as f:
