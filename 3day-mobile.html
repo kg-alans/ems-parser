@@ -34,17 +34,26 @@
     .footer-stat-m { display:flex; flex-direction:column; align-items:center; }
     .footer-stat-label-m { font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
     .footer-stat-value-m { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:800; color:#fff; }
+  
+    .drawer { overflow:hidden; max-height:0; transition:max-height 0.25s ease; background:#0f131f; border-left:4px solid transparent; border-radius:0 0 4px 4px; margin-bottom:2px; margin-top:-2px; }
+    .drawer.open { max-height:200px; }
+    .drawer-inner { padding:8px 12px 10px 12px; display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; }
+    .drawer-field { display:flex; flex-direction:column; gap:1px; }
+    .drawer-label { font-family:'Lexend Deca',sans-serif; font-size:8px; font-weight:600; letter-spacing:0.15em; text-transform:uppercase; color:#56647d; }
+    .drawer-value { font-family:'Lexend Deca',sans-serif; font-size:12px; font-weight:500; color:#dce6f5; }
+    .drawer-value.full-width { grid-column:1/-1; }
+
   </style>
 </head>
 <body>
 <header class="board-header">
   <div class="header-left">
-    <div style="font-family:'Changa One',sans-serif;font-size:16px;letter-spacing:0.04em;text-transform:uppercase;color:#fff;line-height:1.15">Ken Garff Body &amp; Glass</div>
+    <div style="font-family:'Changa One',sans-serif;font-size:19px;letter-spacing:0.03em;text-transform:uppercase;color:#fff;line-height:1.1">Ken Garff Body &amp; Glass</div>
     <div style="font-family:'Lexend Deca',sans-serif;font-size:10px;font-weight:600;letter-spacing:0.25em;text-transform:uppercase;color:#e8a0b0;line-height:1.3">Downtown</div>
-    <div style="font-family:'Lexend Deca',sans-serif;font-size:8px;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:1px">3-Day Production Board</div>
+    <div style="font-family:'Lexend Deca',sans-serif;font-size:8px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:1px">3-Day Production Board</div>
   </div>
-  <div class="header-right">
-    <div style="font-size:8px;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4)">Last Sync</div>
+  <div class="header-right" style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;">
+    <div style="font-family:'Lexend Deca',sans-serif;font-size:8px;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.4)">Last Sync</div>
     <div class="clock-time" id="clock-time" style="font-family:'Lexend Deca',sans-serif;font-size:20px;font-weight:600;color:#fff;line-height:1">–:– –</div>
     <div class="clock-date" id="clock-date" style="font-family:'Lexend Deca',sans-serif;font-size:8px;color:#e8a0b0;text-transform:uppercase;letter-spacing:0.1em">–––</div>
   </div>
@@ -187,7 +196,7 @@ function getEst(name) {
 function badgeHTML(name, fontSize='14px') {
   const e = getEst(name);
   const display = (name||'').toLowerCase()==='cordale' ? 'CORD' : (name||'').toUpperCase();
-  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 20px ${e.glow}ee,0 0 8px ${e.glow},0 0 2px ${e.glow}">${display}</span>`;
+  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 5px ${e.glow},0 0 1px ${e.dark}">${display}</span>`;
 }
 
 function fmtDate(iso) {
@@ -269,13 +278,12 @@ function getLastName(customer) {
 function truncVehicle(v) {
   if(!v) return '';
   const parts = v.trim().split(' ');
-  if(parts.length<=3) return v;
-  return parts[0]+' '+parts[1]+' '+parts[2];
+  return parts.slice(0,2).join(' ');
 }
 function mBadge(name) {
   const e = getEst(name);
   const initials = getInitials(name);
-  return `<div style="width:30px;height:30px;border-radius:50%;background:${e.bg};color:${e.dark};border:2px solid ${e.dark};box-shadow:0 0 12px ${e.glow}cc,0 0 4px ${e.glow};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;letter-spacing:0.05em;flex-shrink:0">${initials}</div>`;
+  return `<div style="width:30px;height:30px;border-radius:50%;background:${e.bg};color:${e.dark};border:2px solid ${e.dark};box-shadow:0 0 5px ${e.glow},0 0 1px ${e.dark};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;letter-spacing:0.05em;flex-shrink:0">${initials}</div>`;
 }
 function renderBoard(grouped) {
   const container = document.getElementById('groups-container');
@@ -301,8 +309,25 @@ function renderBoard(grouped) {
         `<div class="cell" style="font-size:11px">${getLastName(job.customer)}</div>`+
         `<div class="cell" style="font-size:11px;opacity:0.9">${truncVehicle(job.vehicle)}</div>`+
         `<div class="cell cell-center" style="font-size:10px;font-weight:600">${job.repairStatus}</div>`+
-        `<div class="cell cell-center" style="font-size:11px;font-weight:600;opacity:0.9">${fmtDate(job.promise)}</div>`;
+        `<div style="font-size:11px;font-weight:600;opacity:0.9;text-align:right">${fmtDate(job.promise)}</div>`;
+      const drawerEl = document.createElement('div');
+      drawerEl.className = 'drawer';
+      drawerEl.style.borderLeftColor = row.style.borderLeftColor;
+      drawerEl.innerHTML = `<div class="drawer-inner">
+        <div class="drawer-field"><span class="drawer-label">Full Status</span><span class="drawer-value">${job.repairStatus||'—'}</span></div>
+        <div class="drawer-field"><span class="drawer-label">Insurance</span><span class="drawer-value">${job.insurance||'—'}</span></div>
+        <div class="drawer-field"><span class="drawer-label">Tech</span><span class="drawer-value">${job.tech||'—'}</span></div>
+        <div class="drawer-field"><span class="drawer-label">Painter</span><span class="drawer-value">${job.painter||'—'}</span></div>
+        <div class="drawer-field"><span class="drawer-label">Drop Date</span><span class="drawer-value">${fmtDate(job.dropDate)||'—'}</span></div>
+        <div class="drawer-field"><span class="drawer-label">Promise</span><span class="drawer-value">${fmtDate(job.promise)||'—'}</span></div>
+      </div>`;
+      row.addEventListener('click', () => {
+        const isOpen = drawerEl.classList.contains('open');
+        document.querySelectorAll('.drawer.open').forEach(d => d.classList.remove('open'));
+        if(!isOpen) drawerEl.classList.add('open');
+      });
       groupEl.appendChild(row);
+      groupEl.appendChild(drawerEl);
     });
     container.appendChild(groupEl);
   });
