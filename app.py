@@ -2174,10 +2174,29 @@ def last_sync_get():
 
 # ─── /mtd endpoint ────────────────────────────────────────────────
 
-_mtd_data = {'doneDollars': 0, 'doneLabor': 0, 'closedDollars': 0, 'closedLabor': 0, 'updated': None}
+_mtd_data = {
+    'doneDollars': 0,
+    'doneLabor': 0,
+    'closedDollars': 0,
+    'closedLabor': 0,
+    'updated': None,
+}
 
 @app.route('/mtd', methods=['POST'])
 def mtd_post():
+    """Receive month-to-date stats from PA flow.
+
+    Expected body:
+      {
+        "doneDollars": <num>,
+        "doneLabor": <num>,
+        "closedDollars": <num>,
+        "closedLabor": <num>
+      }
+
+    Done MTD = production performance (DoneStatusTime in current month).
+    Closed MTD = estimator/billing performance (ClosedStatusTime in current month).
+    """
     global _mtd_data
     data = request.get_json()
     if not data:
@@ -2187,7 +2206,7 @@ def mtd_post():
         'doneLabor':     data.get('doneLabor', 0),
         'closedDollars': data.get('closedDollars', 0),
         'closedLabor':   data.get('closedLabor', 0),
-        'updated':       datetime.utcnow().isoformat() + 'Z'
+        'updated':       datetime.utcnow().isoformat() + 'Z',
     }
     try:
         with open(os.path.join(os.path.dirname(__file__), 'mtd.txt'), 'w') as f:
