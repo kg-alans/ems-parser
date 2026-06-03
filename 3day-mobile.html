@@ -134,20 +134,16 @@ async function fetchLastSync() {
   } catch(e){}
 }
 
-async function fetchMTD() {
+async async function fetchMTD() {
   try {
     const res = await fetch(MTD_URL+'?_='+Date.now());
     if(!res.ok) return;
     const data = await res.json();
-    const dEl = document.getElementById('mtd-dollars');
-    const lEl = document.getElementById('mtd-labor');
-    if(dEl) dEl.textContent = data.dollars != null
-      ? '$'+Number(data.dollars).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})
-      : '—';
-    if(lEl) lEl.textContent = data.labor != null
-      ? Number(data.labor).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})+' hrs'
-      : '—';
-  } catch(e){}
+    const dd = document.getElementById('done-dollars');
+    const dl = document.getElementById('done-labor');
+    if(dd) dd.textContent = '$'+Math.round(data.doneDollars||0).toLocaleString('en-US');
+    if(dl) dl.textContent = Number(data.doneLabor||0).toFixed(1)+' hrs';
+  } catch(e) {}
 }
 
 function isToday(s) {
