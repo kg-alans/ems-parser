@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=1920">
   <title>DTBS Production Board</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Changa+One&family=Saira:wght@600;700;800&family=Lexend+Deca:wght@400;500;600&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
 
     :root { --bg:#0b0e14; --border:#232b3e; --hbg:#6b1a2b; --hrim:#8c2038; --accent:#e8a0b0; --text:#dce6f5; --muted:#56647d; }
     * { margin:0; padding:0; box-sizing:border-box; }
 
-    html, body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'JetBrains Mono',monospace; overflow-x:hidden;  }
+    html, body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'Lexend Deca',sans-serif; overflow-x:hidden;  }
     .board-header { height:80px;  background:var(--hbg); border-bottom:3px solid var(--hrim); display:flex; align-items:center; justify-content:space-between; padding:0 20px; position:sticky; top:0; z-index:10;  }
 
     .board-header { background:var(--hbg); border-bottom:3px solid var(--hrim); display:flex; align-items:center; justify-content:space-between; padding:0 20px; position:sticky; top:0; z-index:10; }
-    .shop-name { font-family:'Barlow Condensed',sans-serif; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#fff; white-space:nowrap; }
+    .shop-name {  font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#fff; white-space:nowrap; font-family:'Changa One',sans-serif;}
     .board-label { font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.28em; text-transform:uppercase; color:var(--accent); }
     .legend { display:flex; gap:14px; flex-wrap:nowrap; }
     .legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
@@ -61,7 +62,7 @@
 <body>
 <header class="board-header">
   <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
-    <div class="shop-name" style="font-size:22px">Ken Garff Body &amp; Glass — Downtown</div>
+    <div class="shop-name" style="font-size:24px">Ken Garff Body &amp; Glass — Downtown</div>
     <div class="board-label">3-Day Production Board</div>
   </div>
   <div style="flex:1;padding:0 16px;display:flex;flex-direction:column;align-items:center;gap:4px">
@@ -269,7 +270,7 @@ function groupHeader(group, count) {
   g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid #3a4255;background:#1a1e2a';
   g.innerHTML =
     `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>` +
-    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${group.label}</span>` +
+    `<span style="font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${group.label}</span>` +
     `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>`;
   return g;
 }
