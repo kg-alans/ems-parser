@@ -30,7 +30,7 @@
     .status-msg { text-align:center; padding:40px; font-family:'Barlow Condensed',sans-serif; font-size:18px; color:var(--muted); }
 
     .job-row { padding:7px 8px; }
-    .board-footer-mobile { position:fixed; bottom:0; left:0; right:0; height:44px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-around; padding:0 16px; z-index:10; }
+    .board-footer-mobile { position:fixed; bottom:0; left:0; right:0; height:52px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-around; padding:0 16px; z-index:10; }
     .footer-stat-m { display:flex; flex-direction:column; align-items:center; }
     .footer-stat-label-m { font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
     .footer-stat-value-m { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:800; color:#fff; }
@@ -49,7 +49,6 @@
 <header class="board-header">
   <div class="header-left">
     <div style="font-family:'Changa One',sans-serif;font-size:19px;letter-spacing:0.03em;text-transform:uppercase;color:#fff;line-height:1.1">Ken Garff Body &amp; Glass</div>
-    <div style="font-family:'Lexend Deca',sans-serif;font-size:10px;font-weight:600;letter-spacing:0.25em;text-transform:uppercase;color:#e8a0b0;line-height:1.3">Downtown</div>
     <div style="font-family:'Lexend Deca',sans-serif;font-size:8px;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-top:1px">3-Day Production Board</div>
   </div>
   <div class="header-right" style="text-align:right;display:flex;flex-direction:column;align-items:flex-end;">
@@ -69,7 +68,7 @@
 <div class="board-body" id="board-body">
   <div id="groups-container"></div>
 </div>
-<footer class="board-footer">
+<footer class="board-footer-mobile">
   <div style="display:flex;flex-direction:column;align-items:center;gap:2px;width:100%">
     <div style="font-family:'Lexend Deca',sans-serif;font-size:8px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:#3a6abf">Completed MTD</div>
     <div style="display:flex;gap:20px;align-items:baseline">
@@ -196,7 +195,7 @@ function getEst(name) {
 function badgeHTML(name, fontSize='14px') {
   const e = getEst(name);
   const display = (name||'').toLowerCase()==='cordale' ? 'CORD' : (name||'').toUpperCase();
-  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 5px ${e.glow},0 0 1px ${e.dark}">${display}</span>`;
+  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:1px solid ${e.border};box-shadow:0 0 5px ${e.glow},0 0 1px ${e.dark}">${display}</span>`;
 }
 
 function fmtDate(iso) {
@@ -283,7 +282,7 @@ function truncVehicle(v) {
 function mBadge(name) {
   const e = getEst(name);
   const initials = getInitials(name);
-  return `<div style="width:30px;height:30px;border-radius:50%;background:${e.bg};color:${e.dark};border:2px solid ${e.dark};box-shadow:0 0 5px ${e.glow},0 0 1px ${e.dark};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;letter-spacing:0.05em;flex-shrink:0">${initials}</div>`;
+  return `<div style="width:30px;height:30px;border-radius:50%;background:${e.bg};color:${e.dark};border:1px solid ${e.border};box-shadow:0 0 4px ${e.glow};display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:900;letter-spacing:0.05em;flex-shrink:0">${initials}</div>`;
 }
 function renderBoard(grouped) {
   const container = document.getElementById('groups-container');
@@ -314,12 +313,12 @@ function renderBoard(grouped) {
       drawerEl.className = 'drawer';
       drawerEl.style.borderLeftColor = row.style.borderLeftColor;
       drawerEl.innerHTML = `<div class="drawer-inner">
-        <div class="drawer-field"><span class="drawer-label">Full Status</span><span class="drawer-value">${job.repairStatus||'—'}</span></div>
+        <div class="drawer-field"><span class="drawer-label">Status</span><span class="drawer-value">${job.repairStatus||'—'}</span></div>
         <div class="drawer-field"><span class="drawer-label">Insurance</span><span class="drawer-value">${job.insurance||'—'}</span></div>
         <div class="drawer-field"><span class="drawer-label">Tech</span><span class="drawer-value">${job.tech||'—'}</span></div>
         <div class="drawer-field"><span class="drawer-label">Painter</span><span class="drawer-value">${job.painter||'—'}</span></div>
         <div class="drawer-field"><span class="drawer-label">Drop Date</span><span class="drawer-value">${fmtDate(job.dropDate)||'—'}</span></div>
-        <div class="drawer-field"><span class="drawer-label">Promise</span><span class="drawer-value">${fmtDate(job.promise)||'—'}</span></div>
+        <div class="drawer-field"><span class="drawer-label">Promise Date</span><span class="drawer-value">${fmtDate(job.promise)||'—'}</span></div>
       </div>`;
       row.addEventListener('click', () => {
         const isOpen = drawerEl.classList.contains('open');
