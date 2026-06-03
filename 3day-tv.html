@@ -18,8 +18,8 @@
     .shop-name { font-family:'Barlow Condensed',sans-serif; font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#fff; white-space:nowrap; }
     .board-label { font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.28em; text-transform:uppercase; color:var(--accent); }
     .legend { display:flex; gap:14px; flex-wrap:nowrap; }
-    .legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
-    .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
+    .legend-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
     .time-grid { display:flex; gap:16px; align-items:flex-end; }
     .time-col { display:flex; flex-direction:column; align-items:center; gap:1px; }
     .time-sublabel { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:rgba(255,255,255,0.4); }
@@ -29,30 +29,34 @@
     .time-divider { width:1px; height:36px; background:rgba(255,255,255,0.15); align-self:center; }
 
 
-    .board-footer { position:fixed; bottom:0; left:0; right:0; height:44px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:10; }
-    .footer-mtd { display:flex; gap:28px; align-items:center; }
-    .footer-stat { display:flex; flex-direction:column; align-items:flex-start; }
-    .footer-stat-label { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--muted); }
-    .footer-stat-value { font-family:'Barlow Condensed',sans-serif; font-size:18px; font-weight:800; letter-spacing:0.04em; color:#fff; }
-    .footer-legend { display:flex; gap:16px; }
-    .footer-legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.5); text-transform:uppercase; white-space:nowrap; }
-    .footer-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-
-
     .group { margin-bottom:10px; }
     .group-divider { height:1px; margin-bottom:2px; opacity:0.3; }
-    .job-row { display:grid; padding:6px 12px 6px 14px; border-radius:3px; margin-bottom:2px; align-items:center; border-left:5px solid transparent; }
+    .job-row { display:grid; padding:9px 12px 9px 14px; border-radius:3px; margin-bottom:2px; align-items:center; border-left:5px solid transparent; }
     .cell { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:8px; line-height:1; }
     .cell-center { text-align:center; }
     .cell-sm { font-size:11px; opacity:0.85; text-align:center; }
     .repair-status { font-size:12px; font-weight:600; }
     .status-msg { text-align:center; padding:40px; font-family:'Barlow Condensed',sans-serif; font-size:18px; color:var(--muted); }
 
-    .board-body { height:calc(100vh - 80px - 44px); overflow-y:scroll; padding:0 20px 8px; scrollbar-width:none; }
+    .board-body { height:calc(100vh - 76px - 64px); overflow-y:scroll; padding:0 20px 8px; scrollbar-width:none; }
     .board-body::-webkit-scrollbar { display:none; }
     .col-header { display:grid; grid-template-columns:88px 82px 130px 1.3fr 110px 74px 74px 1fr 80px; gap:0; padding:7px 12px 7px 18px; background:var(--bg); position:sticky; top:0; z-index:5; border-bottom:1px solid var(--border); margin-bottom:6px; }
     .col-label { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; text-align:center; }
     .col-label.left { text-align:left; }
+  
+    .board-footer { position:fixed; bottom:0; left:0; right:0; height:64px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:10; }
+    .footer-mtd { display:flex; gap:32px; align-items:center; }
+    .footer-section { display:flex; flex-direction:column; gap:2px; }
+    .footer-section-label { font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:#3a6abf; }
+    .footer-stats { display:flex; gap:20px; align-items:baseline; }
+    .footer-stat { display:flex; flex-direction:column; align-items:flex-start; }
+    .footer-stat-label { font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:700; letter-spacing:0.15em; text-transform:uppercase; color:var(--muted); }
+    .footer-stat-value { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:800; letter-spacing:0.04em; color:#fff; }
+    .footer-sep { width:1px; height:40px; background:var(--border); }
+    .footer-legend { display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
+    .footer-legend-row { display:flex; gap:16px; }
+    .footer-legend-item { display:flex; align-items:center; gap:6px; font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
+    .footer-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
   </style>
 </head>
 <body>
@@ -68,7 +72,7 @@
       <div class="time-grid">
         <div class="time-col">
           <span class="time-sublabel">Current Time</span>
-          <span class="time-value" id="clock-time" style="font-size:22px">–:– –</span>
+          <span class="time-value" id="clock-time" style="font-size:26px">–:– –</span>
           <span class="time-date" id="clock-date">–––</span>
         </div>
         <div class="time-divider"></div>
@@ -97,20 +101,43 @@
 
 <footer class="board-footer">
   <div class="footer-mtd">
-    <div class="footer-stat">
-      <span class="footer-stat-label">MTD Revenue</span>
-      <span class="footer-stat-value" id="mtd-dollars">—</span>
+    <div class="footer-section">
+      <span class="footer-section-label">Completed MTD</span>
+      <div class="footer-stats">
+        <div class="footer-stat">
+          <span class="footer-stat-label">$</span>
+          <span class="footer-stat-value" id="done-dollars">—</span>
+        </div>
+        <div class="footer-stat">
+          <span class="footer-stat-label">HRS</span>
+          <span class="footer-stat-value" id="done-labor">—</span>
+        </div>
+      </div>
     </div>
-    <div class="footer-stat">
-      <span class="footer-stat-label">MTD Labor</span>
-      <span class="footer-stat-value" id="mtd-labor">—</span>
+    <div class="footer-sep"></div>
+    <div class="footer-section">
+      <span class="footer-section-label">Closed MTD</span>
+      <div class="footer-stats">
+        <div class="footer-stat">
+          <span class="footer-stat-label">$</span>
+          <span class="footer-stat-value" id="closed-dollars">—</span>
+        </div>
+        <div class="footer-stat">
+          <span class="footer-stat-label">HRS</span>
+          <span class="footer-stat-value" id="closed-labor">—</span>
+        </div>
+      </div>
     </div>
   </div>
   <div class="footer-legend">
-    <div class="footer-legend-item"><div class="footer-dot" style="background:#e3324f"></div>Past Due / Won't Make It</div>
-    <div class="footer-legend-item"><div class="footer-dot" style="background:#0cc258"></div>On Track</div>
-    <div class="footer-legend-item"><div class="footer-dot" style="background:#e8b715"></div>Might Not Make It</div>
-    <div class="footer-legend-item"><div class="footer-dot" style="background:#15b8e6"></div>Done Today</div>
+    <div class="footer-legend-row">
+      <div class="footer-legend-item"><div class="footer-dot" style="background:#e3324f"></div>Past Due / Won't Make It</div>
+      <div class="footer-legend-item"><div class="footer-dot" style="background:#0cc258"></div>On Track</div>
+    </div>
+    <div class="footer-legend-row">
+      <div class="footer-legend-item"><div class="footer-dot" style="background:#e8b715"></div>Might Not Make It</div>
+      <div class="footer-legend-item"><div class="footer-dot" style="background:#15b8e6"></div>Done Today</div>
+    </div>
   </div>
 </footer>
 <script>
@@ -175,14 +202,16 @@ async function fetchMTD() {
     const res = await fetch(MTD_URL+'?_='+Date.now());
     if(!res.ok) return;
     const data = await res.json();
-    const dEl = document.getElementById('mtd-dollars');
-    const lEl = document.getElementById('mtd-labor');
-    if(dEl) dEl.textContent = data.dollars != null
-      ? '$'+Number(data.dollars).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})
-      : '—';
-    if(lEl) lEl.textContent = data.labor != null
-      ? Number(data.labor).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})+' hrs'
-      : '—';
+    const fmt$ = v => v != null ? '$'+Math.round(v).toLocaleString('en-US') : '—';
+    const fmtH = v => v != null ? Number(v).toFixed(1)+' hrs' : '—';
+    const dd = document.getElementById('done-dollars');
+    const dl = document.getElementById('done-labor');
+    const cd = document.getElementById('closed-dollars');
+    const cl = document.getElementById('closed-labor');
+    if(dd) dd.textContent = fmt$(data.doneDollars);
+    if(dl) dl.textContent = fmtH(data.doneLabor);
+    if(cd) cd.textContent = fmt$(data.closedDollars);
+    if(cl) cl.textContent = fmtH(data.closedLabor);
   } catch(e){}
 }
 
@@ -231,7 +260,7 @@ function getEst(name) {
 function badgeHTML(name, fontSize='14px') {
   const e = getEst(name);
   const display = (name||'').toLowerCase()==='cordale' ? 'CORD' : (name||'').toUpperCase();
-  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 6px ${e.glow},0 0 2px ${e.border}">${display}</span>`;
+  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 20px ${e.glow}ee,0 0 8px ${e.glow},0 0 2px ${e.glow}">${display}</span>`;
 }
 
 function fmtDate(iso) {
@@ -250,11 +279,13 @@ const GROUPS = [
 
 function groupHeader(group, count) {
   const g = document.createElement('div');
-  g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid #3a4255;background:#1a1e2a';
+  g.style.cssText = `display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid ${group.color};background:${group.color}18`;
   g.innerHTML =
-    `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>` +
-    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${group.label}</span>` +
-    `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>`;
+    `<div style="width:8px;height:8px;border-radius:50%;background:${group.color};box-shadow:0 0 7px ${group.color}88;flex-shrink:0"></div>`+
+    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:${group.color}">${group.label}</span>`+
+    `<div style="width:8px;height:8px;border-radius:50%;background:${group.color};box-shadow:0 0 7px ${group.color}88;flex-shrink:0"></div>`+
+    `<span style="font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:${group.color}">${count} vehicle${count!==1?'s':''}</span>`+
+    `<div style="width:8px;height:8px;border-radius:50%;background:${group.color};box-shadow:0 0 7px ${group.color}88;flex-shrink:0"></div>`;
   return g;
 }
 
