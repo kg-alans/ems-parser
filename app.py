@@ -1602,7 +1602,6 @@ def match_production_schedule():
             'labor_assigned_pct':     row.get('labor_assigned_pct', ''),
             'repair_plan_comments':   row.get('repair_plan_comments', ''),
         })
-        })
 
     # Compute changes per matched row (May 18 — email visibility feature).
     for m in matched:
