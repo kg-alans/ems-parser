@@ -418,6 +418,10 @@ PRODUCTION_SYNC_DIFF_FIELDS = [
     ('workfile_id',           'Workfile ID',           'text'),
     ('insurance',             'Insurance',             'text'),
     ('estimator',             'Estimator',             'text'),
+    # Production metrics — added June 4, 2026
+    ('parts_received_pct',    'Parts Received %',      'text'),
+    ('labor_assigned_pct',    'Labor Assigned %',      'text'),
+    ('repair_plan_comments',  'Repair Plan Notes',     'text'),
 ]
 
 # Flow 10b (Cleanup Sync) — writes: Title, WorkfileID, CCCPromisDate, Done,
@@ -483,9 +487,10 @@ def parse_production_schedule_xml(xml_bytes):
             'repair_phase':      _xml_text(o, 'repair_phase_name'),
             'body_tech':         _xml_text(o, 'body_technician_display_name'),
             'paint_tech':        _xml_text(o, 'paint_technician_display_name'),
-            'days_in_shop':      _xml_text(o, 'days_in_shop'),
+            'days_in_shop':       _xml_text(o, 'days_in_shop'),
             'parts_received_pct': _xml_text(o, 'parts_received_percent'),
             'labor_assigned_pct': _xml_text(o, 'labor_assigned_percent'),
+            'repair_plan_comments': _xml_text(o, 'repair_plan_comments'),
             'total_loss':        _xml_text(o, 'is_total_loss').lower() == 'true',
             # Path B signal fields (May 20 2026 — dollar/weak signal verification)
             'estimate_total':    _xml_text(o, 'estimate_gross_amount'),
@@ -1590,10 +1595,13 @@ def match_production_schedule():
             'new_tech':               new_tech,
             'new_painter':            new_painter,
             'insurance_needs_fix':    insurance_needs_fix_or_blank(sp_insurance_now),
-            # Production metrics (informational, not currently written to SP)
+            # Production metrics — written to SP as of June 4, 2026
+            # (except days_in_shop which is computed on display side from DropDate)
             'days_in_shop':           row.get('days_in_shop', ''),
             'parts_received_pct':     row.get('parts_received_pct', ''),
             'labor_assigned_pct':     row.get('labor_assigned_pct', ''),
+            'repair_plan_comments':   row.get('repair_plan_comments', ''),
+        })
         })
 
     # Compute changes per matched row (May 18 — email visibility feature).
@@ -1613,6 +1621,10 @@ def match_production_schedule():
             'total_loss':      m.get('is_total_loss', False),
             'insurance':       m.get('normalized_insurance', ''),
             'estimator':       m.get('estimator_first_name', ''),
+            # Production metrics — read-only mirror from CCC (June 4, 2026)
+            'parts_received_pct':   m.get('parts_received_pct', ''),
+            'labor_assigned_pct':   m.get('labor_assigned_pct', ''),
+            'repair_plan_comments': m.get('repair_plan_comments', ''),
         }
         m['changes'] = compute_changes(sp, new_values, PRODUCTION_SYNC_DIFF_FIELDS)
         m['changes_text'] = format_changes_text(m['changes'])
