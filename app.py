@@ -998,6 +998,7 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
                 'ro_number': ro_number,
                 'owner': row['owner'],
                 'vehicle': row['vehicle'],
+                'drop_date': row.get('drop_date', '') or row.get('vehicle_in', ''),
                 'reason': 'report row missing customer or vehicle'
             })
             continue
@@ -1072,6 +1073,7 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
                 'ro_number': ro_number,
                 'owner': row['owner'],
                 'vehicle': row['vehicle'],
+                'drop_date': row.get('drop_date', '') or row.get('vehicle_in', ''),
                 'reason': 'no SharePoint item with matching customer + vehicle'
             })
             continue
@@ -1637,18 +1639,38 @@ def match_production_schedule():
         }
         m['changes'] = compute_changes(sp, new_values, PRODUCTION_SYNC_DIFF_FIELDS)
         m['changes_text'] = format_changes_text(m['changes'])
+        m['has_real_changes'] = len(m['changes']) > 0
+
+    # Compute report-row age for unmatched (helps the email bucket old vs recent).
+    today = datetime.utcnow().date()
+    for u in unmatched:
+        drop_raw = u.get('drop_date', '')
+        try:
+            drop_date = datetime.fromisoformat(drop_raw.replace('Z', '').split('.')[0]).date() if drop_raw else None
+        except Exception:
+            drop_date = None
+        u['age_days'] = (today - drop_date).days if drop_date else None
 
     # Stale tracker detection: SP items that aren't in any matched pair
     matched_sp_ids = {p[1].get('id') for p in matched_pairs}
+    today = datetime.utcnow().date()
     stale_sp_rows = []
     for item in sharepoint_items:
         if item.get('id') not in matched_sp_ids:
+            created_raw = item.get('created') or item.get('Created') or ''
+            try:
+                created_date = datetime.fromisoformat(created_raw.replace('Z', '').split('.')[0]).date() if created_raw else None
+            except Exception:
+                created_date = None
+            age_days = (today - created_date).days if created_date else None
             stale_sp_rows.append({
                 'list_item_id': item.get('id'),
                 'customer_name': item.get('customer_name', ''),
                 'vehicle': item.get('vehicle', ''),
                 'workfile_id': item.get('workfile_id', ''),
                 'ro_number': item.get('ro_number', ''),
+                'created_date': created_raw,
+                'age_days': age_days,
             })
 
     return jsonify({
