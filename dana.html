@@ -38,14 +38,14 @@
   .clk{font-family:'Saira',sans-serif;font-size:20px;font-weight:700;color:#fff;line-height:1;}
   .sync{font-family:'Lexend Deca';font-size:10px;font-weight:500;color:var(--accent);margin-top:2px;}
   .sync.stale{color:#ffb84d;}
-  .kanban{height:calc(100vh - 72px);display:flex;gap:8px;padding:10px;overflow-x:auto;}
-  .lane{flex:1;min-width:212px;background:#10141f;border:1px solid #1c2333;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;}
+  .kanban{height:calc(100vh - 72px);display:flex;gap:6px;padding:8px;overflow-x:hidden;}
+  .lane{flex:1 1 0;min-width:0;background:#10141f;border:1px solid #1c2333;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;}
   .lane-head{padding:8px 11px;border-bottom:2px solid #3a4458;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#161b26;}
   .lane-title{font-family:'Saira',sans-serif;font-size:11.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#9aa6bd;}
   .lane-count{font-family:'Saira';font-size:12px;font-weight:700;color:#5a6478;}
-  .lane-body{flex:1;overflow-y:auto;padding:7px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin;}
-  .lane-body::-webkit-scrollbar{width:5px;} .lane-body::-webkit-scrollbar-thumb{background:#2a3346;border-radius:3px;}
-  .card{background:#161c28;border-radius:6px;padding:7px 8px;border:1.5px solid #232c3c;border-left:5px solid var(--slate-bar);position:relative;color:#cdd8ec;}
+  .lane-body{flex:1;overflow-y:auto;padding:5px;display:flex;flex-direction:column;gap:5px;scrollbar-width:thin;}
+  .lane-body::-webkit-scrollbar{width:4px;} .lane-body::-webkit-scrollbar-thumb{background:#2a3346;border-radius:3px;}
+  .card{background:#161c28;border-radius:6px;padding:6px 7px;border:1.5px solid #232c3c;border-left:5px solid var(--slate-bar);position:relative;color:#cdd8ec;overflow:hidden;}
   .card.bar-pink{border-left-color:var(--pink-bar);border-color:var(--pink-out);background:#1d1226;}
   .card.bar-purple{border-left-color:var(--purple-bar);border-color:#8822cc55;}
   .card.bar-green{border-left-color:var(--green-bar);border-color:#55ee8844;}
@@ -60,9 +60,9 @@
   .card-ro{font-family:'Saira';font-size:12.5px;font-weight:800;letter-spacing:0.02em;display:flex;align-items:center;gap:4px;}
   .est-tag{font-family:'Saira';font-size:8.5px;font-weight:700;letter-spacing:0.04em;padding:1px 5px;border-radius:3px;background:#2a3346;color:#9fb4d4;text-transform:uppercase;}
   .card-dtp{font-family:'Saira';font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.03em;white-space:nowrap;}
-  .card-cust{font-size:12.5px;font-weight:600;line-height:1.12;}
-  .card-veh{font-size:11px;opacity:0.78;line-height:1.12;margin-bottom:3px;}
-  .card-ins{font-size:10px;opacity:0.7;margin-bottom:4px;}
+  .card-cust{font-size:12px;font-weight:600;line-height:1.12;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card-veh{font-size:10.5px;opacity:0.78;line-height:1.12;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card-ins{font-size:9.5px;opacity:0.7;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .card-ins b{font-family:'Saira';font-weight:600;opacity:0.65;letter-spacing:0.03em;margin-right:3px;}
   .card-people{display:flex;gap:10px;font-size:10.5px;opacity:0.8;margin-bottom:5px;}
   .card-people b{font-family:'Saira';font-weight:600;opacity:0.55;letter-spacing:0.03em;margin-right:3px;}
@@ -86,12 +86,8 @@
   .card-dollars{font-family:'Saira';font-size:11.5px;font-weight:700;opacity:0.9;}
   .card-days{font-family:'Saira';font-size:9.5px;font-weight:700;opacity:0.5;}
   .empty-lane{font-size:10px;opacity:0.3;text-align:center;padding:14px 4px;font-style:italic;}
-  .done-lane.collapsed{flex:0 0 42px;min-width:42px;background:#0d1726;border-color:#1d3050;}
-  .done-rail{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14px;gap:12px;cursor:pointer;}
-  .done-rail-count{font-family:'Saira';font-size:22px;font-weight:800;color:#7fc0ff;}
-  .done-rail-label{writing-mode:vertical-rl;text-orientation:mixed;font-family:'Saira';font-size:11px;font-weight:800;letter-spacing:0.14em;color:#5a86b8;text-transform:uppercase;}
-  .done-lane{flex:0 0 200px;}
-  .done-head{cursor:pointer;border-bottom-color:#1d3050;}
+  .done-lane{background:#0d1320;}
+  .done-lane .lane-head{border-bottom-color:#1d3050;}
   .loading{position:absolute;inset:72px 0 0 0;display:flex;align-items:center;justify-content:center;font-family:'Saira';font-size:14px;letter-spacing:0.1em;color:#5a6478;}
 </style>
 </head>
@@ -132,7 +128,7 @@ const API_BASE='https://kgdtbs.onrender.com';   // matches 3day.html; works rega
 const REFRESH_MS=5*60*1000;
 // estimator first-names that "own" a dedicated board; anything else => Everything Else
 const KNOWN=['Logan','Dana','Cordale','Jennie'];
-const OWNER_FILES={'All':'main.html','Logan':'logan.html','Dana':'dana.html','Cordale':'cord.html','Jennie':'jennie.html','Everything Else':'other.html'};
+const OWNER_FILES={'All':'/main','Logan':'/logan','Dana':'/dana','Cordale':'/cord','Jennie':'/jennie','Everything Else':'/other'};
 const DISPLAY={'All':'ALL FILES','Logan':'LOGAN LINDSEY','Dana':'DANA HULSE','Cordale':'CORDALE BRIGGS','Jennie':'JENNIE NICOLLS','Everything Else':'EVERYTHING ELSE'};
 
 // ═══ CLOCK / SYNC ═════════════════════════════════════
@@ -158,8 +154,7 @@ function isKnownStatus(st){return KNOWN_STATUSES.includes(st);}
 const ESTIMATOR_ACTION=['Supp-Estimator','Waiting on Estimator','Teardown'];
 const INSURANCE_WAIT=['Supp-Insurance','Waiting on Insurance'];
 
-let ROWS=[];          // normalized rows from /board-data
-let DONE_OPEN=false;
+let ROWS=[];          // normalized rows from /estimator-data
 let LAST_SYNC=null;
 
 // ── map a raw /board-data row to the card model ────────
@@ -329,21 +324,18 @@ function render(){
     lj.forEach(function(j){body.appendChild(buildCard(j,false));});
     el.appendChild(body);kb.appendChild(el);
   });
-  // Done lane: show ALL done/delivered, most-recently-done at top (doubles as a 'needs closing' list)
+  // Done lane: normal always-visible lane. ALL done/delivered, most-recently-done at top
+  // (doubles as a 'needs closing' list). Older un-closed cars sink to the bottom.
   const done=pool.filter(function(j){return DONE_STATUSES.includes(j.status);}).sort(function(a,b){
     var ta=a.doneTime?Date.parse(a.doneTime):0, tb=b.doneTime?Date.parse(b.doneTime):0;
     return tb-ta;   // newest doneTime first
   });
-  const dl=document.createElement('div');dl.className='lane done-lane'+(DONE_OPEN?'':' collapsed');
-  if(DONE_OPEN){
-    dl.innerHTML='<div class="lane-head done-head" onclick="DONE_OPEN=false;render()"><span class="lane-title" style="color:#7fc0ff">DELIVERED / DONE</span><span class="lane-count">'+done.length+' &#9666;</span></div>';
-    const body=document.createElement('div');body.className='lane-body';
-    if(!done.length)body.innerHTML='<div class="empty-lane">&#8212;</div>';
-    done.forEach(function(j){body.appendChild(buildCard(j,true));});
-    dl.appendChild(body);
-  }else{
-    dl.innerHTML='<div class="done-rail" onclick="DONE_OPEN=true;render()"><span class="done-rail-count">'+done.length+'</span><span class="done-rail-label">DELIVERED / DONE &#9656;</span></div>';
-  }
+  const dl=document.createElement('div');dl.className='lane done-lane';
+  dl.innerHTML='<div class="lane-head"><span class="lane-title" style="color:#7fc0ff">DELIVERED / DONE</span><span class="lane-count">'+done.length+'</span></div>';
+  const dbody=document.createElement('div');dbody.className='lane-body';
+  if(!done.length)dbody.innerHTML='<div class="empty-lane">&#8212;</div>';
+  done.forEach(function(j){dbody.appendChild(buildCard(j,true));});
+  dl.appendChild(dbody);
   kb.appendChild(dl);
 }
 
@@ -357,7 +349,7 @@ function setSync(){
 }
 async function load(){
   try{
-    const res=await fetch(API_BASE+'/board-data',{cache:'no-store'});
+    const res=await fetch(API_BASE+'/estimator-data',{cache:'no-store'});
     const data=await res.json();
     ROWS=(Array.isArray(data)?data:[]).map(normalize);
   }catch(e){console.error('board-data fetch failed',e);ROWS=[];}
