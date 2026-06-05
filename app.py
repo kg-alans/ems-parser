@@ -306,7 +306,7 @@ def is_blank_for_diff(v):
 def format_value_for_diff(v, value_type):
     """Format a value for human-readable display in the email's Changes column.
 
-    value_type: 'bool' | 'date' | 'text'
+    value_type: 'bool' | 'date' | 'text' | 'percent'
     """
     if is_blank_for_diff(v):
         return '(blank)'
@@ -325,6 +325,12 @@ def format_value_for_diff(v, value_type):
         if ' ' in s and len(s) > 10:
             return s.split(' ')[0]
         return s[:10] if len(s) >= 10 else s
+    if value_type == 'percent':
+        # Rounded to 4 decimals — strips float-precision noise like 1.0 vs 1.000000000
+        try:
+            return f"{round(float(v), 4):.4f}"
+        except (ValueError, TypeError):
+            return str(v).strip()
     # text — return as-is, trimmed
     return str(v).strip()
 
@@ -343,6 +349,9 @@ def values_equal_for_diff(old, new, value_type):
         return format_value_for_diff(old, 'bool') == format_value_for_diff(new, 'bool')
     if value_type == 'date':
         return format_value_for_diff(old, 'date') == format_value_for_diff(new, 'date')
+    if value_type == 'percent':
+        # Compare rounded-to-4-decimal representations
+        return format_value_for_diff(old, 'percent') == format_value_for_diff(new, 'percent')
     # text — case-insensitive trim compare
     return str(old).strip().lower() == str(new).strip().lower()
 
@@ -419,9 +428,9 @@ PRODUCTION_SYNC_DIFF_FIELDS = [
     ('workfile_id',           'Workfile ID',           'text'),
     ('insurance',             'Insurance',             'text'),
     ('estimator',             'Estimator',             'text'),
-    # Production metrics — added June 4, 2026
-    ('parts_received_pct',    'Parts Received %',      'text'),
-    ('labor_assigned_pct',    'Labor Assigned %',      'text'),
+# Production metrics — added June 4, 2026
+    ('parts_received_pct',    'Parts Received %',      'percent'),
+    ('labor_assigned_pct',    'Labor Assigned %',      'percent'),
     ('repair_plan_comments',  'Repair Plan Notes',     'text'),
 ]
 
