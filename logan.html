@@ -14,45 +14,46 @@
     --tech-c:#5b8fb0;--est-c:#e07a5f;--appr-c:#3fb0a0;--parts-c:#d4a531;}
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:'Lexend Deca',sans-serif;overflow:hidden;}
-  .board-header{height:72px;background:var(--header-bg);border-bottom:3px solid var(--header-rim);display:flex;align-items:center;justify-content:space-between;padding:0 22px;gap:18px;}
+  .board-header{height:72px;background:var(--header-bg);border-bottom:3px solid var(--header-rim);display:flex;align-items:center;justify-content:space-between;padding:0 22px;gap:18px;position:relative;}
   .header-left{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
   .shop-name{font-family:'Changa One',display;font-size:21px;color:#fff;line-height:1;}
   .queue-row{display:flex;align-items:center;gap:7px;}
-  .board-label{font-family:'Saira',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.26em;text-transform:uppercase;color:var(--accent);}
-  .qsep{color:var(--accent);font-weight:700;opacity:0.7;}
   .est-switch{position:relative;}
-  .est-chip{font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.04em;padding:3px 10px;border-radius:5px;background:#4a0a0a;color:#ff9999;border:1px solid #c50f1f;cursor:pointer;display:flex;align-items:center;gap:6px;}
-  .est-chip .car{font-size:9px;opacity:0.85;}
+  .est-chip{font-family:'Saira',sans-serif;font-size:15px;font-weight:800;letter-spacing:0.04em;padding:2px 8px;border-radius:5px;background:#4a0a0a;color:#ff9999;border:1px solid #c50f1f;cursor:pointer;display:flex;align-items:center;gap:7px;}
+  .est-chip .car{font-size:13px;opacity:0.95;line-height:1;}
   .est-menu{position:absolute;top:110%;left:0;background:#161c28;border:1px solid #2a3346;border-radius:7px;padding:5px;min-width:180px;z-index:50;box-shadow:0 8px 24px #000a;display:none;}
   .est-menu.open{display:block;}
   .est-opt{padding:7px 10px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:#d8e4f8;text-decoration:none;}
   .est-opt:hover{background:#222a3a;}
   .est-opt.active{background:#2a1216;color:#ff9999;}
   .est-opt .n{font-family:'Saira';font-size:11px;opacity:0.55;}
-  .legend{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:3px 14px;align-content:center;flex:1;justify-content:center;}
+  .legend{display:flex;align-items:center;gap:12px;flex:1;justify-content:center;}
+  .legend-title{font-family:'Saira',sans-serif;font-size:10px;font-weight:800;letter-spacing:0.18em;color:rgba(255,255,255,0.4);writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);}
+  .legend-grid{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:3px 14px;align-content:center;}
   .lg{display:flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,0.62);white-space:nowrap;}
-  /* mini-card swatches: tiny replicas of the real card border treatment */
-  .mini{width:16px;height:12px;border-radius:2px;background:#161c28;border:1px solid #232c3c;border-left:3px solid var(--slate-bar);flex-shrink:0;}
+  /* mini-card swatches: tiny replicas of the real card border treatment, gray interior so borders pop */
+  .mini{width:16px;height:12px;border-radius:2px;background:#48505e;border:1px solid #5a6478;border-left:3px solid var(--slate-bar);flex-shrink:0;}
   .mini-flowing{border-left-color:var(--slate-bar);}
-  .mini-green{border-left-color:var(--green-bar);border-color:#55ee8855;}
+  .mini-green{border-left-color:var(--green-bar);border-color:var(--green-bar);}
   .mini-yellow{border-left-color:var(--yellow-bar);border-color:var(--yellow-bar);}
-  .mini-estimator{border-left-color:var(--wait-bar);border-color:var(--wait-bar);background:#231020;}
-  .mini-insurance{border-left-color:var(--wait-bar);border-color:#232c3c;}
-  .mini-red{border-left-color:var(--red-bar);border-color:var(--red-bar);background:#2a1518;}
-  .mini-done{border-left-color:var(--done-bar);border-color:var(--done-bar);background:#0a1c33;}
-  .header-right{display:flex;align-items:center;gap:14px;}
+  .mini-estimator{border-left-color:var(--wait-bar);border-color:var(--wait-bar);}
+  .mini-insurance{border-left-color:var(--wait-bar);border-color:#5a6478;}
+  .mini-red{border-left-color:var(--red-bar);border-color:var(--red-bar);}
+  .mini-done{border-left-color:var(--done-bar);border-color:var(--done-bar);}
+  .header-right{display:flex;align-items:center;gap:14px;margin-right:34px;}
   .search-wrap{display:flex;flex-direction:column;gap:2px;}
   .search-box{background:#2a0e14;border:1px solid #8c2038;border-radius:6px;padding:6px 10px;color:#fff;font-family:'Lexend Deca';font-size:12px;width:170px;outline:none;}
   .search-box::placeholder{color:#cc8a92;}
-  .search-hint{font-size:8.5px;letter-spacing:0.04em;color:#8a96ad;padding-left:2px;}
-  .view-switch{position:relative;}
-  .view-btn{background:#13233f;border:1px solid #2a466e;border-radius:6px;padding:7px 12px;color:#9fc0ee;font-family:'Saira',sans-serif;font-size:11px;font-weight:800;letter-spacing:0.08em;cursor:pointer;}
-  .view-btn:hover{background:#1a3055;color:#c8e0ff;}
-  .view-menu{position:absolute;top:112%;right:0;background:#161c28;border:1px solid #2a3346;border-radius:7px;padding:5px;min-width:160px;z-index:55;box-shadow:0 8px 24px #000a;display:none;}
+  .search-hint{font-size:8.5px;letter-spacing:0.04em;color:#8a96ad;text-align:center;}
+  .view-switch{position:absolute;top:8px;right:10px;z-index:58;}
+  .view-btn{background:transparent;border:none;padding:5px;cursor:pointer;display:flex;flex-direction:column;gap:3px;border-radius:5px;}
+  .view-btn:hover{background:rgba(255,160,150,0.15);}
+  .view-btn .hb{display:block;width:20px;height:2.5px;border-radius:2px;background:var(--accent);}
+  .view-menu{position:absolute;top:108%;right:0;background:#161c28;border:1px solid #2a3346;border-radius:7px;padding:5px;min-width:160px;z-index:58;box-shadow:0 8px 24px #000a;display:none;}
   .view-menu.open{display:block;}
   .view-opt{display:block;padding:7px 10px;border-radius:5px;font-size:13px;font-weight:600;color:#d8e4f8;text-decoration:none;}
   .view-opt:hover{background:#222a3a;}
-  .view-opt.active{background:#13233f;color:#9fc0ee;}
+  .view-opt.active{background:#2a1216;color:var(--accent);}
   /* right-edge pull tab for the Delivered/Done drawer */
   .done-tab{position:fixed;top:50%;right:0;transform:translateY(-50%);background:#13233f;border:1px solid #2a466e;border-right:none;border-radius:8px 0 0 8px;padding:14px 7px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;z-index:55;box-shadow:-4px 0 14px #0007;}
   .done-tab:hover{background:#1a3055;}
@@ -145,7 +146,6 @@
   <div class="header-left">
     <div class="shop-name">Ken Garff Body &amp; Glass</div>
     <div class="queue-row">
-      <span class="board-label">Estimator Queue</span><span class="qsep">:</span>
       <div class="est-switch">
         <div class="est-chip" id="estChip" onclick="document.getElementById('estMenu').classList.toggle('open')">
           <span id="estName">LOGAN LINDSEY</span><span class="car">&#9662;</span>
@@ -155,34 +155,39 @@
     </div>
   </div>
   <div class="legend">
-    <div class="lg"><span class="mini mini-flowing"></span>Flowing</div>
-    <div class="lg"><span class="mini mini-green"></span>Looking Good</div>
-    <div class="lg"><span class="mini mini-yellow"></span>Needs Something</div>
-    <div class="lg"><span class="mini mini-estimator"></span>Waiting on Estimator</div>
-    <div class="lg"><span class="mini mini-insurance"></span>Waiting on Insurance</div>
-    <div class="lg"><span class="mini mini-red"></span>Dire</div>
-    <div class="lg"><span class="mini mini-done"></span>Done Today</div>
-    <div class="lg"><span style="font-size:12px">&#10071;</span>Attention!</div>
+    <div class="legend-title">KEY</div>
+    <div class="legend-grid">
+      <div class="lg"><span class="mini mini-flowing"></span>Flowing</div>
+      <div class="lg"><span style="font-size:12px">&#10071;</span>Attention!</div>
+      <div class="lg"><span class="mini mini-yellow"></span>Needs Something</div>
+      <div class="lg"><span class="mini mini-green"></span>Looking Good</div>
+      <div class="lg"><span class="mini mini-estimator"></span>Waiting on Estimator</div>
+      <div class="lg"><span class="mini mini-insurance"></span>Waiting on Insurance</div>
+      <div class="lg"><span class="mini mini-done"></span>Done Today</div>
+      <div class="lg"><span class="mini mini-red"></span>Dire</div>
+    </div>
   </div>
   <div class="header-right">
-    <div class="view-switch">
-      <button class="view-btn" onclick="document.getElementById('viewMenu').classList.toggle('open')">VIEW &#9662;</button>
-      <div class="view-menu" id="viewMenu">
-        <a class="view-opt active" href="/main">Production View</a>
-        <a class="view-opt" href="/3day">3-Day List</a>
-      </div>
-    </div>
     <div class="search-wrap">
       <input class="search-box" id="search" placeholder="Search" oninput="render()">
-      <div class="search-hint">Name &middot; RO &middot; Vehicle &middot; Insurance</div>
+      <div class="search-hint">'Name' &middot; 'RO' &middot; 'Vehicle' &middot; 'Insurance'</div>
     </div>
     <div class="clkwrap"><div class="clk" id="clk">&#8211;:&#8211; &#8211;</div><div class="sync" id="sync">Loading&#8230;</div></div>
+  </div>
+  <div class="view-switch">
+    <button class="view-btn" onclick="document.getElementById('viewMenu').classList.toggle('open')" aria-label="Switch view">
+      <span class="hb"></span><span class="hb"></span><span class="hb"></span>
+    </button>
+    <div class="view-menu" id="viewMenu">
+      <a class="view-opt active" href="/main">Production View</a>
+      <a class="view-opt" href="/3day">3-Day List</a>
+    </div>
   </div>
 </header>
 <div class="kanban" id="kanban"><div class="loading">Loading board&#8230;</div></div>
 <div class="done-tab" id="doneTab" onclick="toggleDone()">
-  <span class="done-tab-count" id="doneCount">0</span>
   <span class="done-tab-label">DELIVERED / DONE</span>
+  <span class="done-tab-count" id="doneCount">0</span>
 </div>
 <div class="done-overlay" id="doneOverlay">
   <div class="done-panel">
