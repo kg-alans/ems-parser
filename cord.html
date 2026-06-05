@@ -9,8 +9,9 @@
 <style>
   :root{--bg:#0b0e14;--text:#d8e4f8;--muted:#56647d;--header-bg:#6b1a2b;--header-rim:#8c2038;--accent:#ff9999;
     --slate-bar:#3a4a6a;
-    --pink-bar:#cc44cc;--pink-out:#cc44cc;--purple-bar:#8822cc;
-    --green-bar:#55ee88;--yellow-bar:#ffaa00;--red-bar:#ff6060;--done-bar:#55aaff;}
+    --wait-bar:#c0309a;   /* one hue for both estimate/file waits; intensity differs */
+    --green-bar:#55ee88;--yellow-bar:#ffaa00;--red-bar:#ff6060;--done-bar:#55aaff;
+    --tech-c:#5b8fb0;--est-c:#e07a5f;--appr-c:#3fb0a0;--parts-c:#d4a531;}
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:'Lexend Deca',sans-serif;overflow:hidden;}
   .board-header{height:72px;background:var(--header-bg);border-bottom:3px solid var(--header-rim);display:flex;align-items:center;justify-content:space-between;padding:0 22px;gap:18px;}
@@ -28,12 +29,39 @@
   .est-opt:hover{background:#222a3a;}
   .est-opt.active{background:#2a1216;color:#ff9999;}
   .est-opt .n{font-family:'Saira';font-size:11px;opacity:0.55;}
-  .legend{display:flex;gap:11px;flex-wrap:nowrap;align-items:center;overflow:hidden;flex:1;justify-content:center;}
-  .lg{display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,0.6);white-space:nowrap;}
-  .lg-bar{width:4px;height:13px;border-radius:2px;flex-shrink:0;}
+  .legend{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:3px 14px;align-content:center;flex:1;justify-content:center;}
+  .lg{display:flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,0.62);white-space:nowrap;}
+  /* mini-card swatches: tiny replicas of the real card border treatment */
+  .mini{width:16px;height:12px;border-radius:2px;background:#161c28;border:1px solid #232c3c;border-left:3px solid var(--slate-bar);flex-shrink:0;}
+  .mini-flowing{border-left-color:var(--slate-bar);}
+  .mini-green{border-left-color:var(--green-bar);border-color:#55ee8855;}
+  .mini-yellow{border-left-color:var(--yellow-bar);border-color:var(--yellow-bar);}
+  .mini-estimator{border-left-color:var(--wait-bar);border-color:var(--wait-bar);background:#231020;}
+  .mini-insurance{border-left-color:var(--wait-bar);border-color:#232c3c;}
+  .mini-red{border-left-color:var(--red-bar);border-color:var(--red-bar);background:#2a1518;}
+  .mini-done{border-left-color:var(--done-bar);border-color:var(--done-bar);background:#0a1c33;}
   .header-right{display:flex;align-items:center;gap:14px;}
-  .search-box{background:#2a0e14;border:1px solid #8c2038;border-radius:6px;padding:6px 10px;color:#fff;font-family:'Lexend Deca';font-size:12px;width:150px;outline:none;}
+  .search-wrap{display:flex;flex-direction:column;gap:2px;}
+  .search-box{background:#2a0e14;border:1px solid #8c2038;border-radius:6px;padding:6px 10px;color:#fff;font-family:'Lexend Deca';font-size:12px;width:170px;outline:none;}
   .search-box::placeholder{color:#cc8a92;}
+  .search-hint{font-size:8.5px;letter-spacing:0.04em;color:#8a96ad;padding-left:2px;}
+  .view-switch{position:relative;}
+  .view-btn{background:#13233f;border:1px solid #2a466e;border-radius:6px;padding:7px 12px;color:#9fc0ee;font-family:'Saira',sans-serif;font-size:11px;font-weight:800;letter-spacing:0.08em;cursor:pointer;}
+  .view-btn:hover{background:#1a3055;color:#c8e0ff;}
+  .view-menu{position:absolute;top:112%;right:0;background:#161c28;border:1px solid #2a3346;border-radius:7px;padding:5px;min-width:160px;z-index:55;box-shadow:0 8px 24px #000a;display:none;}
+  .view-menu.open{display:block;}
+  .view-opt{display:block;padding:7px 10px;border-radius:5px;font-size:13px;font-weight:600;color:#d8e4f8;text-decoration:none;}
+  .view-opt:hover{background:#222a3a;}
+  .view-opt.active{background:#13233f;color:#9fc0ee;}
+  /* right-edge pull tab for the Delivered/Done drawer */
+  .done-tab{position:fixed;top:50%;right:0;transform:translateY(-50%);background:#13233f;border:1px solid #2a466e;border-right:none;border-radius:8px 0 0 8px;padding:14px 7px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;z-index:55;box-shadow:-4px 0 14px #0007;}
+  .done-tab:hover{background:#1a3055;}
+  .done-tab-count{font-family:'Saira',sans-serif;font-size:18px;font-weight:800;color:#7fc0ff;}
+  .done-tab-label{writing-mode:vertical-rl;text-orientation:mixed;font-family:'Saira',sans-serif;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5a86b8;text-transform:uppercase;}
+  .mtd-strip{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid #1d3050;background:#0a0f1a;}
+  .mtd-box{flex:1;display:flex;flex-direction:column;gap:2px;background:#11192a;border:1px solid #1d3050;border-radius:6px;padding:7px 10px;}
+  .mtd-label{font-family:'Saira',sans-serif;font-size:8.5px;font-weight:700;letter-spacing:0.1em;color:#5a86b8;}
+  .mtd-val{font-family:'Saira',sans-serif;font-size:17px;font-weight:800;color:#9fd0ff;}
   .clkwrap{text-align:right;}
   .clk{font-family:'Saira',sans-serif;font-size:20px;font-weight:700;color:#fff;line-height:1;}
   .sync{font-family:'Lexend Deca';font-size:10px;font-weight:500;color:var(--accent);margin-top:2px;}
@@ -52,12 +80,13 @@
   .wait-divider:first-child{margin-top:0;}
   .wait-divider-n{font-size:9px;opacity:0.7;font-weight:700;padding-right:4px;}
   .card{flex-shrink:0;background:#161c28;border-radius:6px;padding:6px 7px;border:1.5px solid #232c3c;border-left:5px solid var(--slate-bar);position:relative;color:#cdd8ec;overflow:hidden;}
-  .card.bar-pink{border-left-color:var(--pink-bar);border-color:var(--pink-out);background:#1d1226;}
-  .card.bar-purple{border-left-color:var(--purple-bar);border-color:#8822cc55;}
+  .card.bar-estimator{border-left-color:var(--wait-bar);border-color:var(--wait-bar);background:#23102099;}
+  .card.bar-insurance{border-left-color:var(--wait-bar);border-color:#232c3c;}
   .card.bar-green{border-left-color:var(--green-bar);border-color:#55ee8844;}
   .card.bar-yellow{border-left-color:var(--yellow-bar);border-color:var(--yellow-bar);}
   .card.bar-red{border-left-color:var(--red-bar);border-color:var(--red-bar);background:#2a1518;}
   .card.bar-done{border-left-color:var(--done-bar);border-color:#55aaff44;}
+  .card.bar-done-today{border-left-color:var(--done-bar);border-color:var(--done-bar);background:#0a1c33;}
   /* projected (no promise, repair-plan projection) — muted + dashed left bar to read as provisional */
   .card.bar-red-proj{border-left:5px dashed #b56a6e;border-top-color:#232c3c;border-right-color:#232c3c;border-bottom-color:#232c3c;background:#1f1719;}
   .card.bar-yellow-proj{border-left:5px dashed #b59a4a;border-top-color:#232c3c;border-right-color:#232c3c;border-bottom-color:#232c3c;}
@@ -66,6 +95,10 @@
   .card-ro{font-family:'Saira';font-size:12.5px;font-weight:800;letter-spacing:0.02em;display:flex;align-items:center;gap:4px;}
   .est-tag{font-family:'Saira';font-size:8.5px;font-weight:700;letter-spacing:0.04em;padding:1px 5px;border-radius:3px;background:#2a3346;color:#9fb4d4;text-transform:uppercase;}
   .card-dtp{font-family:'Saira';font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.03em;white-space:nowrap;}
+  .chip-stack{display:flex;flex-direction:column;align-items:flex-end;gap:1px;}
+  .date-source{font-family:'Saira',sans-serif;font-size:7px;font-weight:700;letter-spacing:0.14em;color:rgba(255,255,255,0.85);text-transform:uppercase;line-height:1;}
+  .over-badge{font-size:11px;line-height:1;margin-left:2px;color:#ff5252;filter:drop-shadow(0 0 3px #ff000088);}
+  .bar-pct.over{color:#ff7070;font-weight:800;}
   .card-cust{font-size:12.5px;font-weight:600;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .card-veh{font-size:11px;opacity:0.78;line-height:1.15;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .card-ins{font-size:10px;opacity:0.7;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -93,10 +126,7 @@
   .card-days{font-family:'Saira';font-size:9.5px;font-weight:700;opacity:0.5;}
   .empty-lane{font-size:10px;opacity:0.3;text-align:center;padding:14px 4px;font-style:italic;}
   /* Delivered/Done toggle button + slide-over overlay */
-  .done-toggle{background:#13233f;border:1px solid #2a466e;border-radius:6px;padding:6px 12px;color:#9fc0ee;font-family:'Saira',sans-serif;font-size:11px;font-weight:800;letter-spacing:0.08em;cursor:pointer;display:flex;align-items:center;gap:7px;}
-  .done-toggle:hover{background:#1a3055;color:#c8e0ff;}
-  .done-toggle.active{background:#0a2a5c;color:#fff;border-color:#55aaff;}
-  .done-toggle-count{background:#0a1a30;color:#7fc0ff;border-radius:9px;padding:1px 7px;font-size:11px;}
+  /* Delivered/Done overlay */
   .done-overlay{position:fixed;inset:72px 0 0 0;background:rgba(4,7,12,0.45);display:none;justify-content:flex-end;z-index:60;}
   .done-overlay.open{display:flex;}
   .done-panel{width:420px;max-width:80vw;height:100%;background:#0c111c;border-left:2px solid #2a466e;box-shadow:-12px 0 32px #000a;display:flex;flex-direction:column;}
@@ -125,27 +155,45 @@
     </div>
   </div>
   <div class="legend">
-    <div class="lg"><span class="lg-bar" style="background:var(--slate-bar)"></span>Flowing</div>
-    <div class="lg"><span class="lg-bar" style="background:var(--green-bar)"></span>Good &amp; close</div>
-    <div class="lg"><span class="lg-bar" style="background:var(--yellow-bar)"></span>Needs something</div>
-    <div class="lg"><span class="lg-bar" style="background:var(--pink-bar)"></span>Estimator: write supp</div>
-    <div class="lg"><span class="lg-bar" style="background:var(--purple-bar)"></span>Waiting on insurance</div>
-    <div class="lg"><span class="lg-bar" style="background:var(--red-bar)"></span>Dire (late/today)</div>
-    <div class="lg"><span style="font-size:11px">&#10071;</span>Note 5+ days old</div>
+    <div class="lg"><span class="mini mini-flowing"></span>Flowing</div>
+    <div class="lg"><span class="mini mini-green"></span>Looking Good</div>
+    <div class="lg"><span class="mini mini-yellow"></span>Needs Something</div>
+    <div class="lg"><span class="mini mini-estimator"></span>Waiting on Estimator</div>
+    <div class="lg"><span class="mini mini-insurance"></span>Waiting on Insurance</div>
+    <div class="lg"><span class="mini mini-red"></span>Dire</div>
+    <div class="lg"><span class="mini mini-done"></span>Done Today</div>
+    <div class="lg"><span style="font-size:12px">&#10071;</span>Attention!</div>
   </div>
   <div class="header-right">
-    <button class="done-toggle" id="doneToggle" onclick="toggleDone()">DELIVERED / DONE <span class="done-toggle-count" id="doneCount">0</span></button>
-    <input class="search-box" id="search" placeholder="Search RO / name&#8230;" oninput="render()">
+    <div class="view-switch">
+      <button class="view-btn" onclick="document.getElementById('viewMenu').classList.toggle('open')">VIEW &#9662;</button>
+      <div class="view-menu" id="viewMenu">
+        <a class="view-opt active" href="/main">Production View</a>
+        <a class="view-opt" href="/3day">3-Day List</a>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <input class="search-box" id="search" placeholder="Search" oninput="render()">
+      <div class="search-hint">Name &middot; RO &middot; Vehicle &middot; Insurance</div>
+    </div>
     <div class="clkwrap"><div class="clk" id="clk">&#8211;:&#8211; &#8211;</div><div class="sync" id="sync">Loading&#8230;</div></div>
   </div>
 </header>
 <div class="kanban" id="kanban"><div class="loading">Loading board&#8230;</div></div>
+<div class="done-tab" id="doneTab" onclick="toggleDone()">
+  <span class="done-tab-count" id="doneCount">0</span>
+  <span class="done-tab-label">DELIVERED / DONE</span>
+</div>
 <div class="done-overlay" id="doneOverlay">
   <div class="done-panel">
     <div class="done-panel-head">
       <span class="done-panel-title">DELIVERED / DONE</span>
       <span class="done-panel-sub">newest first &middot; oldest un-closed at bottom</span>
       <button class="done-close" onclick="toggleDone()">&times;</button>
+    </div>
+    <div class="mtd-strip" id="mtdStrip">
+      <div class="mtd-box"><span class="mtd-label">MTD COMPLETED</span><span class="mtd-val" id="mtdCompleted">&mdash;</span></div>
+      <div class="mtd-box"><span class="mtd-label">MTD CLOSED</span><span class="mtd-val" id="mtdClosed">&mdash;</span></div>
     </div>
     <div class="done-panel-body" id="donePanelBody"></div>
   </div>
@@ -181,16 +229,14 @@ const DONE_STATUSES=['Done','Ready for Delivery','Delivered'];
 // every status that has an explicit lane home (used to route null/unknown statuses to Intake)
 const KNOWN_STATUSES=(function(){var s=[];lanes.forEach(function(l){l.statuses.forEach(function(x){s.push(x);});});DONE_STATUSES.forEach(function(x){s.push(x);});return s;})();
 function isKnownStatus(st){return KNOWN_STATUSES.includes(st);}
-const ESTIMATOR_ACTION=['Supp-Estimator','Waiting on Estimator','Teardown'];
-const INSURANCE_WAIT=['Supp-Insurance','Waiting on Insurance'];
 
 // ── WAITING column wait-type taxonomy ──────────────────
-// groups shown in this order; each card gets a color-coded wait tag (slate/coral/teal/gold by who-owns-it)
+// groups shown in this order; each card gets a color-coded divider (by who-owns-it)
 const WAIT_GROUPS=[
-  {key:'TECH',     label:'WAITING: TECH',     color:'#5b8fb0', statuses:['Teardown']},
-  {key:'SUPP',     label:'WAITING: SUPP',     color:'#e07a5f', statuses:['Supp-Estimator','Waiting on Estimator']},
-  {key:'APPROVAL', label:'WAITING: APPROVAL', color:'#3fb0a0', statuses:['Supp-Insurance','Waiting on Insurance']},
-  {key:'PARTS',    label:'WAITING: PARTS',    color:'#d4a531', statuses:['Waiting on Parts','Need Parts Update']},
+  {key:'TECH',     label:'WAITING ON: TECH',      color:'#5b8fb0', statuses:['Teardown']},
+  {key:'EST',      label:'WAITING ON: ESTIMATOR', color:'#e07a5f', statuses:['Supp-Estimator','Waiting on Estimator']},
+  {key:'INS',      label:'WAITING ON: INSURANCE', color:'#3fb0a0', statuses:['Supp-Insurance','Waiting on Insurance']},
+  {key:'PARTS',    label:'WAITING ON: PARTS',     color:'#d4a531', statuses:['Waiting on Parts','Need Parts Update']},
 ];
 function waitGroupFor(status){
   for(var i=0;i<WAIT_GROUPS.length;i++){if(WAIT_GROUPS[i].statuses.includes(status))return WAIT_GROUPS[i];}
@@ -237,6 +283,9 @@ function shortVehicle(v){if(!v)return '';const p=v.trim().split(/\s+/);return p.
 //   committed  = promise exists                  -> full proximity color
 //   projected  = no promise but dtp is a number  -> MUTED proximity color (bar-*-proj)
 //   none       = no promise, no dtp              -> neutral
+// statuses that make the bar the loud "estimator must act" treatment
+const EST_BAR=['Supp-Estimator','Waiting on Estimator'];
+const INS_BAR=['Supp-Insurance','Waiting on Insurance'];
 function isProjected(j){ return !j.hasPromise && !isNaN(j.dtp); }
 function barClass(j){
   const committed=j.hasPromise;
@@ -245,9 +294,9 @@ function barClass(j){
   if(committed && ((!isNaN(j.dtp)&&j.dtp<=0)||j.targetLate)) return 'bar-red';
   // 1b. projected & already past / due now -> muted red
   if(projected && j.dtp<=0) return 'bar-red-proj';
-  // 2/3. estimator / insurance waits (date-independent)
-  if(ESTIMATOR_ACTION.includes(j.status)) return 'bar-pink';
-  if(INSURANCE_WAIT.includes(j.status)) return 'bar-purple';
+  // 2/3. estimate/file waits — same hue, two intensities (estimator loud, insurance quiet)
+  if(EST_BAR.includes(j.status)) return 'bar-estimator';
+  if(INS_BAR.includes(j.status)) return 'bar-insurance';
   // 4. good & close (committed full / projected muted)
   const partsDone=j.PartsReceivedPercent!=null&&j.PartsReceivedPercent>=1;
   if(committed && !isNaN(j.dtp)&&j.dtp<=4&&partsDone) return 'bar-green';
@@ -260,36 +309,38 @@ function barClass(j){
 }
 const CHIP_COLORS={
   'bar-red':{bg:'#3a1518',c:'#ff9a9a'},'bar-yellow':{bg:'#3a2a0a',c:'#ffcf6a'},'bar-green':{bg:'#0d3320',c:'#8ef0b0'},
-  'bar-pink':{bg:'#2a1230',c:'#e89aff'},'bar-purple':{bg:'#1f1233',c:'#c89aff'},
+  'bar-estimator':{bg:'#2e1126',c:'#f0a0d8'},'bar-insurance':{bg:'#1f1320',c:'#d09ac0'},
   'bar-red-proj':{bg:'#2a1a1c',c:'#d09a9e'},'bar-yellow-proj':{bg:'#2a2414',c:'#cfb87a'},'bar-green-proj':{bg:'#16241c',c:'#9ec8ad'},
+  'bar-done-today':{bg:'#0a2a5c',c:'#9fd0ff'},
   '':{bg:'#1c2433',c:'#aac0e0'}};
+function dayText(dtp){
+  if(isNaN(dtp))return '';
+  if(dtp<0)return Math.abs(dtp)+(Math.abs(dtp)===1?' day late':' days late');
+  if(dtp===0)return 'Today';
+  if(dtp===1)return '1 day';
+  return dtp+' days';
+}
 function dtpChip(j,bc){
-  // projected: nothing promised, but repair plan projects a date -> mark clearly as PROJ
+  // projected: nothing promised, but repair plan projects a date
   if(isProjected(j)){
-    let pt;
-    if(j.dtp<0)pt='PROJ '+Math.abs(j.dtp)+'d late';
-    else if(j.dtp===0)pt='PROJ today';
-    else pt='PROJ '+j.dtp+'d';
     const col=CHIP_COLORS[bc]||CHIP_COLORS[''];
-    return {txt:pt,bg:col.bg,c:col.c,proj:true};
+    return {txt:dayText(j.dtp),bg:col.bg,c:col.c,source:'PROJECTED'};
   }
   if(!j.hasPromise){
-    return {txt:'NO PROMISE',bg:'#222a38',c:'#7e8aa3',np:true};
+    return {txt:'NO DATE',bg:'#222a38',c:'#7e8aa3',source:''};
   }
-  let txt;
-  if(isNaN(j.dtp))txt='NO PROMISE';
-  else if(j.dtp<0)txt=Math.abs(j.dtp)+' late';
-  else if(j.dtp===0)txt='Today';
-  else if(j.dtp===1)txt='1 day';
-  else txt=j.dtp+' days';
   const col=CHIP_COLORS[bc]||CHIP_COLORS[''];
-  return {txt:txt,bg:col.bg,c:col.c};
+  return {txt:dayText(j.dtp),bg:col.bg,c:col.c,source:'PROMISED'};
 }
 function barColor(p){return p>=100?'#34a853':p>=50?'#c2980a':'#c45a3a';}
 function barRow(lbl,val){
   if(val==null)return '<div class="bar-row"><span class="bar-lbl">'+lbl+'</span><span class="bar-blank">&#8212;</span></div>';
   const p=Math.round(val*100);
-  return '<div class="bar-row"><span class="bar-lbl">'+lbl+'</span><div class="bar-track"><div class="bar-fill" style="width:'+p+'%;background:'+barColor(p)+'"></div></div><span class="bar-pct">'+p+'%</span></div>';
+  const over=p>100;
+  const fillW=Math.min(p,100);
+  const badge=over?'<span class="over-badge" title="Over 100% \u2014 check for error">&#10071;</span>':'';
+  const pctCls=over?'bar-pct over':'bar-pct';
+  return '<div class="bar-row"><span class="bar-lbl">'+lbl+'</span><div class="bar-track"><div class="bar-fill" style="width:'+fillW+'%;background:'+barColor(p)+'"></div></div><span class="'+pctCls+'">'+p+'%</span>'+badge+'</div>';
 }
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function parseNote(raw){
@@ -320,11 +371,12 @@ function buildMenu(){
     menu.appendChild(a);
   });
 }
-document.addEventListener('click',function(e){if(!e.target.closest('.est-switch'))document.getElementById('estMenu').classList.remove('open');});
+document.addEventListener('click',function(e){if(!e.target.closest('.est-switch'))document.getElementById('estMenu').classList.remove('open');if(!e.target.closest('.view-switch'))document.getElementById('viewMenu').classList.remove('open');});
 
 // ── card builder ───────────────────────────────────────
 function buildCard(j,isDone){
-  const bc=isDone?'bar-done':barClass(j);
+  const doneToday=isDone&&j.doneTime&&isToday(j.doneTime);
+  const bc=isDone?(doneToday?'bar-done-today':'bar-done'):barClass(j);
   const chip=dtpChip(j,bc);
   const card=document.createElement('div');card.className='card'+(bc?' '+bc:'');
   let daysTxt='';if(j.DropDate){const d=Math.floor((new Date()-new Date(j.DropDate))/86400000);if(!isNaN(d))daysTxt=d+'d in shop';}
@@ -335,14 +387,21 @@ function buildCard(j,isDone){
     const fullBlock=note.hasMore?'<div class="note-full">'+note.all.join('\n')+'</div>':'';
     noteHtml='<div class="note'+(stale?' stale':'')+'" onclick="event.stopPropagation();this.classList.toggle(\'expanded\')">'+(stale?'<span class="stale-badge">&#10071;</span>':'')+'<span class="note-lbl">PRODUCTION NOTES</span><div class="note-body">'+note.top+'</div>'+moreLine+fullBlock+'</div>';
   }
-  const chipHtml=isDone?'<span class="card-dtp" style="background:#0a2a5c;color:#c8e0ff">'+(j.status==='Delivered'?'OUT':'DONE')+'</span>':'<span class="card-dtp" style="background:'+chip.bg+';color:'+chip.c+'">'+chip.txt+'</span>';
+  // date chip + source label (PROMISED / PROJECTED) stacked top-right
+  let chipHtml;
+  if(isDone){
+    chipHtml='<span class="card-dtp" style="background:#0a2a5c;color:#c8e0ff">'+(j.status==='Delivered'?'OUT':'DONE')+'</span>';
+  }else{
+    const srcLabel=chip.source?'<span class="date-source">'+chip.source+'</span>':'';
+    chipHtml='<div class="chip-stack">'+srcLabel+'<span class="card-dtp" style="background:'+chip.bg+';color:'+chip.c+'">'+chip.txt+'</span></div>';
+  }
   const estTag=((BOARD_OWNER==='All'||BOARD_OWNER==='Everything Else')&&j.estimator)?'<span class="est-tag">'+j.estimator+'</span>':'';
   // stamped repair phase (the actual status text) — shown above notes
   const phaseHtml=j.status?'<div class="card-phase">'+j.status+'</div>':'';
   card.innerHTML='<div class="card-top"><span class="card-ro">'+j.ro+estTag+'</span>'+chipHtml+'</div>'+
     '<div class="card-cust">'+j.customer+'</div>'+
     '<div class="card-veh">'+shortVehicle(j.vehicle)+'</div>'+
-    '<div class="card-ins"><b>INS</b>'+(j.insurance||'&#8212;')+'</div>'+
+    '<div class="card-ins">'+(j.insurance||'&#8212;')+'</div>'+
     '<div class="card-people"><span><b>T</b>'+(j.tech||'&#8212;')+'</span><span><b>P</b>'+(j.painter||'&#8212;')+'</span></div>'+
     '<div class="bars">'+barRow('PARTS',j.PartsReceivedPercent)+barRow('LABOR',j.LaborAssignedPercent)+'</div>'+
     phaseHtml+
@@ -350,6 +409,7 @@ function buildCard(j,isDone){
     '<div class="card-foot"><span class="card-dollars">'+(j.dollars?'$'+j.dollars.toLocaleString():'&#8212;')+'</span><span class="card-days">'+daysTxt+'</span></div>';
   return card;
 }
+function isToday(iso){if(!iso)return false;const d=new Date(iso),n=new Date();return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate();}
 
 // ── render ─────────────────────────────────────────────
 function render(){
@@ -365,10 +425,17 @@ function render(){
       if(lane.title==='Intake' && !isKnownStatus(j.status)) return true;
       return false;
     }).sort(function(a,b){return (STATUS_RANK[a.status]||0)-(STATUS_RANK[b.status]||0);});
+    // Post-Repair/QC also surfaces cars completed TODAY so they don't vanish before day's end
+    var doneTodayHere=[];
+    if(lane.title==='Post-Repair / QC'){
+      doneTodayHere=pool.filter(function(j){return DONE_STATUSES.includes(j.status)&&isToday(j.doneTime);})
+        .sort(function(a,b){return (b.doneTime?Date.parse(b.doneTime):0)-(a.doneTime?Date.parse(a.doneTime):0);});
+    }
+    const laneCount=lj.length+doneTodayHere.length;
     const el=document.createElement('div');el.className='lane';
-    el.innerHTML='<div class="lane-head"><span class="lane-title">'+lane.title+'</span><span class="lane-count">'+lj.length+'</span></div>';
+    el.innerHTML='<div class="lane-head"><span class="lane-title">'+lane.title+'</span><span class="lane-count">'+laneCount+'</span></div>';
     const body=document.createElement('div');body.className='lane-body';
-    if(!lj.length){
+    if(!laneCount){
       body.innerHTML='<div class="empty-lane">&#8212;</div>';
     } else if(lane.title==='Waiting'){
       // group by wait-type, each with a colored divider label
@@ -383,6 +450,8 @@ function render(){
       });
     } else {
       lj.forEach(function(j){body.appendChild(buildCard(j,false));});
+      // done-today cards pinned after the active QC cars
+      doneTodayHere.forEach(function(j){body.appendChild(buildCard(j,true));});
     }
     el.appendChild(body);kb.appendChild(el);
   });
@@ -398,18 +467,15 @@ function render(){
 }
 
 function toggleDone(){
-  const ov=document.getElementById('doneOverlay');
-  const btn=document.getElementById('doneToggle');
-  const open=ov.classList.toggle('open');
-  btn.classList.toggle('active',open);
+  document.getElementById('doneOverlay').classList.toggle('open');
 }
 // close overlay on backdrop click or Esc
 document.addEventListener('click',function(e){
   const ov=document.getElementById('doneOverlay');
-  if(ov.classList.contains('open') && e.target===ov){ov.classList.remove('open');document.getElementById('doneToggle').classList.remove('active');}
+  if(ov.classList.contains('open') && e.target===ov){ov.classList.remove('open');}
 });
 document.addEventListener('keydown',function(e){
-  if(e.key==='Escape'){const ov=document.getElementById('doneOverlay');if(ov.classList.contains('open')){ov.classList.remove('open');document.getElementById('doneToggle').classList.remove('active');}}
+  if(e.key==='Escape'){const ov=document.getElementById('doneOverlay');if(ov.classList.contains('open')){ov.classList.remove('open');}}
 });
 
 // ── data fetch ─────────────────────────────────────────
