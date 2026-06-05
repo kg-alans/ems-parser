@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Dana — Estimator Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Changa+One&family=Saira:wght@600;700;800&family=Lexend+Deca:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#0b0e14;--text:#d8e4f8;--muted:#56647d;--header-bg:#6b1a2b;--header-rim:#8c2038;--accent:#ff9999;
+    --slate-bar:#3a4a6a;
+    --pink-bar:#cc44cc;--pink-out:#cc44cc;--purple-bar:#8822cc;
+    --green-bar:#55ee88;--yellow-bar:#ffaa00;--red-bar:#ff6060;--done-bar:#55aaff;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:'Lexend Deca',sans-serif;overflow:hidden;}
+  .board-header{height:72px;background:var(--header-bg);border-bottom:3px solid var(--header-rim);display:flex;align-items:center;justify-content:space-between;padding:0 22px;gap:18px;}
+  .header-left{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
+  .shop-name{font-family:'Changa One',display;font-size:21px;color:#fff;line-height:1;}
+  .queue-row{display:flex;align-items:center;gap:7px;}
+  .board-label{font-family:'Saira',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.26em;text-transform:uppercase;color:var(--accent);}
+  .qsep{color:var(--accent);font-weight:700;opacity:0.7;}
+  .est-switch{position:relative;}
+  .est-chip{font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.04em;padding:3px 10px;border-radius:5px;background:#4a0a0a;color:#ff9999;border:1px solid #c50f1f;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .est-chip .car{font-size:9px;opacity:0.85;}
+  .est-menu{position:absolute;top:110%;left:0;background:#161c28;border:1px solid #2a3346;border-radius:7px;padding:5px;min-width:180px;z-index:50;box-shadow:0 8px 24px #000a;display:none;}
+  .est-menu.open{display:block;}
+  .est-opt{padding:7px 10px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;color:#d8e4f8;text-decoration:none;}
+  .est-opt:hover{background:#222a3a;}
+  .est-opt.active{background:#2a1216;color:#ff9999;}
+  .est-opt .n{font-family:'Saira';font-size:11px;opacity:0.55;}
+  .legend{display:flex;gap:11px;flex-wrap:nowrap;align-items:center;overflow:hidden;flex:1;justify-content:center;}
+  .lg{display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,0.6);white-space:nowrap;}
+  .lg-bar{width:4px;height:13px;border-radius:2px;flex-shrink:0;}
+  .header-right{display:flex;align-items:center;gap:14px;}
+  .search-box{background:#2a0e14;border:1px solid #8c2038;border-radius:6px;padding:6px 10px;color:#fff;font-family:'Lexend Deca';font-size:12px;width:150px;outline:none;}
+  .search-box::placeholder{color:#cc8a92;}
+  .clkwrap{text-align:right;}
+  .clk{font-family:'Saira',sans-serif;font-size:20px;font-weight:700;color:#fff;line-height:1;}
+  .sync{font-family:'Lexend Deca';font-size:10px;font-weight:500;color:var(--accent);margin-top:2px;}
+  .sync.stale{color:#ffb84d;}
+  .kanban{height:calc(100vh - 72px);display:flex;gap:8px;padding:10px;overflow-x:auto;}
+  .lane{flex:1;min-width:212px;background:#10141f;border:1px solid #1c2333;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;}
+  .lane-head{padding:8px 11px;border-bottom:2px solid #3a4458;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#161b26;}
+  .lane-title{font-family:'Saira',sans-serif;font-size:11.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#9aa6bd;}
+  .lane-count{font-family:'Saira';font-size:12px;font-weight:700;color:#5a6478;}
+  .lane-body{flex:1;overflow-y:auto;padding:7px;display:flex;flex-direction:column;gap:6px;scrollbar-width:thin;}
+  .lane-body::-webkit-scrollbar{width:5px;} .lane-body::-webkit-scrollbar-thumb{background:#2a3346;border-radius:3px;}
+  .card{background:#161c28;border-radius:6px;padding:7px 8px;border:1.5px solid #232c3c;border-left:5px solid var(--slate-bar);position:relative;color:#cdd8ec;}
+  .card.bar-pink{border-left-color:var(--pink-bar);border-color:var(--pink-out);background:#1d1226;}
+  .card.bar-purple{border-left-color:var(--purple-bar);border-color:#8822cc55;}
+  .card.bar-green{border-left-color:var(--green-bar);border-color:#55ee8844;}
+  .card.bar-yellow{border-left-color:var(--yellow-bar);border-color:var(--yellow-bar);}
+  .card.bar-red{border-left-color:var(--red-bar);border-color:var(--red-bar);background:#2a1518;}
+  .card.bar-done{border-left-color:var(--done-bar);border-color:#55aaff44;}
+  /* projected (no promise, repair-plan projection) — muted + dashed left bar to read as provisional */
+  .card.bar-red-proj{border-left:5px dashed #b56a6e;border-top-color:#232c3c;border-right-color:#232c3c;border-bottom-color:#232c3c;background:#1f1719;}
+  .card.bar-yellow-proj{border-left:5px dashed #b59a4a;border-top-color:#232c3c;border-right-color:#232c3c;border-bottom-color:#232c3c;}
+  .card.bar-green-proj{border-left:5px dashed #5a9a6e;border-top-color:#232c3c;border-right-color:#232c3c;border-bottom-color:#232c3c;}
+  .card-top{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px;}
+  .card-ro{font-family:'Saira';font-size:12.5px;font-weight:800;letter-spacing:0.02em;display:flex;align-items:center;gap:4px;}
+  .est-tag{font-family:'Saira';font-size:8.5px;font-weight:700;letter-spacing:0.04em;padding:1px 5px;border-radius:3px;background:#2a3346;color:#9fb4d4;text-transform:uppercase;}
+  .card-dtp{font-family:'Saira';font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.03em;white-space:nowrap;}
+  .card-cust{font-size:12.5px;font-weight:600;line-height:1.12;}
+  .card-veh{font-size:11px;opacity:0.78;line-height:1.12;margin-bottom:3px;}
+  .card-ins{font-size:10px;opacity:0.7;margin-bottom:4px;}
+  .card-ins b{font-family:'Saira';font-weight:600;opacity:0.65;letter-spacing:0.03em;margin-right:3px;}
+  .card-people{display:flex;gap:10px;font-size:10.5px;opacity:0.8;margin-bottom:5px;}
+  .card-people b{font-family:'Saira';font-weight:600;opacity:0.55;letter-spacing:0.03em;margin-right:3px;}
+  .bars{display:flex;flex-direction:column;gap:3px;margin-bottom:5px;}
+  .bar-row{display:flex;align-items:center;gap:5px;}
+  .bar-lbl{font-family:'Saira';font-size:8.5px;font-weight:700;letter-spacing:0.05em;opacity:0.6;width:30px;flex-shrink:0;}
+  .bar-track{flex:1;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:3px;}
+  .bar-pct{font-family:'Saira';font-size:9px;font-weight:700;opacity:0.75;width:30px;text-align:right;flex-shrink:0;}
+  .bar-blank{flex:1;font-size:9px;opacity:0.4;font-style:italic;}
+  .note{border-top:1px solid rgba(255,255,255,0.1);padding-top:4px;margin-top:1px;position:relative;cursor:pointer;padding-left:2px;}
+  .note-lbl{font-family:'Saira';font-weight:700;font-size:8px;letter-spacing:0.06em;opacity:0.55;display:block;margin-bottom:1px;}
+  .note-body{font-size:10.5px;line-height:1.25;opacity:0.9;}
+  .note-more{font-size:8.5px;opacity:0.5;margin-top:2px;font-style:italic;}
+  .stale-badge{position:absolute;top:3px;left:-3px;font-size:11px;line-height:1;filter:drop-shadow(0 0 2px #000);}
+  .note.stale .note-lbl{padding-left:14px;}
+  .note-full{display:none;font-size:10px;line-height:1.4;opacity:0.85;white-space:pre-line;margin-top:3px;padding-top:3px;border-top:1px dashed rgba(255,255,255,0.12);}
+  .note.expanded .note-full{display:block;}
+  .note.expanded .note-more{display:none;}
+  .card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:5px;}
+  .card-dollars{font-family:'Saira';font-size:11.5px;font-weight:700;opacity:0.9;}
+  .card-days{font-family:'Saira';font-size:9.5px;font-weight:700;opacity:0.5;}
+  .empty-lane{font-size:10px;opacity:0.3;text-align:center;padding:14px 4px;font-style:italic;}
+  .done-lane.collapsed{flex:0 0 42px;min-width:42px;background:#0d1726;border-color:#1d3050;}
+  .done-rail{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:14px;gap:12px;cursor:pointer;}
+  .done-rail-count{font-family:'Saira';font-size:22px;font-weight:800;color:#7fc0ff;}
+  .done-rail-label{writing-mode:vertical-rl;text-orientation:mixed;font-family:'Saira';font-size:11px;font-weight:800;letter-spacing:0.14em;color:#5a86b8;text-transform:uppercase;}
+  .done-lane{flex:0 0 200px;}
+  .done-head{cursor:pointer;border-bottom-color:#1d3050;}
+  .loading{position:absolute;inset:72px 0 0 0;display:flex;align-items:center;justify-content:center;font-family:'Saira';font-size:14px;letter-spacing:0.1em;color:#5a6478;}
+</style>
+</head>
+<body>
+<header class="board-header">
+  <div class="header-left">
+    <div class="shop-name">Ken Garff Body &amp; Glass</div>
+    <div class="queue-row">
+      <span class="board-label">Estimator Queue</span><span class="qsep">:</span>
+      <div class="est-switch">
+        <div class="est-chip" id="estChip" onclick="document.getElementById('estMenu').classList.toggle('open')">
+          <span id="estName">DANA HULSE</span><span class="car">&#9662;</span>
+        </div>
+        <div class="est-menu" id="estMenu"></div>
+      </div>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="lg"><span class="lg-bar" style="background:var(--slate-bar)"></span>Flowing</div>
+    <div class="lg"><span class="lg-bar" style="background:var(--green-bar)"></span>Good &amp; close</div>
+    <div class="lg"><span class="lg-bar" style="background:var(--yellow-bar)"></span>Needs something</div>
+    <div class="lg"><span class="lg-bar" style="background:var(--pink-bar)"></span>Estimator: write supp</div>
+    <div class="lg"><span class="lg-bar" style="background:var(--purple-bar)"></span>Waiting on insurance</div>
+    <div class="lg"><span class="lg-bar" style="background:var(--red-bar)"></span>Dire (late/today)</div>
+    <div class="lg"><span style="font-size:11px">&#10071;</span>Note 5+ days old</div>
+  </div>
+  <div class="header-right">
+    <input class="search-box" id="search" placeholder="Search RO / name&#8230;" oninput="render()">
+    <div class="clkwrap"><div class="clk" id="clk">&#8211;:&#8211; &#8211;</div><div class="sync" id="sync">Loading&#8230;</div></div>
+  </div>
+</header>
+<div class="kanban" id="kanban"><div class="loading">Loading board&#8230;</div></div>
+
+<script>
+// ═══ CONFIG ═══════════════════════════════════════════
+const BOARD_OWNER='Dana';              // first name as it appears in /board-data estimator field, or 'Everything Else'
+const API_BASE='https://kgdtbs.onrender.com';   // matches 3day.html; works regardless of where these files are hosted
+const REFRESH_MS=5*60*1000;
+// estimator first-names that "own" a dedicated board; anything else => Everything Else
+const KNOWN=['Logan','Dana','Cordale','Jennie'];
+const OWNER_FILES={'All':'main.html','Logan':'logan.html','Dana':'dana.html','Cordale':'cord.html','Jennie':'jennie.html','Everything Else':'other.html'};
+const DISPLAY={'All':'ALL FILES','Logan':'LOGAN LINDSEY','Dana':'DANA HULSE','Cordale':'CORDALE BRIGGS','Jennie':'JENNIE NICOLLS','Everything Else':'EVERYTHING ELSE'};
+
+// ═══ CLOCK / SYNC ═════════════════════════════════════
+function fmtClock(d){let h=d.getHours();const m=String(d.getMinutes()).padStart(2,'0');const a=h>=12?'PM':'AM';h=h%12||12;return h+':'+m+' '+a;}
+function tickClock(){document.getElementById('clk').textContent=fmtClock(new Date());}
+tickClock();setInterval(tickClock,1000);
+
+// ═══ MODEL ════════════════════════════════════════════
+const STATUS_RANK={'':0,'Prelim':1,'Pre-Production':2,'Dispatch':3,'Teardown':4,'Waiting on Insurance':5,'Supp-Estimator':6,'Supp-Insurance':7,'Waiting on Parts':8,'Need Parts Update':9,'Frame':10,'Repair in Process':11,'Paint':12,'Sublet':13,'Reassembly':14,'QC':15,'Wash':16,'Done':17,'Ready for Delivery':18};
+const lanes=[
+  {title:'Intake',statuses:['Prelim','Pre-Production','Dispatch']},
+  {title:'Estimating',statuses:['Teardown','Supp-Estimator','Waiting on Estimator','Supp-Insurance','Waiting on Insurance','Waiting on Parts','Need Parts Update']},
+  {title:'Body Work',statuses:['Frame','Repair in Process']},
+  {title:'Paint Work',statuses:['Paint']},
+  {title:'Sublet',statuses:['Sublet']},
+  {title:'Reassembly',statuses:['Reassembly']},
+  {title:'Post-Repair / QC',statuses:['QC','Wash']},
+];
+const DONE_STATUSES=['Done','Ready for Delivery','Delivered'];
+// every status that has an explicit lane home (used to route null/unknown statuses to Intake)
+const KNOWN_STATUSES=(function(){var s=[];lanes.forEach(function(l){l.statuses.forEach(function(x){s.push(x);});});DONE_STATUSES.forEach(function(x){s.push(x);});return s;})();
+function isKnownStatus(st){return KNOWN_STATUSES.includes(st);}
+const ESTIMATOR_ACTION=['Supp-Estimator','Waiting on Estimator','Teardown'];
+const INSURANCE_WAIT=['Supp-Insurance','Waiting on Insurance'];
+
+let ROWS=[];          // normalized rows from /board-data
+let DONE_OPEN=false;
+let LAST_SYNC=null;
+
+// ── map a raw /board-data row to the card model ────────
+function normalize(r){
+  const dtp=parseInt(r.dtp,10);                 // NaN if blank
+  const promise=r.promise||'';
+  const target=r.target||'';
+  // targetLate: production target slipped past promise (both present & comparable)
+  let targetLate=false;
+  if(promise&&target){const p=new Date(promise),t=new Date(target);if(!isNaN(p)&&!isNaN(t))targetLate=t>p;}
+  // percents arrive 0–1 decimal strings; may be absent until flow updated
+  const pp=r.PartsReceivedPercent;  const lp=r.LaborAssignedPercent;
+  const partsPct = (pp===''||pp==null)?null:parseFloat(pp);
+  const laborPct = (lp===''||lp==null)?null:parseFloat(lp);
+  return {
+    ro:r.ro||'', customer:r.customer||'', vehicle:r.vehicle||'',
+    estimator:(r.estimator||'').trim(),
+    insurance:r.insurance||'', tech:r.tech||'', painter:r.painter||'',
+    status:r.repairStatus||'',
+    promise:fmtPromise(promise), hasPromise:!!promise, dtp:dtp,
+    dollars: r.estimateTotal? Math.round(parseFloat(r.estimateTotal)) : 0,
+    PartsReceivedPercent:partsPct, LaborAssignedPercent:laborPct,
+    DropDate:r.dropDate||'',
+    doneTime:r.doneTime||'',
+    RepairPlanComments:r.RepairPlanComments||'',
+    totalLoss:(r.totalLoss==='True'||r.totalLoss===true),
+    done:DONE_STATUSES.includes(r.repairStatus||''),
+    targetLate:targetLate
+  };
+}
+function fmtPromise(iso){if(!iso)return '';const d=new Date(iso);if(isNaN(d))return iso;return (d.getMonth()+1)+'/'+d.getDate();}
+
+// ── bar color priority tree ───────────────────────────
+// Three date states:
+//   committed  = promise exists                  -> full proximity color
+//   projected  = no promise but dtp is a number  -> MUTED proximity color (bar-*-proj)
+//   none       = no promise, no dtp              -> neutral
+function isProjected(j){ return !j.hasPromise && !isNaN(j.dtp); }
+function barClass(j){
+  const committed=j.hasPromise;
+  const projected=isProjected(j);
+  // 1. DIRE (committed only — can't be "late" for a date never promised)
+  if(committed && ((!isNaN(j.dtp)&&j.dtp<=0)||j.targetLate)) return 'bar-red';
+  // 1b. projected & already past / due now -> muted red
+  if(projected && j.dtp<=0) return 'bar-red-proj';
+  // 2/3. estimator / insurance waits (date-independent)
+  if(ESTIMATOR_ACTION.includes(j.status)) return 'bar-pink';
+  if(INSURANCE_WAIT.includes(j.status)) return 'bar-purple';
+  // 4. good & close (committed full / projected muted)
+  const partsDone=j.PartsReceivedPercent!=null&&j.PartsReceivedPercent>=1;
+  if(committed && !isNaN(j.dtp)&&j.dtp<=4&&partsDone) return 'bar-green';
+  if(projected && j.dtp<=4&&partsDone) return 'bar-green-proj';
+  // 5. needs something -> yellow (committed full / projected muted)
+  const needsParts=j.PartsReceivedPercent!=null&&j.PartsReceivedPercent<1;
+  const needsLabor=j.LaborAssignedPercent!=null&&j.LaborAssignedPercent<1;
+  if(needsParts||needsLabor) return projected?'bar-yellow-proj':'bar-yellow';
+  return '';
+}
+const CHIP_COLORS={
+  'bar-red':{bg:'#3a1518',c:'#ff9a9a'},'bar-yellow':{bg:'#3a2a0a',c:'#ffcf6a'},'bar-green':{bg:'#0d3320',c:'#8ef0b0'},
+  'bar-pink':{bg:'#2a1230',c:'#e89aff'},'bar-purple':{bg:'#1f1233',c:'#c89aff'},
+  'bar-red-proj':{bg:'#2a1a1c',c:'#d09a9e'},'bar-yellow-proj':{bg:'#2a2414',c:'#cfb87a'},'bar-green-proj':{bg:'#16241c',c:'#9ec8ad'},
+  '':{bg:'#1c2433',c:'#aac0e0'}};
+function dtpChip(j,bc){
+  // projected: nothing promised, but repair plan projects a date -> mark clearly as PROJ
+  if(isProjected(j)){
+    let pt;
+    if(j.dtp<0)pt='PROJ '+Math.abs(j.dtp)+'d late';
+    else if(j.dtp===0)pt='PROJ today';
+    else pt='PROJ '+j.dtp+'d';
+    const col=CHIP_COLORS[bc]||CHIP_COLORS[''];
+    return {txt:pt,bg:col.bg,c:col.c,proj:true};
+  }
+  if(!j.hasPromise){
+    return {txt:'NO PROMISE',bg:'#222a38',c:'#7e8aa3',np:true};
+  }
+  let txt;
+  if(isNaN(j.dtp))txt='NO PROMISE';
+  else if(j.dtp<0)txt=Math.abs(j.dtp)+' late';
+  else if(j.dtp===0)txt='Today';
+  else if(j.dtp===1)txt='1 day';
+  else txt=j.dtp+' days';
+  const col=CHIP_COLORS[bc]||CHIP_COLORS[''];
+  return {txt:txt,bg:col.bg,c:col.c};
+}
+function barColor(p){return p>=100?'#34a853':p>=50?'#c2980a':'#c45a3a';}
+function barRow(lbl,val){
+  if(val==null)return '<div class="bar-row"><span class="bar-lbl">'+lbl+'</span><span class="bar-blank">&#8212;</span></div>';
+  const p=Math.round(val*100);
+  return '<div class="bar-row"><span class="bar-lbl">'+lbl+'</span><div class="bar-track"><div class="bar-fill" style="width:'+p+'%;background:'+barColor(p)+'"></div></div><span class="bar-pct">'+p+'%</span></div>';
+}
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function parseNote(raw){
+  if(!raw||!raw.trim())return null;
+  const lines=raw.split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  const top=lines[0];const m=top.match(/^(\d{1,2})\/(\d{1,2})/);let ageDays=null;
+  if(m){const mo=+m[1],da=+m[2],yr=new Date().getFullYear();let dt=new Date(yr,mo-1,da);if(dt>new Date())dt=new Date(yr-1,mo-1,da);ageDays=Math.floor((new Date()-dt)/86400000);}
+  return {top:top,ageDays:ageDays,all:lines,hasMore:lines.length>1};
+}
+
+// ── owner filtering ────────────────────────────────────
+function rowsForOwner(){
+  if(BOARD_OWNER==='All') return ROWS.slice();
+  if(BOARD_OWNER==='Everything Else') return ROWS.filter(function(j){return !KNOWN.includes(j.estimator);});
+  return ROWS.filter(function(j){return j.estimator===BOARD_OWNER;});
+}
+function countFor(name){
+  if(name==='All')return ROWS.length;
+  if(name==='Everything Else')return ROWS.filter(function(j){return !KNOWN.includes(j.estimator);}).length;
+  return ROWS.filter(function(j){return j.estimator===name;}).length;
+}
+function buildMenu(){
+  const menu=document.getElementById('estMenu');menu.innerHTML='';
+  ['All','Logan','Cordale','Dana','Jennie','Everything Else'].forEach(function(name){
+    const a=document.createElement('a');a.className='est-opt'+(name===BOARD_OWNER?' active':'');
+    a.href=OWNER_FILES[name];
+    a.innerHTML='<span>'+DISPLAY[name]+'</span><span class="n">'+countFor(name)+'</span>';
+    menu.appendChild(a);
+  });
+}
+document.addEventListener('click',function(e){if(!e.target.closest('.est-switch'))document.getElementById('estMenu').classList.remove('open');});
+
+// ── card builder ───────────────────────────────────────
+function buildCard(j,isDone){
+  const bc=isDone?'bar-done':barClass(j);
+  const chip=dtpChip(j,bc);
+  const card=document.createElement('div');card.className='card'+(bc?' '+bc:'');
+  let daysTxt='';if(j.DropDate){const d=Math.floor((new Date()-new Date(j.DropDate))/86400000);if(!isNaN(d))daysTxt=d+'d in shop';}
+  const note=parseNote(j.RepairPlanComments);let noteHtml='';
+  if(note){
+    const stale=note.ageDays!=null&&note.ageDays>=5;
+    const moreLine=note.hasMore?'<div class="note-more">tap for full history ('+note.all.length+')</div>':'';
+    const fullBlock=note.hasMore?'<div class="note-full">'+note.all.join('\n')+'</div>':'';
+    noteHtml='<div class="note'+(stale?' stale':'')+'" onclick="event.stopPropagation();this.classList.toggle(\'expanded\')">'+(stale?'<span class="stale-badge">&#10071;</span>':'')+'<span class="note-lbl">PRODUCTION NOTES</span><div class="note-body">'+note.top+'</div>'+moreLine+fullBlock+'</div>';
+  }
+  const chipHtml=isDone?'<span class="card-dtp" style="background:#0a2a5c;color:#c8e0ff">'+(j.status==='Delivered'?'OUT':'DONE')+'</span>':'<span class="card-dtp" style="background:'+chip.bg+';color:'+chip.c+'">'+chip.txt+'</span>';
+  const estTag=(BOARD_OWNER==='All'&&j.estimator)?'<span class="est-tag">'+j.estimator+'</span>':'';
+  card.innerHTML='<div class="card-top"><span class="card-ro">'+j.ro+estTag+'</span>'+chipHtml+'</div>'+
+    '<div class="card-cust">'+j.customer+'</div>'+
+    '<div class="card-veh">'+j.vehicle+'</div>'+
+    '<div class="card-ins"><b>INS</b>'+(j.insurance||'&#8212;')+'</div>'+
+    '<div class="card-people"><span><b>T</b>'+(j.tech||'&#8212;')+'</span><span><b>P</b>'+(j.painter||'&#8212;')+'</span></div>'+
+    '<div class="bars">'+barRow('PARTS',j.PartsReceivedPercent)+barRow('LABOR',j.LaborAssignedPercent)+'</div>'+
+    noteHtml+
+    '<div class="card-foot"><span class="card-dollars">'+(j.dollars?'$'+j.dollars.toLocaleString():'&#8212;')+'</span><span class="card-days">'+daysTxt+'</span></div>';
+  return card;
+}
+
+// ── render ─────────────────────────────────────────────
+function render(){
+  const q=(document.getElementById('search').value||'').trim().toLowerCase();
+  let pool=rowsForOwner();
+  if(q)pool=pool.filter(function(j){return (j.ro+' '+j.customer+' '+j.vehicle+' '+j.insurance).toLowerCase().includes(q);});
+  const kb=document.getElementById('kanban');kb.innerHTML='';
+  lanes.forEach(function(lane){
+    var lj=pool.filter(function(j){
+      if(DONE_STATUSES.includes(j.status)) return false;   // done cars go to Done lane
+      if(lane.statuses.includes(j.status)) return true;
+      // null / unrecognized status falls into Intake (car is here but unprocessed)
+      if(lane.title==='Intake' && !isKnownStatus(j.status)) return true;
+      return false;
+    }).sort(function(a,b){return (STATUS_RANK[a.status]||0)-(STATUS_RANK[b.status]||0);});
+    const el=document.createElement('div');el.className='lane';
+    el.innerHTML='<div class="lane-head"><span class="lane-title">'+lane.title+'</span><span class="lane-count">'+lj.length+'</span></div>';
+    const body=document.createElement('div');body.className='lane-body';
+    if(!lj.length)body.innerHTML='<div class="empty-lane">&#8212;</div>';
+    lj.forEach(function(j){body.appendChild(buildCard(j,false));});
+    el.appendChild(body);kb.appendChild(el);
+  });
+  // Done lane: show ALL done/delivered, most-recently-done at top (doubles as a 'needs closing' list)
+  const done=pool.filter(function(j){return DONE_STATUSES.includes(j.status);}).sort(function(a,b){
+    var ta=a.doneTime?Date.parse(a.doneTime):0, tb=b.doneTime?Date.parse(b.doneTime):0;
+    return tb-ta;   // newest doneTime first
+  });
+  const dl=document.createElement('div');dl.className='lane done-lane'+(DONE_OPEN?'':' collapsed');
+  if(DONE_OPEN){
+    dl.innerHTML='<div class="lane-head done-head" onclick="DONE_OPEN=false;render()"><span class="lane-title" style="color:#7fc0ff">DELIVERED / DONE</span><span class="lane-count">'+done.length+' &#9666;</span></div>';
+    const body=document.createElement('div');body.className='lane-body';
+    if(!done.length)body.innerHTML='<div class="empty-lane">&#8212;</div>';
+    done.forEach(function(j){body.appendChild(buildCard(j,true));});
+    dl.appendChild(body);
+  }else{
+    dl.innerHTML='<div class="done-rail" onclick="DONE_OPEN=true;render()"><span class="done-rail-count">'+done.length+'</span><span class="done-rail-label">DELIVERED / DONE &#9656;</span></div>';
+  }
+  kb.appendChild(dl);
+}
+
+// ── data fetch ─────────────────────────────────────────
+function setSync(){
+  const el=document.getElementById('sync');
+  if(!LAST_SYNC){el.textContent='Sync unknown';return;}
+  const d=new Date(LAST_SYNC);const hrs=(new Date()-d)/3.6e6;
+  el.textContent='Synced '+fmtClock(d);el.classList.toggle('stale',hrs>20);
+  if(hrs>20)el.textContent+=' \u26A0';
+}
+async function load(){
+  try{
+    const res=await fetch(API_BASE+'/board-data',{cache:'no-store'});
+    const data=await res.json();
+    ROWS=(Array.isArray(data)?data:[]).map(normalize);
+  }catch(e){console.error('board-data fetch failed',e);ROWS=[];}
+  try{
+    const s=await fetch(API_BASE+'/last-sync',{cache:'no-store'});const sj=await s.json();LAST_SYNC=sj.last_sync||null;
+  }catch(e){LAST_SYNC=null;}
+  document.getElementById('estName').textContent=DISPLAY[BOARD_OWNER]||BOARD_OWNER.toUpperCase();
+  buildMenu();setSync();render();
+}
+load();setInterval(load,REFRESH_MS);
+</script>
+</body>
+</html>
