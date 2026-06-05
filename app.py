@@ -11,6 +11,7 @@ from dbfread import DBF
 app = Flask(__name__)
 # ─── Display Board data store ─────────────────────────────────────
 _board_data = []
+_estimator_data = []
 _SYNC_FILE = os.path.join(os.path.dirname(__file__), 'last_sync.txt')
 
 # ─── Phase 3 mapping tables ───────────────────────────────────────
@@ -2156,6 +2157,53 @@ def three_day_mobile():
 @app.route('/3day-auto', methods=['GET'])
 def three_day_auto():
     return send_from_directory('.', '3day-auto.html')
+
+# ─── /estimator-data endpoint ─────────────────────────────────────
+# Separate feed for the per-estimator Kanban boards. Wider filter than
+# /board-data (Closed eq false AND DropDate ne null) — produced by its
+# own Power Automate flow on a 15-min timer. Kept fully separate from
+# /board-data so the 3-day board is never affected.
+
+@app.route('/estimator-data', methods=['POST'])
+def estimator_data_post():
+    global _estimator_data
+    data = request.get_json()
+    if not data or not isinstance(data, list):
+        return jsonify({'error': 'Expected a JSON array'}), 400
+    _estimator_data = data
+    return jsonify({'status': 'ok', 'rows': len(_estimator_data)})
+
+@app.route('/estimator-data', methods=['GET'])
+def estimator_data_get():
+    response = jsonify(_estimator_data)
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
+
+# ─── estimator board file routes ──────────────────────────────────
+
+@app.route('/main', methods=['GET'])
+def board_main():
+    return send_from_directory('.', 'main.html')
+
+@app.route('/logan', methods=['GET'])
+def board_logan():
+    return send_from_directory('.', 'logan.html')
+
+@app.route('/cord', methods=['GET'])
+def board_cord():
+    return send_from_directory('.', 'cord.html')
+
+@app.route('/dana', methods=['GET'])
+def board_dana():
+    return send_from_directory('.', 'dana.html')
+
+@app.route('/jennie', methods=['GET'])
+def board_jennie():
+    return send_from_directory('.', 'jennie.html')
+
+@app.route('/other', methods=['GET'])
+def board_other():
+    return send_from_directory('.', 'other.html')
 
 # ─── /last-sync endpoint ──────────────────────────────────────────
 
