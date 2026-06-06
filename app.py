@@ -1007,7 +1007,7 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
         candidates = []
         for item in sharepoint_items:
             item_customer = (item.get('customer_name') or '').lower()
-            item_vehicle = (item.get('vehicle') or '').lower()
+            item_vehicle = normalize_year_4to2(item.get('vehicle') or '').lower()
             if not item_customer or not item_vehicle:
                 continue
 
