@@ -2319,7 +2319,56 @@ def mtd_get():
     response = jsonify(_mtd_data)
     response.headers['Access-Control-Allow-Origin'] = '*'
     return response
-    
+
+# ─── /mtd-by-estimator endpoint ───────────────────────────────────
+
+_mtd_by_estimator_data = {
+    'All':     {'completed': 0, 'closed': 0},
+    'Logan':   {'completed': 0, 'closed': 0},
+    'Cordale': {'completed': 0, 'closed': 0},
+    'Dana':    {'completed': 0, 'closed': 0},
+    'Jennie':  {'completed': 0, 'closed': 0},
+    'Other':   {'completed': 0, 'closed': 0},
+    'updated': None
+}
+
+@app.route('/mtd-by-estimator', methods=['POST'])
+def mtd_by_estimator_post():
+    global _mtd_by_estimator_data
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Expected JSON'}), 400
+    _mtd_by_estimator_data = {
+        'All':     data.get('All',     {'completed': 0, 'closed': 0}),
+        'Logan':   data.get('Logan',   {'completed': 0, 'closed': 0}),
+        'Cordale': data.get('Cordale', {'completed': 0, 'closed': 0}),
+        'Dana':    data.get('Dana',    {'completed': 0, 'closed': 0}),
+        'Jennie':  data.get('Jennie',  {'completed': 0, 'closed': 0}),
+        'Other':   data.get('Other',   {'completed': 0, 'closed': 0}),
+        'updated': datetime.utcnow().isoformat() + 'Z'
+    }
+    try:
+        with open(os.path.join(os.path.dirname(__file__), 'mtd_by_estimator.txt'), 'w') as f:
+            import json as _json
+            f.write(_json.dumps(_mtd_by_estimator_data))
+    except Exception:
+        pass
+    return jsonify({'status': 'ok', 'data': _mtd_by_estimator_data})
+
+@app.route('/mtd-by-estimator', methods=['GET'])
+def mtd_by_estimator_get():
+    global _mtd_by_estimator_data
+    if _mtd_by_estimator_data['updated'] is None:
+        try:
+            with open(os.path.join(os.path.dirname(__file__), 'mtd_by_estimator.txt'), 'r') as f:
+                import json as _json
+                _mtd_by_estimator_data = _json.loads(f.read())
+        except Exception:
+            pass
+    response = jsonify(_mtd_by_estimator_data)
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
+
 # ─── /health endpoint ─────────────────────────────────────────────
 
 @app.route('/health', methods=['GET'])
