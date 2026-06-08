@@ -209,6 +209,7 @@
 const BOARD_OWNER='Cordale';              // first name as it appears in /board-data estimator field, or 'Everything Else'
 const API_BASE='https://kgdtbs.onrender.com';   // matches 3day.html; works regardless of where these files are hosted
 const REFRESH_MS=5*60*1000;
+const PAGE_LOADED_AT=Date.now();
 // estimator first-names that "own" a dedicated board; anything else => Everything Else
 const KNOWN=['Logan','Dana','Cordale','Jennie'];
 const OWNER_FILES={'All':'/main','Logan':'/logan','Dana':'/dana','Cordale':'/cord','Jennie':'/jennie','Everything Else':'/other'};
@@ -500,10 +501,54 @@ async function load(){
   try{
     const s=await fetch(API_BASE+'/last-sync',{cache:'no-store'});const sj=await s.json();LAST_SYNC=sj.last_sync||null;
   }catch(e){LAST_SYNC=null;}
+  try{ await loadMtd(); }catch(e){/* MTD optional; boxes stay as-is */}
   document.getElementById('estName').textContent=DISPLAY[BOARD_OWNER]||BOARD_OWNER.toUpperCase();
   buildMenu();setSync();render();
 }
+// ── MTD totals (from /mtd-by-estimator flow) ───────────
+// Expected shape: { "All":{completed,closed}, "Logan":{...}, ... }
+// This board shows its own owner's numbers; 'main' shows the "All" key.
+function mtdKeyForOwner(){
+  if(BOARD_OWNER==='All') return 'All';
+  if(BOARD_OWNER==='Everything Else') return 'Other';   // flow uses 'Other' for the catch-all
+  return BOARD_OWNER;   // Logan / Cordale / Dana / Jennie
+}
+function fmtMoney(n){
+  if(n==null||isNaN(n)) return '\u2014';
+  return '$'+Math.round(n).toLocaleString();
+}
+async function loadMtd(){
+  const r=await fetch(API_BASE+'/mtd-by-estimator',{cache:'no-store'});
+  const m=await r.json();
+  const mine=(m&&m[mtdKeyForOwner()])||null;
+  const cEl=document.getElementById('mtdCompleted'), zEl=document.getElementById('mtdClosed');
+  if(mine){
+    cEl.innerHTML=fmtMoney(mine.completed);
+    zEl.innerHTML=fmtMoney(mine.closed);
+  }else{
+    cEl.innerHTML='&mdash;'; zEl.innerHTML='&mdash;';
+  }
+}
 load();setInterval(load,REFRESH_MS);
+
+// ── idle-aware auto-reload ─────────────────────────────
+// Wall displays run for days; a periodic full reload picks up new code pushes
+// and clears any long-uptime cruft. Only reloads when the screen has been idle,
+// so it never yanks the page out from under someone actively using it.
+const RELOAD_AFTER_MS=30*60*1000;   // target: reload ~every 30 min
+const IDLE_REQUIRED_MS=2*60*1000;   // ...but only once untouched for 2 min
+let lastInteraction=Date.now();
+['mousemove','mousedown','keydown','touchstart','scroll','wheel'].forEach(function(ev){
+  document.addEventListener(ev,function(){lastInteraction=Date.now();},{passive:true});
+});
+setInterval(function(){
+  const now=Date.now();
+  const sinceLoad=now-PAGE_LOADED_AT;
+  const sinceTouch=now-lastInteraction;
+  if(sinceLoad>=RELOAD_AFTER_MS && sinceTouch>=IDLE_REQUIRED_MS){
+    location.reload();
+  }
+},30*1000);   // check every 30s
 </script>
 </body>
 </html>
