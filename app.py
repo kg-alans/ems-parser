@@ -1890,6 +1890,177 @@ def match_cancelled_opportunities():
         }
     })
 
+# ─── /match-opportunities endpoint (Phase 8 — June 2026) ──────────
+#
+# Replaces /match-cancelled-opportunities for Flow 10c. Does TWO jobs in one
+# pass on the Opportunities XML:
+#   1. Deletion side — same logic as the old endpoint: SP rows whose workfile
+#      is cancelled/closed-without-conversion in CCC get queued for delete.
+#      Safety guards block deletion if SP shows human or sync activity.
+#   2. Stamping side — NEW. Active (not-cancelled, not-yet-converted) Opps
+#      records get matched against SP open items. For SP rows missing
+#      WorkfileID, Insurance, or Estimator, those fields are queued for
+#      stamping from Opps data.
+#
+# Why combine: the Opportunities XML carries every active workfile (1000+
+# rows). Today, only the cancelled subset is used (for deletion). The active
+# subset (typically ~700 rows) contains workfile_id for many SP rows that
+# the main sync flows (10/10a/10b) can't match — usually because the car
+# hasn't been EMS-exported yet or hasn't started production. Analysis on
+# 2026-06-09 showed 89 open SP rows missing RO#/WorkfileID were findable
+# ONLY in the Opps report. This endpoint closes that gap.
+
+@app.route('/match-opportunities', methods=['POST'])
+def match_opportunities():
+    """Phase 8 — Opportunities Sync.
+
+    Matches Opportunities report rows against SP. Routes each matched pair
+    into one of two buckets based on the Opps record's cancellation state:
+      - cancelled/closed-without-conversion → DELETE bucket (with safety guards)
+      - active opportunity → STAMP bucket (fills blank WorkfileID/Insurance/Estimator)
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No JSON body received'}), 400
+    if 'xml' not in data:
+        return jsonify({'error': 'Missing xml field (base64 of report XML)'}), 400
+
+    sharepoint_items, err = coerce_sharepoint_items(data.get('sharepoint_items'))
+    if err:
+        return jsonify({'error': err}), 400
+
+    insurance_lookup, _ = coerce_sharepoint_items(data.get('insurance_lookup'))
+
+    try:
+        xml_bytes = base64.b64decode(data['xml'])
+        all_rows = parse_opportunities_xml(xml_bytes)
+    except Exception as e:
+        return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
+
+    # Tag each row with intended action — delete vs stamp.
+    # Active rows are "not cancelled AND not yet converted to an RO".
+    # converted_datetime populated means a Repair Order exists — that flow's
+    # syncs (10/10a/10b) own those records, so we DON'T stamp from Opps.
+    # We only stamp from rows that are still in opportunity stage.
+    delete_candidates = []
+    stamp_candidates = []
+    for r in all_rows:
+        if is_cancelled_opportunity(r):
+            delete_candidates.append(r)
+        elif not r.get('converted_datetime'):
+            # Active opportunity — not yet an RO. Eligible for stamping.
+            stamp_candidates.append(r)
+        # else: already converted to RO — main sync flows handle it; skip here.
+
+    # For display in emails: cancelled rows often have blank ro_number.
+    # Substitute WF:{workfile_id} for both buckets so emails show something.
+    for r in delete_candidates + stamp_candidates:
+        if not r.get('ro_number'):
+            r['ro_number'] = f"WF:{r.get('workfile_id', '')}"
+
+    # === DELETE SIDE ===
+    del_matched_pairs, del_unmatched, del_ambiguous = run_match_engine(
+        delete_candidates, sharepoint_items, insurance_lookup
+    )
+
+    # Apply safety guards. Failed guards → ambiguous bucket.
+    safe_deletes = []
+    for row, sp, mtype in del_matched_pairs:
+        is_safe, reason = cancelled_opp_safety_guards(sp)
+        if is_safe:
+            safe_deletes.append((row, sp, mtype))
+        else:
+            del_ambiguous.append({
+                'ro_number': row['ro_number'],
+                'owner': row['owner'],
+                'vehicle': row['vehicle'],
+                'candidate_ids': [sp.get('id')],
+                'reason': f'delete-side safety guard: {reason}'
+            })
+
+    matched_for_delete = []
+    for row, sp, mtype in safe_deletes:
+        matched_for_delete.append({
+            'list_item_id':    sp.get('id'),
+            'workfile_id':     row.get('workfile_id', ''),
+            'customer_name':   sp.get('customer_name'),
+            'vehicle':         sp.get('vehicle'),
+            'cancel_date':     row.get('cancel_date', ''),
+            'cancel_reason':   row.get('cancel_reason', ''),
+            'match_type':      mtype,
+        })
+
+    # === STAMP SIDE ===
+    stamp_matched_pairs, stamp_unmatched, stamp_ambiguous = run_match_engine(
+        stamp_candidates, sharepoint_items, insurance_lookup
+    )
+
+    matched_for_stamp = []
+    for row, sp, mtype in stamp_matched_pairs:
+        # Build new_values dict — only stamp fields where SP is blank.
+        sp_wf = (sp.get('workfile_id') or '').strip()
+        sp_ins = (sp.get('insurance') or '').strip()
+        sp_est = (sp.get('estimator') or '').strip()
+
+        opps_wf = (row.get('workfile_id') or '').strip()
+        opps_carrier = (row.get('carrier_name') or '').strip()
+        opps_writer = (row.get('estimator') or '').strip()
+
+        # Normalize estimator first-name only (matches main sync convention).
+        # Opps gives full name like "Jennie Nicolls" → take first token.
+        opps_estimator_first = opps_writer.split()[0] if opps_writer else ''
+
+        # Insurance — apply normalization via lookup if available.
+        normalized_ins = ''
+        if opps_carrier and insurance_lookup:
+            normalized_ins = normalize_insurance_name(opps_carrier, insurance_lookup) or ''
+        elif opps_carrier:
+            normalized_ins = opps_carrier  # raw carrier name as fallback
+
+        new_values = {}
+        if not sp_wf and opps_wf:
+            new_values['workfile_id'] = opps_wf
+        if not sp_ins and normalized_ins:
+            new_values['insurance'] = normalized_ins
+        if not sp_est and opps_estimator_first:
+            new_values['estimator'] = opps_estimator_first
+
+        # Only include rows with actually-stampable fields (skip no-ops).
+        if not new_values:
+            continue
+
+        matched_for_stamp.append({
+            'list_item_id':    sp.get('id'),
+            'workfile_id':     opps_wf,
+            'customer_name':   sp.get('customer_name'),
+            'vehicle':         sp.get('vehicle'),
+            'match_type':      mtype,
+            'new_values':      new_values,
+            'opps_carrier':    opps_carrier,
+            'opps_estimator':  opps_writer,
+        })
+
+    # Combine unmatched and ambiguous across both sides for the summary email.
+    # (Same SP row may appear in both — that's fine, they're for different things.)
+    combined_ambiguous = del_ambiguous + stamp_ambiguous
+
+    return jsonify({
+        'matched_for_delete':       matched_for_delete,
+        'matched_for_stamp':        matched_for_stamp,
+        'delete_candidates_total':  len(delete_candidates),
+        'stamp_candidates_total':   len(stamp_candidates),
+        'ambiguous':                combined_ambiguous,
+        'summary': {
+            'report_rows_total':      len(all_rows),
+            'delete_candidates':      len(delete_candidates),
+            'stamp_candidates':       len(stamp_candidates),
+            'sharepoint_items':       len(sharepoint_items),
+            'matched_for_delete':     len(matched_for_delete),
+            'matched_for_stamp':      len(matched_for_stamp),
+            'ambiguous':              len(combined_ambiguous),
+        }
+    })
+
 # ─── /match-scan-report endpoint (Phase 7 — Scan Report Sync, June 2026) ──
 
 def parse_scan_report_xml(xml_bytes):
