@@ -32,14 +32,15 @@
   .legend-grid{display:grid;grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:3px 14px;align-content:center;}
   .lg{display:flex;align-items:center;gap:6px;font-size:10px;color:rgba(255,255,255,0.62);white-space:nowrap;}
   /* mini-card swatches: tiny replicas of the real card border treatment, gray interior so borders pop */
-  .mini{width:16px;height:12px;border-radius:2px;background:#48505e;border:1px solid #5a6478;border-left:3px solid var(--slate-bar);flex-shrink:0;}
-  .mini-flowing{border-left-color:var(--slate-bar);}
+  .mini{width:16px;height:12px;border-radius:2px;background:#5c6678;border:1px solid #6e7a90;border-left:3px solid var(--slate-bar);flex-shrink:0;}
+  .mini-flowing{border-left-color:var(--slate-bar);border-color:#6e7a90;}
   .mini-green{border-left-color:var(--green-bar);border-color:var(--green-bar);}
   .mini-yellow{border-left-color:var(--yellow-bar);border-color:var(--yellow-bar);}
   .mini-estimator{border-left-color:var(--wait-bar);border-color:var(--wait-bar);}
-  .mini-insurance{border-left-color:var(--wait-bar);border-color:#5a6478;}
+  .mini-insurance{border-left-color:var(--wait-bar);border-color:#6e7a90;}
   .mini-red{border-left-color:var(--red-bar);border-color:var(--red-bar);}
   .mini-done{border-left-color:var(--done-bar);border-color:var(--done-bar);}
+  .mini-stale{border-left-color:#8b6fd4;border-color:#8b6fd4;}
   .header-right{display:flex;align-items:center;gap:14px;margin-right:34px;}
   .search-wrap{display:flex;flex-direction:column;gap:2px;}
   .search-box{background:#2a0e14;border:1px solid #8c2038;border-radius:6px;padding:6px 10px;color:#fff;font-family:'Lexend Deca';font-size:12px;width:170px;outline:none;}
@@ -81,17 +82,23 @@
   .wait-divider:first-child{margin-top:0;}
   .wait-divider-n{font-size:9px;opacity:0.7;font-weight:700;padding-right:4px;}
   .card{flex-shrink:0;background:#161c28;border-radius:6px;padding:6px 7px;border:1.5px solid #232c3c;border-left:5px solid var(--slate-bar);position:relative;color:#cdd8ec;overflow:hidden;}
+  /* date-gated tiers — two weights:
+     .wt-bar  = colored left bar only (5 & 4 days out)
+     .wt-full = colored left bar + full border + tinted background (3,2,1,today) */
+  .card.bar-green.wt-bar{border-left-color:var(--green-bar);}
+  .card.bar-yellow.wt-bar{border-left-color:var(--yellow-bar);}
+  .card.bar-red.wt-bar{border-left-color:var(--red-bar);}
+  .card.bar-green.wt-full{border-left-color:var(--green-bar);border-color:var(--green-bar);background:#0f2418;}
+  .card.bar-yellow.wt-full{border-left-color:var(--yellow-bar);border-color:var(--yellow-bar);background:#2a2008;}
+  .card.bar-red.wt-full{border-left-color:var(--red-bar);border-color:var(--red-bar);background:#2a1518;}
+  /* estimator/insurance waits — magenta, two intensities (date-independent) */
   .card.bar-estimator{border-left-color:var(--wait-bar);border-color:var(--wait-bar);background:#23102099;}
   .card.bar-insurance{border-left-color:var(--wait-bar);border-color:#232c3c;}
-  .card.bar-green{border-left-color:var(--green-bar);border-color:#55ee8844;}
-  .card.bar-yellow{border-left-color:var(--yellow-bar);border-color:var(--yellow-bar);}
-  .card.bar-red{border-left-color:var(--red-bar);border-color:var(--red-bar);background:#2a1518;}
+  /* stale — full dusty purple card */
+  .card.bar-stale{border-left-color:#6b5b95;border-color:#6b5b95;background:#1c1830;}
+  /* done */
   .card.bar-done{border-left-color:var(--done-bar);border-color:#55aaff44;}
   .card.bar-done-today{border-left-color:var(--done-bar);border-color:var(--done-bar);background:#0a1c33;}
-  /* projected (no promise, repair-plan projection) — muted + dashed left bar to read as provisional */
-  .card.bar-red-proj{border-left:5px dashed #b56a6e;border-top-color:#232c3c;border-right-color:#232c3c;border-bottom-color:#232c3c;background:#1f1719;}
-  .card.bar-yellow-proj{border-left:5px dashed #b59a4a;border-top-color:#232c3c;border-right-color:#232c3c;border-bottom-color:#232c3c;}
-  .card.bar-green-proj{border-left:5px dashed #5a9a6e;border-top-color:#232c3c;border-right-color:#232c3c;border-bottom-color:#232c3c;}
   .card-top{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px;}
   .card-ro{font-family:'Saira';font-size:12.5px;font-weight:800;letter-spacing:0.02em;display:flex;align-items:center;gap:4px;}
   .est-tag{font-family:'Saira';font-size:8.5px;font-weight:700;letter-spacing:0.04em;padding:1px 5px;border-radius:3px;background:#2a3346;color:#9fb4d4;text-transform:uppercase;}
@@ -125,6 +132,9 @@
   .card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:5px;}
   .card-dollars{font-family:'Saira';font-size:11.5px;font-weight:700;opacity:0.9;}
   .card-days{font-family:'Saira';font-size:9.5px;font-weight:700;opacity:0.5;}
+  .card-days.days-stale{opacity:1;background:#8b6fd4;color:#0c0814;padding:1px 7px;border-radius:3px;font-weight:800;}
+  @keyframes chipPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.55;transform:scale(0.94);}}
+  .card-dtp.chip-pulse{animation:chipPulse 1.4s ease-in-out infinite;}
   .empty-lane{font-size:10px;opacity:0.3;text-align:center;padding:14px 4px;font-style:italic;}
   /* Delivered/Done toggle button + slide-over overlay */
   /* Delivered/Done overlay */
@@ -165,6 +175,8 @@
       <div class="lg"><span class="mini mini-insurance"></span>Waiting on Insurance</div>
       <div class="lg"><span class="mini mini-done"></span>Done Today</div>
       <div class="lg"><span class="mini mini-red"></span>Dire</div>
+      <div class="lg"><span class="mini mini-stale"></span>Stale</div>
+      <div class="lg"><span class="mini mini-flowing" style="visibility:hidden"></span></div>
     </div>
   </div>
   <div class="header-right">
@@ -239,10 +251,10 @@ function isKnownStatus(st){return KNOWN_STATUSES.includes(st);}
 // ── WAITING column wait-type taxonomy ──────────────────
 // groups shown in this order; each card gets a color-coded divider (by who-owns-it)
 const WAIT_GROUPS=[
-  {key:'TECH',     label:'WAITING ON: TECH',      color:'#5b8fb0', statuses:['Teardown']},
   {key:'EST',      label:'WAITING ON: ESTIMATOR', color:'#e07a5f', statuses:['Supp-Estimator','Waiting on Estimator']},
-  {key:'INS',      label:'WAITING ON: INSURANCE', color:'#3fb0a0', statuses:['Supp-Insurance','Waiting on Insurance']},
+  {key:'TECH',     label:'WAITING ON: TECH',      color:'#5b8fb0', statuses:['Teardown']},
   {key:'PARTS',    label:'WAITING ON: PARTS',     color:'#d4a531', statuses:['Waiting on Parts','Need Parts Update']},
+  {key:'INS',      label:'WAITING ON: INSURANCE', color:'#3fb0a0', statuses:['Supp-Insurance','Waiting on Insurance']},
 ];
 function waitGroupFor(status){
   for(var i=0;i<WAIT_GROUPS.length;i++){if(WAIT_GROUPS[i].statuses.includes(status))return WAIT_GROUPS[i];}
@@ -264,6 +276,8 @@ function normalize(r){
   const pp=r.PartsReceivedPercent;  const lp=r.LaborAssignedPercent;
   const partsPct = (pp===''||pp==null)?null:parseFloat(pp);
   const laborPct = (lp===''||lp==null)?null:parseFloat(lp);
+  let daysInShop=null;
+  if(r.dropDate){const d=Math.floor((new Date()-new Date(r.dropDate))/86400000);if(!isNaN(d))daysInShop=d;}
   return {
     ro:r.ro||'', customer:r.customer||'', vehicle:r.vehicle||'',
     estimator:(r.estimator||'').trim(),
@@ -272,7 +286,7 @@ function normalize(r){
     promise:fmtPromise(promise), hasPromise:!!promise, dtp:dtp,
     dollars: r.estimateTotal? Math.round(parseFloat(r.estimateTotal)) : 0,
     PartsReceivedPercent:partsPct, LaborAssignedPercent:laborPct,
-    DropDate:r.dropDate||'',
+    DropDate:r.dropDate||'', daysInShop:daysInShop,
     doneTime:r.doneTime||'',
     RepairPlanComments:r.RepairPlanComments||'',
     totalLoss:(r.totalLoss==='True'||r.totalLoss===true),
@@ -284,41 +298,86 @@ function fmtPromise(iso){if(!iso)return '';const d=new Date(iso);if(isNaN(d))ret
 // Year + Make + first word of model only: "20 JAGU F-PACE SVR AWD" -> "20 JAGU F-PACE"
 function shortVehicle(v){if(!v)return '';const p=v.trim().split(/\s+/);return p.slice(0,3).join(' ');}
 
-// ── bar color priority tree ───────────────────────────
-// Three date states:
-//   committed  = promise exists                  -> full proximity color
-//   projected  = no promise but dtp is a number  -> MUTED proximity color (bar-*-proj)
-//   none       = no promise, no dtp              -> neutral
-// statuses that make the bar the loud "estimator must act" treatment
+// ── COLOR ENGINE ──────────────────────────────────────
+// Verdict = {tier, weight}.  tier: red|yellow|green|stale|estimator|insurance|flowing
+// weight: 'full' (bar+border+bg) | 'bar' (left bar only)
+// Proximity×phase×parts gates; only PROMISED cars get gated. Projected is NOT gated.
 const EST_BAR=['Supp-Estimator','Waiting on Estimator'];
 const INS_BAR=['Supp-Insurance','Waiting on Insurance'];
 function isProjected(j){ return !j.hasPromise && !isNaN(j.dtp); }
-function barClass(j){
-  const committed=j.hasPromise;
-  const projected=isProjected(j);
-  // 1. DIRE (committed only — can't be "late" for a date never promised)
-  if(committed && ((!isNaN(j.dtp)&&j.dtp<=0)||j.targetLate)) return 'bar-red';
-  // 1b. projected & already past / due now -> muted red
-  if(projected && j.dtp<=0) return 'bar-red-proj';
-  // 2/3. estimate/file waits — same hue, two intensities (estimator loud, insurance quiet)
-  if(EST_BAR.includes(j.status)) return 'bar-estimator';
-  if(INS_BAR.includes(j.status)) return 'bar-insurance';
-  // 4. good & close (committed full / projected muted)
-  const partsDone=j.PartsReceivedPercent!=null&&j.PartsReceivedPercent>=1;
-  if(committed && !isNaN(j.dtp)&&j.dtp<=4&&partsDone) return 'bar-green';
-  if(projected && j.dtp<=4&&partsDone) return 'bar-green-proj';
-  // 5. needs something -> yellow (committed full / projected muted)
-  const needsParts=j.PartsReceivedPercent!=null&&j.PartsReceivedPercent<1;
-  const needsLabor=j.LaborAssignedPercent!=null&&j.LaborAssignedPercent<1;
-  if(needsParts||needsLabor) return projected?'bar-yellow-proj':'bar-yellow';
-  return '';
+function pctOK(v,thr){ return v!=null && v>=thr; }   // treats null (unknown) as NOT meeting threshold
+function pctUnder(v,thr){ return v!=null && v<thr; }
+
+// returns 'red' | 'yellow' | 'green' for a promised car within the gated window (dtp<=5)
+function gateTier(j){
+  const r=STATUS_RANK[j.status]||0;
+  const p=j.PartsReceivedPercent;   // 0..1 or null
+  const d=j.dtp;
+  if(d<=0){                              // today / past due — phase only
+    if(r>=16) return 'green';
+    if(r>=15) return 'yellow';
+    return 'red';
+  }
+  if(d===1){                             // base by phase, parts<90% caps at yellow
+    let t = r>=15?'green' : r>=14?'yellow' : 'red';
+    if(pctUnder(p,0.90)){ if(t==='green') t='yellow'; }   // can't beat yellow w/o parts
+    return t;
+  }
+  if(d===2){
+    if(r>=14){ if(pctUnder(p,0.40))return 'red'; if(pctUnder(p,0.80))return 'yellow'; return 'green'; }
+    if(r>=12){ return pctOK(p,0.80)?'yellow':'red'; }      // 12-13 need parts>=80 to hold yellow
+    return 'red';                                          // <=11
+  }
+  if(d===3){
+    if(r>=12) return 'green';
+    if(r>=10) return 'yellow';
+    return pctUnder(p,0.75)?'red':'yellow';                // <=9 : red only if parts<75
+  }
+  if(d===4){
+    if(r>=11) return 'green';
+    if(r>=8)  return 'yellow';
+    return pctUnder(p,0.75)?'red':'yellow';                // <=7 : red only if parts<75
+  }
+  // d===5
+  if(r>=10) return 'green';
+  if(r>=8)  return 'yellow';
+  return pctUnder(p,0.50)?'red':'yellow';                  // <=7 : red only if parts<50
 }
+
+function verdict(j){
+  // estimator / insurance waits (status-driven, date-independent)
+  if(EST_BAR.includes(j.status)) return {tier:'estimator',weight:'full'};
+  if(INS_BAR.includes(j.status)) return {tier:'insurance',weight:'bar'};
+  // gated color — promised cars within 5 days
+  if(j.hasPromise && !isNaN(j.dtp) && j.dtp<=5){
+    const t=gateTier(j);
+    // visual weight by proximity: 5&4 days = bar only; 3,2,1,today = full (bar+border+bg)
+    const weight=(j.dtp>=4)?'bar':'full';
+    return {tier:t,weight:weight};
+  }
+  // stale — ranks below gated color, above flowing
+  if(j.daysInShop!=null && j.daysInShop>7 && (pctUnder(j.PartsReceivedPercent,0.15)||pctUnder(j.LaborAssignedPercent,0.15)))
+    return {tier:'stale',weight:'full'};
+  return {tier:'flowing',weight:'bar'};
+}
+
+// map verdict -> css class on the card
+function cardClass(j,isDone){
+  if(isDone){ return (j.doneTime&&isToday(j.doneTime))?'bar-done-today':'bar-done'; }
+  const v=verdict(j);
+  const base={red:'red',yellow:'yellow',green:'green',stale:'stale',estimator:'estimator',insurance:'insurance',flowing:''}[v.tier];
+  if(!base) return '';                       // flowing -> neutral bar only
+  return 'bar-'+base+(v.weight==='bar'?' wt-bar':' wt-full');
+}
+
+// chip colors keyed by tier
 const CHIP_COLORS={
-  'bar-red':{bg:'#3a1518',c:'#ff9a9a'},'bar-yellow':{bg:'#3a2a0a',c:'#ffcf6a'},'bar-green':{bg:'#0d3320',c:'#8ef0b0'},
-  'bar-estimator':{bg:'#2e1126',c:'#f0a0d8'},'bar-insurance':{bg:'#1f1320',c:'#d09ac0'},
-  'bar-red-proj':{bg:'#2a1a1c',c:'#d09a9e'},'bar-yellow-proj':{bg:'#2a2414',c:'#cfb87a'},'bar-green-proj':{bg:'#16241c',c:'#9ec8ad'},
-  'bar-done-today':{bg:'#0a2a5c',c:'#9fd0ff'},
-  '':{bg:'#1c2433',c:'#aac0e0'}};
+  red:{bg:'#3a1518',c:'#ff9a9a',  inv_bg:'#ff5a5a',inv_c:'#2a0608'},
+  yellow:{bg:'#3a2a0a',c:'#ffcf6a',inv_bg:'#ffb31e',inv_c:'#2e1f00'},
+  green:{bg:'#0d3320',c:'#8ef0b0',inv_bg:'#34d17a',inv_c:'#04210f'},
+  estimator:{bg:'#2e1126',c:'#f0a0d8'},insurance:{bg:'#1f1320',c:'#d09ac0'},
+  stale:{bg:'#6b5b95',c:'#ffffff'},
+  flowing:{bg:'#1c2433',c:'#aac0e0'}};
 function dayText(dtp){
   if(isNaN(dtp))return '';
   if(dtp<0)return Math.abs(dtp)+(Math.abs(dtp)===1?' day late':' days late');
@@ -326,26 +385,39 @@ function dayText(dtp){
   if(dtp===1)return '1 day';
   return dtp+' days';
 }
-function dtpChip(j,bc){
-  // projected: nothing promised, but repair plan projects a date
-  if(isProjected(j)){
-    const col=CHIP_COLORS[bc]||CHIP_COLORS[''];
-    return {txt:dayText(j.dtp),bg:col.bg,c:col.c,source:'PROJECTED'};
-  }
-  if(!j.hasPromise){
+function dtpChip(j){
+  const v=verdict(j);
+  // NO DATE chip — escalates after 10 days in shop
+  if(!j.hasPromise && isNaN(j.dtp)){
+    if(j.daysInShop!=null && j.daysInShop>=10) return {txt:'NO DATE',bg:'#222a38',c:'#ffffff',border:'#5a6478',source:''};
     return {txt:'NO DATE',bg:'#222a38',c:'#7e8aa3',source:''};
   }
-  const col=CHIP_COLORS[bc]||CHIP_COLORS[''];
-  return {txt:dayText(j.dtp),bg:col.bg,c:col.c,source:'PROMISED'};
+  // projected: ungated, neutral chip, but keep PROJECTED label
+  if(isProjected(j)){
+    return {txt:dayText(j.dtp),bg:'#1c2433',c:'#aac0e0',source:'PROJECTED'};
+  }
+  // promised: chip colored by tier; within 3 days -> inverted; due-today-fail -> pulse
+  const tier=(['red','yellow','green'].includes(v.tier))?v.tier:'flowing';
+  const col=CHIP_COLORS[tier]||CHIP_COLORS.flowing;
+  const within3=!isNaN(j.dtp)&&j.dtp<=3;
+  const inverted=within3 && col.inv_bg;
+  const pulse=(j.dtp<=0 && v.tier==='red');   // due today / past AND will-fail
+  return {
+    txt:dayText(j.dtp),
+    bg: inverted?col.inv_bg:col.bg,
+    c:  inverted?col.inv_c:col.c,
+    source:'PROMISED',
+    pulse:pulse
+  };
 }
 function barColor(p){return p>=100?'#34a853':p>=50?'#c2980a':'#c45a3a';}
-function barRow(lbl,val){
-  if(val==null)return '<div class="bar-row"><span class="bar-lbl">'+lbl+'</span><span class="bar-blank">&#8212;</span></div>';
+function barRow(lbl,val,alert){
+  if(val==null)return '<div class="bar-row"><span class="bar-lbl">'+lbl+'</span><span class="bar-blank">&#8212;</span>'+(alert?'<span class="over-badge" title="Parts not complete with 1 day left">&#10071;</span>':'')+'</div>';
   const p=Math.round(val*100);
   const over=p>100;
   const fillW=Math.min(p,100);
-  const badge=over?'<span class="over-badge" title="Over 100% \u2014 check for error">&#10071;</span>':'';
-  const pctCls=over?'bar-pct over':'bar-pct';
+  const badge=(over||alert)?'<span class="over-badge" title="'+(over?'Over 100% \u2014 check for error':'Parts not complete with 1 day left')+'">&#10071;</span>':'';
+  const pctCls=(over||alert)?'bar-pct over':'bar-pct';
   return '<div class="bar-row"><span class="bar-lbl">'+lbl+'</span><div class="bar-track"><div class="bar-fill" style="width:'+fillW+'%;background:'+barColor(p)+'"></div></div><span class="'+pctCls+'">'+p+'%</span>'+badge+'</div>';
 }
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -381,11 +453,12 @@ document.addEventListener('click',function(e){if(!e.target.closest('.est-switch'
 
 // ── card builder ───────────────────────────────────────
 function buildCard(j,isDone){
-  const doneToday=isDone&&j.doneTime&&isToday(j.doneTime);
-  const bc=isDone?(doneToday?'bar-done-today':'bar-done'):barClass(j);
-  const chip=dtpChip(j,bc);
-  const card=document.createElement('div');card.className='card'+(bc?' '+bc:'');
-  let daysTxt='';if(j.DropDate){const d=Math.floor((new Date()-new Date(j.DropDate))/86400000);if(!isNaN(d))daysTxt=d+'d in shop';}
+  const cls=cardClass(j,isDone);
+  const chip=dtpChip(j);
+  const v=isDone?null:verdict(j);
+  const isStale=v&&v.tier==='stale';
+  const card=document.createElement('div');card.className='card'+(cls?' '+cls:'');
+  const daysTxt=(j.daysInShop!=null)?j.daysInShop+'d in shop':'';
   const note=parseNote(j.RepairPlanComments);let noteHtml='';
   if(note){
     const stale=note.ageDays!=null&&note.ageDays>=5;
@@ -399,20 +472,26 @@ function buildCard(j,isDone){
     chipHtml='<span class="card-dtp" style="background:#0a2a5c;color:#c8e0ff">'+(j.status==='Delivered'?'OUT':'DONE')+'</span>';
   }else{
     const srcLabel=chip.source?'<span class="date-source">'+chip.source+'</span>':'';
-    chipHtml='<div class="chip-stack">'+srcLabel+'<span class="card-dtp" style="background:'+chip.bg+';color:'+chip.c+'">'+chip.txt+'</span></div>';
+    const brd=chip.border?(';border:1px solid '+chip.border):'';
+    const pulseCls=chip.pulse?' chip-pulse':'';
+    chipHtml='<div class="chip-stack">'+srcLabel+'<span class="card-dtp'+pulseCls+'" style="background:'+chip.bg+';color:'+chip.c+brd+'">'+chip.txt+'</span></div>';
   }
   const estTag=((BOARD_OWNER==='All'||BOARD_OWNER==='Everything Else')&&j.estimator)?'<span class="est-tag">'+j.estimator+'</span>':'';
   // stamped repair phase (the actual status text) — shown above notes
   const phaseHtml=j.status?'<div class="card-phase">'+j.status+'</div>':'';
+  // 1-day-out parts alert: promised, dtp<=1, parts<90%
+  const partsAlert=(!isDone&&j.hasPromise&&!isNaN(j.dtp)&&j.dtp<=1&&pctUnder(j.PartsReceivedPercent,0.90));
+  // stale -> bright purple days-in-shop chip
+  const daysCls=isStale?'card-days days-stale':'card-days';
   card.innerHTML='<div class="card-top"><span class="card-ro">'+j.ro+estTag+'</span>'+chipHtml+'</div>'+
     '<div class="card-cust">'+j.customer+'</div>'+
     '<div class="card-veh">'+shortVehicle(j.vehicle)+'</div>'+
     '<div class="card-ins">'+(j.insurance||'&#8212;')+'</div>'+
     '<div class="card-people"><span><b>T</b>'+(j.tech||'&#8212;')+'</span><span><b>P</b>'+(j.painter||'&#8212;')+'</span></div>'+
-    '<div class="bars">'+barRow('PARTS',j.PartsReceivedPercent)+barRow('LABOR',j.LaborAssignedPercent)+'</div>'+
+    '<div class="bars">'+barRow('PARTS',j.PartsReceivedPercent,partsAlert)+barRow('LABOR',j.LaborAssignedPercent)+'</div>'+
     phaseHtml+
     noteHtml+
-    '<div class="card-foot"><span class="card-dollars">'+(j.dollars?'$'+j.dollars.toLocaleString():'&#8212;')+'</span><span class="card-days">'+daysTxt+'</span></div>';
+    '<div class="card-foot"><span class="card-dollars">'+(j.dollars?'$'+j.dollars.toLocaleString():'&#8212;')+'</span><span class="'+daysCls+'">'+daysTxt+'</span></div>';
   return card;
 }
 function isToday(iso){if(!iso)return false;const d=new Date(iso),n=new Date();return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate();}

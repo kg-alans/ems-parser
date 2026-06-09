@@ -57,9 +57,29 @@
     .footer-legend-row { display:flex; gap:16px; }
     .footer-legend-item { display:flex; align-items:center; gap:6px; font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
     .footer-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+
+    /* view switcher — salmon hamburger, top-right corner */
+    .view-switch { position:fixed; top:9px; right:12px; z-index:60; }
+    .view-btn { background:transparent; border:none; padding:6px; cursor:pointer; display:flex; flex-direction:column; gap:3px; border-radius:5px; }
+    .view-btn:hover { background:rgba(232,160,176,0.18); }
+    .view-btn .hb { display:block; width:22px; height:3px; border-radius:2px; background:var(--accent); }
+    .view-menu { position:absolute; top:112%; right:0; background:#161c28; border:1px solid #2a3346; border-radius:7px; padding:5px; min-width:170px; box-shadow:0 8px 24px #000a; display:none; }
+    .view-menu.open { display:block; }
+    .view-opt { display:block; padding:8px 11px; border-radius:5px; font-family:'Lexend Deca',sans-serif; font-size:13px; font-weight:600; color:#d8e4f8; text-decoration:none; }
+    .view-opt:hover { background:#222a3a; }
+    .view-opt.active { background:#2a1216; color:var(--accent); }
   </style>
 </head>
 <body>
+<div class="view-switch">
+  <button class="view-btn" onclick="document.getElementById('viewMenu').classList.toggle('open')" aria-label="Switch view">
+    <span class="hb"></span><span class="hb"></span><span class="hb"></span>
+  </button>
+  <div class="view-menu" id="viewMenu">
+    <a class="view-opt" href="/main">Production View</a>
+    <a class="view-opt active" href="/3day">3-Day List</a>
+  </div>
+</div>
 <header class="board-header">
   <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
     <div class="shop-name" style="font-size:24px">Ken Garff Body &amp; Glass — Downtown</div>
@@ -129,6 +149,13 @@
   </div>
 </footer>
 <script>
+
+// view switcher: close menu on outside click
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.view-switch')){
+    var m=document.getElementById('viewMenu'); if(m) m.classList.remove('open');
+  }
+});
 
 const JSON_URL  = 'https://kgdtbs.onrender.com/board-data';
 const SYNC_URL  = 'https://kgdtbs.onrender.com/last-sync';
