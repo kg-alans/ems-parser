@@ -1954,12 +1954,25 @@ def _disambiguate_scan_workfiles(sp_row, candidate_workfiles, insurance_lookup):
     Returns (chosen_workfile_dict, reason_text) or (None, reason_text).
     
     Disambiguation order:
+      0. RO# match — if SP has an RO# and exactly one candidate's RO matches,
+         choose it (added June 8, 2026).
       1. Carrier match — normalize sp_row.insurance and each candidate's
          carrier_name; if exactly one candidate matches, choose it.
       2. Pre-repair scan within 4 days of SP DropDate — if exactly one.
       3. Post-repair scan within 4 days of SP CCCPromisDate — if exactly one.
       Otherwise ambiguous.
     """
+    # Step 0 — RO# match
+    sp_ro = (sp_row.get('ro_number') or '').strip().lower()
+    if sp_ro:
+        ro_matches = []
+        for wf in candidate_workfiles:
+            wf_ro = (wf.get('repair_order_number') or '').strip().lower()
+            if wf_ro and wf_ro == sp_ro:
+                ro_matches.append(wf)
+        if len(ro_matches) == 1:
+            return ro_matches[0], f"matched by RO# ({sp_ro.upper()})"
+
     # Step 1 — carrier match
     sp_insurance = (sp_row.get('insurance') or '').strip()
     if sp_insurance and not sp_insurance.startswith('⚠️'):
