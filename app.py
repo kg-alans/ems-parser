@@ -1967,7 +1967,7 @@ def _disambiguate_scan_workfiles(sp_row, candidate_workfiles, insurance_lookup):
     if sp_ro:
         ro_matches = []
         for wf in candidate_workfiles:
-            wf_ro = (wf.get('repair_order_number') or '').strip().lower()
+            wf_ro = (wf.get('ro_number') or '').strip().lower()
             if wf_ro and wf_ro == sp_ro:
                 ro_matches.append(wf)
         if len(ro_matches) == 1:
