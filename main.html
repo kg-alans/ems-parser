@@ -67,7 +67,7 @@
   .mtd-box.active{background:#13294a;border-color:#55aaff;box-shadow:0 0 0 1px #55aaff44;}
   .mtd-filter-hint{font-size:7.5px;letter-spacing:0.08em;color:#4a5a78;text-transform:uppercase;margin-top:1px;}
   .mtd-box.active .mtd-filter-hint{color:#7fc0ff;}
-  .mtd-box.active .mtd-filter-hint::before{content:'\\2713 ';}
+  .mtd-box.active .mtd-filter-hint::before{content:'✓ ';}
   .mtd-label{font-family:'Saira',sans-serif;font-size:8.5px;font-weight:700;letter-spacing:0.1em;color:#5a86b8;}
   .mtd-val{font-family:'Saira',sans-serif;font-size:17px;font-weight:800;color:#9fd0ff;}
   .clkwrap{text-align:right;}
@@ -110,8 +110,7 @@
   .card-ro{font-family:'Saira';font-size:12.5px;font-weight:800;letter-spacing:0.02em;}
   .card-ro.copyable{cursor:pointer;border-radius:3px;padding:0 2px;transition:background 0.15s;}
   .card-ro.copyable:hover{background:#2a3346;}
-  .card-ro.copyable.copied{background:#0d3a2a;color:#7fe0b0;}
-  .card-ro.copyable.copied::after{content:' \\2713';font-size:10px;}
+  .card-ro.copyable.copied{background:#0d3a2a;color:#7fe0b0;font-size:11px;}
   .ro-badge{font-family:'Saira';font-size:8px;font-weight:800;letter-spacing:0.05em;padding:1px 5px;border-radius:3px;background:#3a2c12;color:#e8c06a;border:1px solid #6b5220;text-transform:uppercase;}
   .est-tag{font-family:'Saira';font-size:8.5px;font-weight:700;letter-spacing:0.04em;padding:1px 5px;border-radius:3px;background:#2a3346;color:#9fb4d4;text-transform:uppercase;}
   .card-dtp{font-family:'Saira';font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.03em;white-space:nowrap;}
@@ -613,7 +612,12 @@ function toggleDone(){
 }
 function copyRO(el,ro){
   if(!ro)return;
-  const done=function(){el.classList.add('copied');setTimeout(function(){el.classList.remove('copied');},900);};
+  const orig=el.textContent;
+  const done=function(){
+    el.classList.add('copied');
+    el.textContent='✓ copied';
+    setTimeout(function(){el.classList.remove('copied');el.textContent=orig;},900);
+  };
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ro).then(done).catch(done);}
   else{try{const t=document.createElement('textarea');t.value=ro;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);}catch(e){}done();}
 }
