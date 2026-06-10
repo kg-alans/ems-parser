@@ -61,7 +61,13 @@
   .done-tab-count{font-family:'Saira',sans-serif;font-size:18px;font-weight:800;color:#7fc0ff;}
   .done-tab-label{writing-mode:vertical-rl;text-orientation:mixed;font-family:'Saira',sans-serif;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#5a86b8;text-transform:uppercase;}
   .mtd-strip{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid #1d3050;background:#0a0f1a;}
-  .mtd-box{flex:1;display:flex;flex-direction:column;gap:2px;background:#11192a;border:1px solid #1d3050;border-radius:6px;padding:7px 10px;}
+  .mtd-box{flex:1;display:flex;flex-direction:column;gap:2px;background:#11192a;border:1px solid #1d3050;border-radius:6px;padding:7px 10px;position:relative;}
+  .mtd-box.clickable{cursor:pointer;}
+  .mtd-box.clickable:hover{background:#16213a;border-color:#2a466e;}
+  .mtd-box.active{background:#13294a;border-color:#55aaff;box-shadow:0 0 0 1px #55aaff44;}
+  .mtd-filter-hint{font-size:7.5px;letter-spacing:0.08em;color:#4a5a78;text-transform:uppercase;margin-top:1px;}
+  .mtd-box.active .mtd-filter-hint{color:#7fc0ff;}
+  .mtd-box.active .mtd-filter-hint::before{content:'\\2713 ';}
   .mtd-label{font-family:'Saira',sans-serif;font-size:8.5px;font-weight:700;letter-spacing:0.1em;color:#5a86b8;}
   .mtd-val{font-family:'Saira',sans-serif;font-size:17px;font-weight:800;color:#9fd0ff;}
   .clkwrap{text-align:right;}
@@ -100,7 +106,13 @@
   .card.bar-done{border-left-color:var(--done-bar);border-color:#55aaff44;}
   .card.bar-done-today{border-left-color:var(--done-bar);border-color:var(--done-bar);background:#0a1c33;}
   .card-top{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px;}
-  .card-ro{font-family:'Saira';font-size:12.5px;font-weight:800;letter-spacing:0.02em;display:flex;align-items:center;gap:4px;}
+  .card-ro-wrap{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+  .card-ro{font-family:'Saira';font-size:12.5px;font-weight:800;letter-spacing:0.02em;}
+  .card-ro.copyable{cursor:pointer;border-radius:3px;padding:0 2px;transition:background 0.15s;}
+  .card-ro.copyable:hover{background:#2a3346;}
+  .card-ro.copyable.copied{background:#0d3a2a;color:#7fe0b0;}
+  .card-ro.copyable.copied::after{content:' \\2713';font-size:10px;}
+  .ro-badge{font-family:'Saira';font-size:8px;font-weight:800;letter-spacing:0.05em;padding:1px 5px;border-radius:3px;background:#3a2c12;color:#e8c06a;border:1px solid #6b5220;text-transform:uppercase;}
   .est-tag{font-family:'Saira';font-size:8.5px;font-weight:700;letter-spacing:0.04em;padding:1px 5px;border-radius:3px;background:#2a3346;color:#9fb4d4;text-transform:uppercase;}
   .card-dtp{font-family:'Saira';font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.03em;white-space:nowrap;}
   .chip-stack{display:flex;flex-direction:column;align-items:flex-end;gap:1px;}
@@ -209,8 +221,8 @@
       <button class="done-close" onclick="toggleDone()">&times;</button>
     </div>
     <div class="mtd-strip" id="mtdStrip">
-      <div class="mtd-box"><span class="mtd-label">MTD COMPLETED</span><span class="mtd-val" id="mtdCompleted">&mdash;</span></div>
-      <div class="mtd-box"><span class="mtd-label">MTD CLOSED</span><span class="mtd-val" id="mtdClosed">&mdash;</span></div>
+      <div class="mtd-box clickable" id="mtdBoxCompleted" onclick="setDoneFilter('completed')"><span class="mtd-label">MTD COMPLETED</span><span class="mtd-val" id="mtdCompleted">&mdash;</span><span class="mtd-filter-hint">tap to filter</span></div>
+      <div class="mtd-box clickable" id="mtdBoxClosed" onclick="setDoneFilter('closed')"><span class="mtd-label">MTD CLOSED</span><span class="mtd-val" id="mtdClosed">&mdash;</span><span class="mtd-filter-hint">tap to filter</span></div>
     </div>
     <div class="done-panel-body" id="donePanelBody"></div>
   </div>
@@ -278,6 +290,10 @@ function normalize(r){
   const laborPct = (lp===''||lp==null)?null:parseFloat(lp);
   let daysInShop=null;
   if(r.dropDate){const d=Math.floor((new Date()-new Date(r.dropDate))/86400000);if(!isNaN(d))daysInShop=d;}
+  // new feed fields (Flow 17) — may be null/blank for rows that don't have them
+  const closedTime=(r.closedStatusTime===''||r.closedStatusTime==null)?null:r.closedStatusTime;
+  const doneStatusTime=(r.doneStatusTime===''||r.doneStatusTime==null)?null:r.doneStatusTime;
+  const relatedRO=(r.relatedRO===''||r.relatedRO==null)?null:String(r.relatedRO).trim();
   return {
     ro:r.ro||'', customer:r.customer||'', vehicle:r.vehicle||'',
     estimator:(r.estimator||'').trim(),
@@ -288,6 +304,8 @@ function normalize(r){
     PartsReceivedPercent:partsPct, LaborAssignedPercent:laborPct,
     DropDate:r.dropDate||'', daysInShop:daysInShop,
     doneTime:r.doneTime||'',
+    closedStatusTime:closedTime, doneStatusTime:doneStatusTime,
+    isClosed:!!closedTime, relatedRO:relatedRO,
     RepairPlanComments:r.RepairPlanComments||'',
     totalLoss:(r.totalLoss==='True'||r.totalLoss===true),
     done:DONE_STATUSES.includes(r.repairStatus||''),
@@ -469,7 +487,12 @@ function buildCard(j,isDone){
   // date chip + source label (PROMISED / PROJECTED) stacked top-right
   let chipHtml;
   if(isDone){
-    chipHtml='<span class="card-dtp" style="background:#0a2a5c;color:#c8e0ff">'+(j.status==='Delivered'?'OUT':'DONE')+'</span>';
+    // CLOSED (paperwork done) vs DONE (finished) vs OUT (delivered) — distinct treatments
+    let dlabel,dstyle;
+    if(j.isClosed){ dlabel='CLOSED'; dstyle='background:#0d3a2a;color:#7fe0b0;border:1px solid #1d6b4e'; }
+    else if(j.status==='Delivered'){ dlabel='OUT'; dstyle='background:#0a2a5c;color:#c8e0ff'; }
+    else { dlabel='DONE'; dstyle='background:#0a2a5c;color:#c8e0ff'; }
+    chipHtml='<span class="card-dtp" style="'+dstyle+'">'+dlabel+'</span>';
   }else{
     const srcLabel=chip.source?'<span class="date-source">'+chip.source+'</span>':'';
     const brd=chip.border?(';border:1px solid '+chip.border):'';
@@ -477,13 +500,17 @@ function buildCard(j,isDone){
     chipHtml='<div class="chip-stack">'+srcLabel+'<span class="card-dtp'+pulseCls+'" style="background:'+chip.bg+';color:'+chip.c+brd+'">'+chip.txt+'</span></div>';
   }
   const estTag=((BOARD_OWNER==='All'||BOARD_OWNER==='Everything Else')&&j.estimator)?'<span class="est-tag">'+j.estimator+'</span>':'';
+  // 2nd-RO badge — this row is linked to another RO
+  const roBadge=j.relatedRO?'<span class="ro-badge" title="Linked to RO '+j.relatedRO+'">2nd RO</span>':'';
+  // click-to-copy RO number
+  const roHtml='<span class="card-ro copyable" title="Click to copy RO" onclick="event.stopPropagation();copyRO(this,\''+(j.ro||'').replace(/'/g,"")+'\')">'+j.ro+'</span>';
   // stamped repair phase (the actual status text) — shown above notes
   const phaseHtml=j.status?'<div class="card-phase">'+j.status+'</div>':'';
   // 1-day-out parts alert: promised, dtp<=1, parts<90%
   const partsAlert=(!isDone&&j.hasPromise&&!isNaN(j.dtp)&&j.dtp<=1&&pctUnder(j.PartsReceivedPercent,0.90));
   // stale -> bright purple days-in-shop chip
   const daysCls=isStale?'card-days days-stale':'card-days';
-  card.innerHTML='<div class="card-top"><span class="card-ro">'+j.ro+estTag+'</span>'+chipHtml+'</div>'+
+  card.innerHTML='<div class="card-top"><span class="card-ro-wrap">'+roHtml+estTag+roBadge+'</span>'+chipHtml+'</div>'+
     '<div class="card-cust">'+j.customer+'</div>'+
     '<div class="card-veh">'+shortVehicle(j.vehicle)+'</div>'+
     '<div class="card-ins">'+(j.insurance||'&#8212;')+'</div>'+
@@ -509,7 +536,10 @@ function render(){
       // null / unrecognized status falls into Intake (car is here but unprocessed)
       if(lane.title==='Intake' && !isKnownStatus(j.status)) return true;
       return false;
-    }).sort(function(a,b){return (STATUS_RANK[a.status]||0)-(STATUS_RANK[b.status]||0);});
+    }).sort(function(a,b){
+      if(lane.title==='Intake'){ return (b.daysInShop||0)-(a.daysInShop||0); }   // longest-waiting at top
+      return (STATUS_RANK[a.status]||0)-(STATUS_RANK[b.status]||0);
+    });
     // Post-Repair/QC also surfaces cars completed TODAY so they don't vanish before day's end
     var doneTodayHere=[];
     if(lane.title==='Post-Repair / QC'){
@@ -541,18 +571,51 @@ function render(){
     el.appendChild(body);kb.appendChild(el);
   });
   // Delivered/Done -> overlay panel (not a lane). Newest-done at top; doubles as 'needs closing'.
-  const done=pool.filter(function(j){return DONE_STATUSES.includes(j.status);}).sort(function(a,b){
+  DONE_ALL=pool.filter(function(j){return DONE_STATUSES.includes(j.status);}).sort(function(a,b){
     var ta=a.doneTime?Date.parse(a.doneTime):0, tb=b.doneTime?Date.parse(b.doneTime):0;
     return tb-ta;
   });
-  document.getElementById('doneCount').textContent=done.length;
-  const dpb=document.getElementById('donePanelBody');dpb.innerHTML='';
-  if(!done.length)dpb.innerHTML='<div class="empty-lane">&#8212;</div>';
-  done.forEach(function(j){dpb.appendChild(buildCard(j,true));});
+  document.getElementById('doneCount').textContent=DONE_ALL.length;
+  renderDoneDrawer();
+}
+
+// drawer filter: null = all, 'completed' = doneStatusTime this month, 'closed' = closedStatusTime this month
+let DONE_ALL=[];
+let DONE_FILTER=null;
+function inThisMonth(iso){
+  if(!iso)return false;
+  const d=new Date(iso),n=new Date();
+  return !isNaN(d)&&d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth();
+}
+function renderDoneDrawer(){
+  const dpb=document.getElementById('donePanelBody');if(!dpb)return;
+  let list=DONE_ALL;
+  if(DONE_FILTER==='completed') list=DONE_ALL.filter(function(j){return inThisMonth(j.doneStatusTime);});
+  else if(DONE_FILTER==='closed') list=DONE_ALL.filter(function(j){return inThisMonth(j.closedStatusTime);});
+  dpb.innerHTML='';
+  if(!list.length)dpb.innerHTML='<div class="empty-lane">&#8212;</div>';
+  list.forEach(function(j){dpb.appendChild(buildCard(j,true));});
+  // reflect active filter on the MTD boxes
+  const cBox=document.getElementById('mtdBoxCompleted'), zBox=document.getElementById('mtdBoxClosed');
+  if(cBox)cBox.classList.toggle('active',DONE_FILTER==='completed');
+  if(zBox)zBox.classList.toggle('active',DONE_FILTER==='closed');
+}
+function setDoneFilter(which){
+  DONE_FILTER=(DONE_FILTER===which)?null:which;   // click again to clear
+  renderDoneDrawer();
 }
 
 function toggleDone(){
-  document.getElementById('doneOverlay').classList.toggle('open');
+  const ov=document.getElementById('doneOverlay');
+  const opening=!ov.classList.contains('open');
+  ov.classList.toggle('open');
+  if(!opening){ DONE_FILTER=null; renderDoneDrawer(); }   // closing -> reset filter for next open
+}
+function copyRO(el,ro){
+  if(!ro)return;
+  const done=function(){el.classList.add('copied');setTimeout(function(){el.classList.remove('copied');},900);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ro).then(done).catch(done);}
+  else{try{const t=document.createElement('textarea');t.value=ro;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);}catch(e){}done();}
 }
 // close overlay on backdrop click or Esc
 document.addEventListener('click',function(e){
