@@ -1400,6 +1400,16 @@ def parse():
             elif tc in other_types:
                 other_hrs += float(hrs)
 
+        # EMS gate (June 9, 2026) — workfiles exported before the VIN scan was
+        # performed produce garbage SP rows: customer name with no vehicle and
+        # no VIN. Estimator manually picks vehicle from a dropdown at intake,
+        # then a VIN scan later decodes year/make/model/submodel. EMS exports
+        # happening between intake and scan produce incomplete workfiles.
+        # We surface an 'incomplete: true' flag so Flow 6 can skip SP create.
+        # Once a later supplement adds VIN, that export triggers SP creation.
+        incomplete = not (vin or '').strip()
+        incomplete_reason = 'missing_vin' if incomplete else ''
+
         result = {
             'unique_id': unique_id,
             'supp_no': supp_no,
@@ -1420,7 +1430,9 @@ def parse():
             'total_hrs': total_hrs,
             'body_hrs': body_hrs,
             'paint_hrs': paint_hrs,
-            'other_hrs': str(other_hrs)
+            'other_hrs': str(other_hrs),
+            'incomplete': incomplete,
+            'incomplete_reason': incomplete_reason
         }
 
         return jsonify(result)
