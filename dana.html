@@ -313,7 +313,13 @@ function normalize(r){
 }
 function fmtPromise(iso){if(!iso)return '';const d=new Date(iso);if(isNaN(d))return iso;return (d.getMonth()+1)+'/'+d.getDate();}
 // Year + Make + first word of model only: "20 JAGU F-PACE SVR AWD" -> "20 JAGU F-PACE"
-function shortVehicle(v){if(!v)return '';const p=v.trim().split(/\s+/);return p.slice(0,3).join(' ');}
+function shortVehicle(v){
+  if(!v)return '';
+  const p=v.trim().split(/\s+/);
+  // normalize a leading 4-digit year to 2 digits (CCC exports some as 4-digit)
+  if(p.length&&/^\d{4}$/.test(p[0])) p[0]=p[0].slice(2);
+  return p.slice(0,3).join(' ');
+}
 
 // ── COLOR ENGINE ──────────────────────────────────────
 // Verdict = {tier, weight}.  tier: red|yellow|green|stale|estimator|insurance|flowing
