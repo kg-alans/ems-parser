@@ -2385,6 +2385,14 @@ def three_day_mobile():
 def three_day_auto():
     return send_from_directory('.', '3day-auto.html')
 
+@app.route('/3day-test-a', methods=['GET'])
+def board_3day_test_a():
+    return send_from_directory('.', '3day-test-a.html')
+
+@app.route('/3day-test-b', methods=['GET'])
+def board_3day_test_b():
+    return send_from_directory('.', '3day-test-b.html')
+
 # ─── /estimator-data endpoint ─────────────────────────────────────
 # Separate feed for the per-estimator Kanban boards. Wider filter than
 # /board-data (Closed eq false AND DropDate ne null) — produced by its
