@@ -79,7 +79,7 @@
 </footer>
 <script>
 
-const JSON_URL  = 'https://kgdtbs.onrender.com/board-data';
+const JSON_URL  = 'https://kgdtbs.onrender.com/estimator-data';
 const SYNC_URL  = 'https://kgdtbs.onrender.com/last-sync';
 const MTD_URL   = 'https://kgdtbs.onrender.com/mtd';
 const REFRESH   = 5 * 60 * 1000;
@@ -218,6 +218,30 @@ function groupHeader(group, count) {
   return g;
 }
 
+// ── BUSINESS-DAY DTP (mirrors Flow 1 "DTBS Days to Promise", June-1 weekend math) ──
+function bizDayDTP(promiseStr){
+  if(!promiseStr) return NaN;
+  const m=String(promiseStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return NaN;
+  const pday=new Date(parseInt(m[1],10),parseInt(m[2],10)-1,parseInt(m[3],10));
+  const now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const cal=Math.round((pday-today)/86400000);
+  const sign=cal<0?-1:1;
+  const c=Math.abs(cal);
+  const dow=today.getDay();
+  const r=c%7;
+  let extra;
+  if(dow===0)      extra=(r>=1)?1:0;
+  else if(dow===1) extra=(r>=6)?1:0;
+  else if(dow===2) extra=(r>=6)?2:((r>=5)?1:0);
+  else if(dow===3) extra=(r>=5)?2:((r>=4)?1:0);
+  else if(dow===4) extra=(r>=4)?2:((r>=3)?1:0);
+  else if(dow===5) extra=(r>=3)?2:((r>=2)?1:0);
+  else             extra=(r>=2)?2:((r>=1)?1:0);
+  const weekend=Math.floor(c/7)*2+extra;
+  return sign*(c-weekend);
+}
 async function loadBoardData(renderFn) {
   try {
     const res = await fetch(JSON_URL+'?_='+Date.now());
@@ -228,16 +252,24 @@ async function loadBoardData(renderFn) {
       estimator:r.estimator||'', tech:r.tech||'', painter:r.painter||'',
       repairStatus:r.repairStatus||'', insurance:r.insurance||'',
       promise:r.promise||'', target:r.target||'',
-      dtp:(r.dtp!==''&&r.dtp!=null)?parseInt(r.dtp,10):NaN,
+      dtp:bizDayDTP(r.promise),
       totalLoss:r.totalLoss==='True'||r.totalLoss===true,
+      done:r.done===true||r.done==='True',
       doneToday:isToday(r.doneTime),
+      closedStatusTime:r.closedStatusTime||null,
+      closedToday:isToday(r.closedStatusTime),
       targetLate:r.target&&r.promise?new Date(r.target)>new Date(r.promise):false,
     }));
-    const active = jobs.filter(j=>
-      !j.doneToday&&!j.totalLoss&&j.repairStatus&&
-      j.repairStatus!=='Ready for Delivery'&&j.repairStatus!=='Total Loss'&&
-      j.repairStatus!=='Done'&&!isNaN(j.dtp)&&j.dtp<=2
-    );
+    const active = jobs.filter(j=>{
+      if(!j.ro) return false;
+      if(j.totalLoss) return false;
+      if(isNaN(j.dtp)||j.dtp>2) return false;
+      if(j.repairStatus==='Ready for Delivery'||j.repairStatus==='Total Loss'||j.repairStatus==='Done') return false;
+      if(j.closedStatusTime&&!j.closedToday) return false;
+      if(j.done&&!j.doneToday) return false;
+      if(!j.repairStatus&&j.dtp<0) return false;
+      return true;
+    });
     renderFn({
       pastdue:  active.filter(j=>j.dtp<0),
       today:    active.filter(j=>j.dtp===0),
