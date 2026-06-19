@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920">
+  <title>DTBS Production Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Changa+One&family=Saira:wght@600;700;800&family=Lexend+Deca:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+
+    :root { --bg:#0b0e14; --border:#232b3e; --hbg:#6b1a2b; --hrim:#8c2038; --accent:#e8a0b0; --text:#dce6f5; --muted:#56647d; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'Lexend Deca',sans-serif; overflow-x:hidden;  }
+    .board-header { height:80px;  background:var(--hbg); border-bottom:3px solid var(--hrim); display:flex; align-items:center; justify-content:space-between; padding:0 20px; position:sticky; top:0; z-index:10;  }
+
+    .board-header { background:var(--hbg); border-bottom:3px solid var(--hrim); display:flex; align-items:center; justify-content:space-between; padding:0 20px; position:sticky; top:0; z-index:10; }
+    .shop-name {  font-weight:900; letter-spacing:0.08em; text-transform:uppercase; color:#fff; white-space:nowrap; font-family:'Changa One',sans-serif;}
+    .board-label { font-family:'Barlow Condensed',sans-serif; font-size:10px; font-weight:600; letter-spacing:0.28em; text-transform:uppercase; color:var(--accent); }
+    .legend { display:flex; gap:14px; flex-wrap:nowrap; }
+    .legend-item { display:flex; align-items:center; gap:5px; font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
+    .legend-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+    .time-grid { display:flex; gap:16px; align-items:flex-end; }
+    .time-col { display:flex; flex-direction:column; align-items:center; gap:1px; }
+    .time-sublabel { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:rgba(255,255,255,0.4); }
+    .time-value { font-family:'Barlow Condensed',sans-serif; font-weight:700; color:#fff; line-height:1; white-space:nowrap; }
+    .time-value.sync { color:rgba(255,255,255,0.65); }
+    .time-date { font-family:'Barlow Condensed',sans-serif; font-size:9px; font-weight:600; letter-spacing:0.1em; color:var(--accent); text-transform:uppercase; white-space:nowrap; text-align:center; }
+    .time-divider { width:1px; height:36px; background:rgba(255,255,255,0.15); align-self:center; }
+
+
+    .group { margin-bottom:10px; }
+    .group-divider { height:1px; margin-bottom:2px; opacity:0.3; }
+    .job-row { display:grid; padding:6px 12px 6px 14px; border-radius:3px; margin-bottom:2px; align-items:center; border-left:5px solid transparent; }
+    .cell { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:8px; line-height:1; }
+    .cell-center { text-align:center; }
+    .cell-sm { font-size:11px; opacity:0.85; text-align:center; }
+    .repair-status { font-size:12px; font-weight:600; }
+    .status-msg { text-align:center; padding:40px; font-family:'Barlow Condensed',sans-serif; font-size:18px; color:var(--muted); }
+
+    .board-body { height:calc(100vh - 80px - 64px); overflow-y:scroll; padding:0 20px 8px; scrollbar-width:none; }
+    .board-body::-webkit-scrollbar { display:none; }
+    .col-header { display:grid; grid-template-columns:110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px; gap:0; padding:7px 12px 7px 18px; background:var(--bg); position:sticky; top:0; z-index:5; border-bottom:1px solid var(--border); margin-bottom:6px; }
+    .col-label { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; text-align:center; }
+    .col-label.left { text-align:left; }
+  
+    .board-footer { position:fixed; bottom:0; left:0; right:0; height:64px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:10; }
+    .footer-mtd { display:flex; gap:32px; align-items:center; }
+    .footer-section { display:flex; flex-direction:column; align-items:center; gap:2px; }
+    .footer-section-label { font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:#3a6abf; text-align:center; }
+    .footer-stats { display:flex; gap:20px; align-items:baseline; }
+    .footer-stat { display:flex; flex-direction:column; align-items:center; }
+    .footer-stat-value { font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:800; letter-spacing:0.04em; color:#fff; }
+    .footer-sep { width:1px; height:40px; background:var(--border); }
+    .footer-legend { display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
+    .footer-legend-row { display:flex; gap:16px; }
+    .footer-legend-item { display:flex; align-items:center; gap:6px; font-family:'Barlow Condensed',sans-serif; font-size:11px; font-weight:600; letter-spacing:0.08em; color:rgba(255,255,255,0.55); text-transform:uppercase; white-space:nowrap; }
+    .footer-dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+
+    /* view switcher — salmon hamburger, top-right corner */
+    .view-switch { position:fixed; top:9px; right:12px; z-index:60; }
+    .view-btn { background:transparent; border:none; padding:6px; cursor:pointer; display:flex; flex-direction:column; gap:3px; border-radius:5px; }
+    .view-btn:hover { background:rgba(232,160,176,0.18); }
+    .view-btn .hb { display:block; width:22px; height:3px; border-radius:2px; background:var(--accent); }
+    .view-menu { position:absolute; top:112%; right:0; background:#161c28; border:1px solid #2a3346; border-radius:7px; padding:5px; min-width:170px; box-shadow:0 8px 24px #000a; display:none; }
+    .view-menu.open { display:block; }
+    .view-opt { display:block; padding:8px 11px; border-radius:5px; font-family:'Lexend Deca',sans-serif; font-size:13px; font-weight:600; color:#d8e4f8; text-decoration:none; }
+    .view-opt:hover { background:#222a3a; }
+    .view-opt.active { background:#2a1216; color:var(--accent); }
+  </style>
+</head>
+<body>
+<div style="background:#1d4ed8;color:#fff;text-align:center;font-family:sans-serif;font-size:12px;font-weight:700;padding:4px;letter-spacing:0.05em">TEST A · /board-data · stored business-day DTP · status filter relaxed</div>
+<div class="view-switch">
+  <button class="view-btn" onclick="document.getElementById('viewMenu').classList.toggle('open')" aria-label="Switch view">
+    <span class="hb"></span><span class="hb"></span><span class="hb"></span>
+  </button>
+  <div class="view-menu" id="viewMenu">
+    <a class="view-opt" href="/main">Production View</a>
+    <a class="view-opt active" href="/3day">3-Day List</a>
+  </div>
+</div>
+<header class="board-header">
+  <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+    <div class="shop-name" style="font-size:24px">Ken Garff Body &amp; Glass — Downtown</div>
+    <div class="board-label">3-Day Production Board</div>
+  </div>
+  <div style="flex:1;padding:0 16px;display:flex;flex-direction:column;align-items:center;gap:4px">
+  </div>
+  <div style="flex-shrink:0;padding-right:34px">
+
+      <div class="time-grid">
+        <div class="time-col">
+          <span class="time-sublabel">Current Time</span>
+          <span class="time-value" id="clock-time" style="font-size:26px">–:– –</span>
+          <span class="time-date" id="clock-date">–––</span>
+        </div>
+        <div class="time-divider"></div>
+        <div class="time-col">
+          <span class="time-sublabel">Last Sync</span>
+          <span class="time-value sync" id="sync-time" style="font-size:26px">—</span>
+          <span class="time-date" id="sync-date">—</span>
+        </div>
+      </div>
+  </div>
+</header>
+<div class="board-body" id="board-body">
+  <div class="col-header">
+    <span class="col-label left">Estimator</span>
+    <span class="col-label">RO #</span>
+    <span class="col-label">Customer</span>
+    <span class="col-label">Vehicle</span>
+    <span class="col-label">Insurance</span>
+    <span class="col-label">Tech</span>
+    <span class="col-label">Painter</span>
+    <span class="col-label">Repair Status</span>
+    <span class="col-label">CCC Promise</span>
+  </div>
+  <div id="groups-container"></div>
+</div>
+
+<footer class="board-footer">
+  <div class="footer-mtd">
+    <div class="footer-section">
+      <span class="footer-section-label">Completed MTD</span>
+      <div class="footer-stats">
+        <div class="footer-stat"><span class="footer-stat-value" id="done-dollars">—</span></div>
+        <div class="footer-stat"><span class="footer-stat-value" id="done-labor">—</span></div>
+      </div>
+    </div>
+    <div class="footer-sep"></div>
+    <div class="footer-section">
+      <span class="footer-section-label">Closed MTD</span>
+      <div class="footer-stats">
+        <div class="footer-stat"><span class="footer-stat-value" id="closed-dollars">—</span></div>
+        <div class="footer-stat"><span class="footer-stat-value" id="closed-labor">—</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-legend">
+    <div class="footer-legend-row">
+      <div class="footer-legend-item"><div class="footer-dot" style="background:#e3324f"></div>Past Due / Won't Make It</div>
+      <div class="footer-legend-item"><div class="footer-dot" style="background:#0cc258"></div>On Track</div>
+    </div>
+    <div class="footer-legend-row">
+      <div class="footer-legend-item"><div class="footer-dot" style="background:#e8b715"></div>Might Not Make It</div>
+      <div class="footer-legend-item"><div class="footer-dot" style="background:#15b8e6"></div>Done Today</div>
+    </div>
+  </div>
+</footer>
+<script>
+
+// view switcher: close menu on outside click
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.view-switch')){
+    var m=document.getElementById('viewMenu'); if(m) m.classList.remove('open');
+  }
+});
+
+const JSON_URL  = 'https://kgdtbs.onrender.com/board-data';
+const SYNC_URL  = 'https://kgdtbs.onrender.com/last-sync';
+const MTD_URL   = 'https://kgdtbs.onrender.com/mtd';
+const REFRESH   = 5 * 60 * 1000;
+
+const STATUS_RANK = {
+  '':0,'Prelim':1,'Pre-Production':2,'Dispatch':3,'Teardown':4,
+  'Waiting on Insurance':5,'Supp-Estimator':6,'Supp-Insurance':7,
+  'Waiting on Parts':8,'Need Parts Update':9,'Frame':10,
+  'Repair in Process':11,'Paint':12,'Sublet':13,'Reassembly':14,
+  'QC':15,'Wash':16,'Done':17,'Ready for Delivery':18,
+  'Delivered':19,'Total Loss':99
+};
+
+const DAYS_L   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS_L = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function fmtTimeParts(d) {
+  let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
+  const ap = h>=12?'PM':'AM'; h=h%12||12;
+  return { time: h+':'+m+' '+ap, date: DAYS_L[d.getDay()]+' · '+MONTHS_L[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear() };
+}
+
+function updateClock() {
+  const p = fmtTimeParts(new Date());
+  const t = document.getElementById('clock-time');
+  const d = document.getElementById('clock-date');
+  if(t) t.textContent = p.time;
+  if(d) d.textContent = p.date;
+}
+updateClock(); setInterval(updateClock,1000);
+
+async function fetchLastSync() {
+  try {
+    const res = await fetch(SYNC_URL+'?_='+Date.now());
+    if(!res.ok) return;
+    const data = await res.json();
+    if(data.last_sync) {
+      const d = new Date(data.last_sync);
+      const now = new Date();
+      const sameDay = d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()&&d.getDate()===now.getDate();
+      let h=d.getHours(),m=String(d.getMinutes()).padStart(2,'0');
+      const ap=h>=12?'PM':'AM'; h=h%12||12;
+      const timeStr = h+':'+m+' '+ap;
+      const dateStr = sameDay ? DAYS_L[d.getDay()]+' · '+MONTHS_L[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear()
+                               : MONTHS_S[d.getMonth()]+' '+d.getDate()+', '+d.getFullYear();
+      const st = document.getElementById('sync-time');
+      const sd = document.getElementById('sync-date');
+      if(st) st.textContent = timeStr;
+      if(sd) sd.textContent = dateStr;
+    }
+  } catch(e){}
+}
+
+async function fetchMTD() {
+  try {
+    const res = await fetch(MTD_URL+'?_='+Date.now());
+    if(!res.ok) return;
+    const data = await res.json();
+    const fmt$ = v => v != null ? '$'+Math.round(v).toLocaleString('en-US') : '—';
+    const fmtH = v => v != null ? Number(v).toFixed(1)+' hrs' : '—';
+    const dd = document.getElementById('done-dollars');
+    const dl = document.getElementById('done-labor');
+    const cd = document.getElementById('closed-dollars');
+    const cl = document.getElementById('closed-labor');
+    if(dd) dd.textContent = fmt$(data.doneDollars);
+    if(dl) dl.textContent = fmtH(data.doneLabor);
+    if(cd) cd.textContent = fmt$(data.closedDollars);
+    if(cl) cl.textContent = fmtH(data.closedLabor);
+  } catch(e){}
+}
+
+function isToday(s) {
+  if(!s) return false;
+  const d=new Date(s),n=new Date();
+  return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()&&d.getDate()===n.getDate();
+}
+
+function getRowColors(job) {
+  const rank = STATUS_RANK[job.repairStatus]??0;
+  if(job.doneToday)           return {bg:'#0b5c73',text:'#ccf0ff'};
+  if(job.dtp<0)               return {bg:'#721928',text:'#ffd0d6'};
+  if(job.dtp===0){
+    if(rank<=11)               return {bg:'#721928',text:'#ffd0d6'};
+    if(rank<=13)               return {bg:'#e8b715',text:'#1a1000'};
+    if(job.targetLate)         return {bg:'#721928',text:'#ffd0d6'};
+    return                           {bg:'#06612c',text:'#ccffde'};
+  }
+  if(job.dtp===1){
+    if(rank<=7)                return {bg:'#721928',text:'#ffd0d6'};
+    if(rank<=11)               return {bg:'#e8b715',text:'#1a1000'};
+    if(job.targetLate)         return {bg:'#e8b715',text:'#1a1000'};
+    return                           {bg:'#06612c',text:'#ccffde'};
+  }
+  if(job.dtp===2){
+    if(job.targetLate)         return {bg:'#e8b715',text:'#1a1000'};
+    return                           {bg:'#06612c',text:'#ccffde'};
+  }
+  return {bg:'#161c2c',text:'#d8e4f8'};
+}
+
+function getEst(name) {
+  const MAP = {
+    'cord':   {bg:'#28de37',dark:'#064014',glow:'#28de37'},
+    'cordale':{bg:'#28de37',dark:'#064014',glow:'#28de37'},
+    'logan':  {bg:'#fa2d25',dark:'#500606',glow:'#fa2d25'},
+    'dana':   {bg:'#faf034',dark:'#5a4400',glow:'#faf034'},
+    'jennie': {bg:'#e319b7',dark:'#6a0055',glow:'#e319b7'},
+    'alan':   {bg:'#4e82c7',dark:'#0a1830',glow:'#4e82c7'},
+    'troy':   {bg:'#4e82c7',dark:'#0a1830',glow:'#4e82c7'},
+  };
+  return MAP[(name||'').toLowerCase()] || {bg:'#555566',dark:'#1a1a22',glow:'#555566'};
+}
+
+function badgeHTML(name, fontSize='14px') {
+  const e = getEst(name);
+  const display = (name||'').toLowerCase()==='cordale' ? 'CORD' : (name||'').toUpperCase();
+  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 6px ${e.glow},0 0 2px ${e.border}">${display}</span>`;
+}
+
+function fmtDate(iso) {
+  if(!iso) return '—';
+  const d=new Date(iso+'T12:00:00');
+  return MONTHS_S[d.getMonth()]+' '+d.getDate();
+}
+
+const GROUPS = [
+  {label:'Past Due',     color:'#e3324f',key:'pastdue'},
+  {label:'Due Today',    color:'#0cc258',key:'today'},
+  {label:'Done Today',   color:'#15b8e6',key:'done'},
+  {label:'Due Tomorrow', color:'#e8b715',key:'tomorrow'},
+  {label:'Due in 2 Days',color:'#4e82c7',key:'twodays'},
+];
+
+function groupHeader(group, count) {
+  const g = document.createElement('div');
+  g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid #3a4255;background:#1a1e2a';
+  g.innerHTML =
+    `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>` +
+    `<span style="font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${group.label}</span>` +
+    `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>`;
+  return g;
+}
+
+async function loadBoardData(renderFn) {
+  try {
+    const res = await fetch(JSON_URL+'?_='+Date.now());
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const raw = await res.json();
+    const jobs = raw.map(r=>({
+      ro:r.ro||'', customer:r.customer||'', vehicle:r.vehicle||'',
+      estimator:r.estimator||'', tech:r.tech||'', painter:r.painter||'',
+      repairStatus:r.repairStatus||'', insurance:r.insurance||'',
+      promise:r.promise||'', target:r.target||'',
+      dtp:(r.dtp!==''&&r.dtp!=null)?parseInt(r.dtp,10):NaN,
+      totalLoss:r.totalLoss==='True'||r.totalLoss===true,
+      doneToday:isToday(r.doneTime),
+      targetLate:r.target&&r.promise?new Date(r.target)>new Date(r.promise):false,
+    }));
+    const active = jobs.filter(j=>
+      !j.doneToday&&!j.totalLoss&&
+      j.repairStatus!=='Ready for Delivery'&&j.repairStatus!=='Total Loss'&&
+      j.repairStatus!=='Done'&&!isNaN(j.dtp)&&j.dtp<=2
+    );
+    renderFn({
+      pastdue:  active.filter(j=>j.dtp<0),
+      today:    active.filter(j=>j.dtp===0),
+      done:     jobs.filter(j=>j.doneToday),
+      tomorrow: active.filter(j=>j.dtp===1),
+      twodays:  active.filter(j=>j.dtp===2),
+    });
+  } catch(err){
+    const c=document.getElementById('groups-container');
+    if(c) c.innerHTML='<div style="text-align:center;padding:40px;font-family:Barlow Condensed,sans-serif;font-size:18px;color:#56647d">⚠ '+err.message+'</div>';
+  }
+}
+
+function startRefresh(renderFn) {
+  loadBoardData(renderFn); fetchLastSync(); fetchMTD();
+  setInterval(()=>loadBoardData(renderFn), REFRESH);
+  setInterval(fetchLastSync, REFRESH);
+  setInterval(fetchMTD, REFRESH);
+  setInterval(()=>location.reload(), 30*60*1000);
+}
+
+
+function renderBoard(grouped) {
+  const container = document.getElementById('groups-container');
+  container.innerHTML = '';
+  GROUPS.forEach(group => {
+    const jobs = grouped[group.key]||[];
+    if(!jobs.length) return;
+    const groupEl = document.createElement('div');
+    groupEl.className = 'group';
+    groupEl.appendChild(groupHeader(group, jobs.length));
+    const div = document.createElement('div');
+    div.className='group-divider'; div.style.background='#3a4255';
+    groupEl.appendChild(div);
+    jobs.forEach(job => {
+      const colors = getRowColors(job);
+      const e = getEst(job.estimator);
+      const row = document.createElement('div');
+      row.className = 'job-row';
+      row.style.cssText = `grid-template-columns:110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px;background:${colors.bg};border-left-color:${e.bg};color:${colors.text}`;
+      row.innerHTML =
+        `<div class="cell">${badgeHTML(job.estimator)}</div>`+
+        `<div class="cell" style="font-weight:700">${job.ro}</div>`+
+        `<div class="cell">${job.customer}</div>`+
+        `<div class="cell" style="font-weight:400;opacity:0.9">${job.vehicle}</div>`+
+        `<div class="cell cell-sm">${job.insurance}</div>`+
+        `<div class="cell cell-sm">${job.tech}</div>`+
+        `<div class="cell cell-sm">${job.painter}</div>`+
+        `<div class="cell cell-center"><span class="repair-status">${job.repairStatus||'No Status'}</span></div>`+
+        `<div class="cell cell-center" style="font-size:13px;font-weight:600;opacity:0.9">${fmtDate(job.promise)}</div>`;
+      groupEl.appendChild(row);
+    });
+    container.appendChild(groupEl);
+  });
+}
+startRefresh(renderBoard);
+
+
+</script>
+</body>
+</html>
