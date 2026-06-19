@@ -2517,6 +2517,20 @@ def mtd_post():
         pass
     return jsonify({'status': 'ok', 'data': _mtd_data})
 
+@app.route('/mtd', methods=['GET'])
+def mtd_get():
+    global _mtd_data
+    if _mtd_data['updated'] is None:
+        try:
+            with open(os.path.join(os.path.dirname(__file__), 'mtd.txt'), 'r') as f:
+                import json as _json
+                _mtd_data = _json.loads(f.read())
+        except Exception:
+            pass
+    response = jsonify(_mtd_data)
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
+
 # ─── /mtd-by-estimator endpoint ───────────────────────────────────
 
 _mtd_by_estimator_data = {
