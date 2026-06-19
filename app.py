@@ -2473,6 +2473,8 @@ _mtd_data = {
     'doneLabor': 0,
     'closedDollars': 0,
     'closedLabor': 0,
+    'projectedDollars': 0,
+    'projectedLabor': 0,
     'updated': None,
 }
 
@@ -2485,22 +2487,27 @@ def mtd_post():
         "doneDollars": <num>,
         "doneLabor": <num>,
         "closedDollars": <num>,
-        "closedLabor": <num>
+        "closedLabor": <num>,
+        "projectedDollars": <num>,
+        "projectedLabor": <num>
       }
 
     Done MTD = production performance (DoneStatusTime in current month).
     Closed MTD = estimator/billing performance (ClosedStatusTime in current month).
+    Projected MTD = total promised this month (CCCPromisDate in current month, all rows).
     """
     global _mtd_data
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Expected JSON'}), 400
     _mtd_data = {
-        'doneDollars':   data.get('doneDollars', 0),
-        'doneLabor':     data.get('doneLabor', 0),
-        'closedDollars': data.get('closedDollars', 0),
-        'closedLabor':   data.get('closedLabor', 0),
-        'updated':       datetime.utcnow().isoformat() + 'Z',
+        'doneDollars':      data.get('doneDollars', 0),
+        'doneLabor':        data.get('doneLabor', 0),
+        'closedDollars':    data.get('closedDollars', 0),
+        'closedLabor':      data.get('closedLabor', 0),
+        'projectedDollars': data.get('projectedDollars', 0),
+        'projectedLabor':   data.get('projectedLabor', 0),
+        'updated':          datetime.utcnow().isoformat() + 'Z',
     }
     try:
         with open(os.path.join(os.path.dirname(__file__), 'mtd.txt'), 'w') as f:
@@ -2509,20 +2516,6 @@ def mtd_post():
     except Exception:
         pass
     return jsonify({'status': 'ok', 'data': _mtd_data})
-
-@app.route('/mtd', methods=['GET'])
-def mtd_get():
-    global _mtd_data
-    if _mtd_data['updated'] is None:
-        try:
-            with open(os.path.join(os.path.dirname(__file__), 'mtd.txt'), 'r') as f:
-                import json as _json
-                _mtd_data = _json.loads(f.read())
-        except Exception:
-            pass
-    response = jsonify(_mtd_data)
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    return response
 
 # ─── /mtd-by-estimator endpoint ───────────────────────────────────
 
