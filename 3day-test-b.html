@@ -137,6 +137,14 @@
         <div class="footer-stat"><span class="footer-stat-value" id="closed-labor">—</span></div>
       </div>
     </div>
+    <div class="footer-sep"></div>
+    <div class="footer-section">
+      <span class="footer-section-label">Projected MTD</span>
+      <div class="footer-stats">
+        <div class="footer-stat"><span class="footer-stat-value" id="projected-dollars">—</span></div>
+        <div class="footer-stat"><span class="footer-stat-value" id="projected-labor">—</span></div>
+      </div>
+    </div>
   </div>
   <div class="footer-legend">
     <div class="footer-legend-row">
@@ -228,6 +236,11 @@ async function fetchMTD() {
     if(dl) dl.textContent = fmtH(data.doneLabor);
     if(cd) cd.textContent = fmt$(data.closedDollars);
     if(cl) cl.textContent = fmtH(data.closedLabor);
+    // Projected MTD — populates once the flow adds these fields; stays "—" until then
+    const pd = document.getElementById('projected-dollars');
+    const pl = document.getElementById('projected-labor');
+    if(pd) pd.textContent = fmt$(data.projectedDollars);
+    if(pl) pl.textContent = fmtH(data.projectedLabor);
   } catch(e){}
 }
 
@@ -309,10 +322,13 @@ function groupHeader(group, count) {
 // dtp      = calendar - weekend   (weekends only; holidays not subtracted, matching the flow)
 function bizDayDTP(promiseStr){
   if(!promiseStr) return NaN;
-  const pd=new Date(promiseStr); if(isNaN(pd)) return NaN;
+  // Parse the date PARTS directly to avoid new Date("yyyy-mm-dd") being read as
+  // UTC midnight (which in Mountain time is 6pm the previous day -> off-by-one).
+  const m=String(promiseStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return NaN;
+  const pday=new Date(parseInt(m[1],10),parseInt(m[2],10)-1,parseInt(m[3],10));
   const now=new Date();
   const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  const pday=new Date(pd.getFullYear(),pd.getMonth(),pd.getDate());
   const cal=Math.round((pday-today)/86400000);
   const sign=cal<0?-1:1;
   const c=Math.abs(cal);
@@ -341,14 +357,22 @@ async function loadBoardData(renderFn) {
       promise:r.promise||'', target:r.target||'',
       dtp:bizDayDTP(r.promise),   // computed business-day DTP (estimator-data dtp can be null)
       totalLoss:r.totalLoss==='True'||r.totalLoss===true,
+      done:r.done===true||r.done==='True',
       doneToday:isToday(r.doneTime),
+      closedStatusTime:r.closedStatusTime||null,
+      closedToday:isToday(r.closedStatusTime),
       targetLate:r.target&&r.promise?new Date(r.target)>new Date(r.promise):false,
     }));
-    const active = jobs.filter(j=>
-      !j.doneToday&&!j.totalLoss&&
-      j.repairStatus!=='Ready for Delivery'&&j.repairStatus!=='Total Loss'&&
-      j.repairStatus!=='Done'&&!isNaN(j.dtp)&&j.dtp<=2
-    );
+    const active = jobs.filter(j=>{
+      if(!j.ro) return false;                                  // no RO -> junk
+      if(j.totalLoss) return false;
+      if(isNaN(j.dtp)||j.dtp>2) return false;
+      if(j.repairStatus==='Ready for Delivery'||j.repairStatus==='Total Loss'||j.repairStatus==='Done') return false;
+      if(j.closedStatusTime&&!j.closedToday) return false;     // closed (unless today)
+      if(j.done&&!j.doneToday) return false;                   // done (unless today)
+      if(!j.repairStatus&&j.dtp<0) return false;               // null status + overdue = probably delivered
+      return true;
+    });
     renderFn({
       pastdue:  active.filter(j=>j.dtp<0),
       today:    active.filter(j=>j.dtp===0),

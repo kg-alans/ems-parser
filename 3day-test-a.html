@@ -137,6 +137,14 @@
         <div class="footer-stat"><span class="footer-stat-value" id="closed-labor">—</span></div>
       </div>
     </div>
+    <div class="footer-sep"></div>
+    <div class="footer-section">
+      <span class="footer-section-label">Projected MTD</span>
+      <div class="footer-stats">
+        <div class="footer-stat"><span class="footer-stat-value" id="projected-dollars">—</span></div>
+        <div class="footer-stat"><span class="footer-stat-value" id="projected-labor">—</span></div>
+      </div>
+    </div>
   </div>
   <div class="footer-legend">
     <div class="footer-legend-row">
@@ -228,6 +236,10 @@ async function fetchMTD() {
     if(dl) dl.textContent = fmtH(data.doneLabor);
     if(cd) cd.textContent = fmt$(data.closedDollars);
     if(cl) cl.textContent = fmtH(data.closedLabor);
+    const pd = document.getElementById('projected-dollars');
+    const pl = document.getElementById('projected-labor');
+    if(pd) pd.textContent = fmt$(data.projectedDollars);
+    if(pl) pl.textContent = fmtH(data.projectedLabor);
   } catch(e){}
 }
 
@@ -315,14 +327,22 @@ async function loadBoardData(renderFn) {
       promise:r.promise||'', target:r.target||'',
       dtp:(r.dtp!==''&&r.dtp!=null)?parseInt(r.dtp,10):NaN,
       totalLoss:r.totalLoss==='True'||r.totalLoss===true,
+      done:r.done===true||r.done==='True',
       doneToday:isToday(r.doneTime),
+      closedStatusTime:r.closedStatusTime||null,
+      closedToday:isToday(r.closedStatusTime),
       targetLate:r.target&&r.promise?new Date(r.target)>new Date(r.promise):false,
     }));
-    const active = jobs.filter(j=>
-      !j.doneToday&&!j.totalLoss&&
-      j.repairStatus!=='Ready for Delivery'&&j.repairStatus!=='Total Loss'&&
-      j.repairStatus!=='Done'&&!isNaN(j.dtp)&&j.dtp<=2
-    );
+    const active = jobs.filter(j=>{
+      if(!j.ro) return false;                                  // no RO -> junk
+      if(j.totalLoss) return false;
+      if(isNaN(j.dtp)||j.dtp>2) return false;
+      if(j.repairStatus==='Ready for Delivery'||j.repairStatus==='Total Loss'||j.repairStatus==='Done') return false;
+      if(j.closedStatusTime&&!j.closedToday) return false;     // closed (unless today)
+      if(j.done&&!j.doneToday) return false;                   // done (unless today)
+      if(!j.repairStatus&&j.dtp<0) return false;               // null status + overdue = probably delivered
+      return true;
+    });
     renderFn({
       pastdue:  active.filter(j=>j.dtp<0),
       today:    active.filter(j=>j.dtp===0),
