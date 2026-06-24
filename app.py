@@ -665,10 +665,14 @@ def ro_compatible(sp_ro_norm, report_ro_norm):
     return ro_match_type(sp_ro_norm, report_ro_norm) is not None
 
 # ─── Path B signal scoring (May 20 2026) ─────────────────────────
-# Threshold for considering a dollar amount strong enough to confirm a match.
-# Below this floor, dollar matches are likely tow-ins, customer-pay door dings,
-# or other low-uniqueness amounts that collide easily across rows.
-PATH_B_DOLLAR_FLOOR = 500.0
+# Dollar floor RETIRED June 19 2026. Previously 500.0 — the idea was that
+# sub-$500 amounts collide easily, so they shouldn't confirm a match. In
+# practice, penny-exact + uniqueness-among-candidates already measures
+# coincidence directly, and the floor was silently dropping legitimate
+# sub-$500 glass/rockchip jobs (e.g. Hoggan CCC-1289, $54.23) into ambiguous.
+# Kept at 0.0 so any lingering reference is a harmless no-op; penny-match and
+# uniqueness now do all the discrimination work.
+PATH_B_DOLLAR_FLOOR = 0.0
 
 def _parse_dollar(value):
     """Parse a dollar string to float. Returns None for blank/invalid input.
@@ -687,14 +691,16 @@ def _parse_dollar(value):
         return None
 
 def dollars_penny_match(report_total, sp_total):
-    """True if both amounts are above floor and match to the penny.
-    Returns False if either side is blank, below floor, or differs by ≥ 1 cent.
+    """True if both amounts parse to a number and match to the penny.
+    Returns False if either side is blank/unparseable, or differs by ≥ 1 cent.
+
+    No dollar floor (retired June 19 2026): a $54.23 penny-match is as
+    trustworthy as a $5,423.00 one — uniqueness-among-candidates, not
+    magnitude, is what guards against coincidental collisions.
     """
     r = _parse_dollar(report_total)
     s = _parse_dollar(sp_total)
     if r is None or s is None:
-        return False
-    if r < PATH_B_DOLLAR_FLOOR or s < PATH_B_DOLLAR_FLOOR:
         return False
     # Compare to the penny — abs difference under half a cent counts as equal
     return abs(r - s) < 0.005
@@ -870,9 +876,9 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
     This prevents already-claimed SP rows from being magnet-matched on
     shared customer + vehicle prefix (e.g., dealer accounts with many ROs).
 
-    Path B signal scoring (May 20 2026 refactor):
+    Path B signal scoring (May 20 2026 refactor; dollar-override June 19 2026):
       Strong signals (any 1 confirms):
-        - Dollar amount, ≥ PATH_B_DOLLAR_FLOOR, penny-match, unique
+        - Dollar amount, penny-match, unique (no floor — retired June 19 2026)
         - Insurance agreement (both non-blank, normalize to same carrier)
       Weak signals (need 2+ to confirm):
         - Estimator first name match
@@ -881,13 +887,16 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
         - Promise/target date within ±1 day
 
       Single-candidate decision:
-        - Strong signal CONTRADICTS (e.g. insurance disagrees) → ambiguous
-        - ≥1 strong signal confirms → matched
+        - Strong signal CONTRADICTS (e.g. insurance disagrees) → ambiguous,
+          UNLESS a penny-exact dollar also confirms → dollar overrides, matched
+        - ≥1 strong signal confirms (no unresolved contradiction) → matched
         - 0 strong + ≥2 weak signals → matched
         - Otherwise → ambiguous (insufficient confirmation)
 
       Multi-candidate decision (2+ by name+vehicle):
-        - Exactly 1 candidate has ≥1 strong confirmation (no contradiction) → matched
+        - Exactly 1 candidate has ≥1 strong confirmation that is either
+          contradiction-free OR dollar-overridden → matched
+          (if 2+ share a penny-dollar, uniqueness fails → ambiguous)
         - Exactly 1 candidate has ≥2 weak confirmations → matched
         - Otherwise → ambiguous with per-candidate signal breakdown
 
@@ -1038,7 +1047,7 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
             # exactly one candidate? AND is the report row's dollar unique among
             # all source duplicates? Both conditions required to safely match.
             report_dollar = _parse_dollar(row.get('estimate_total'))
-            if report_dollar is not None and report_dollar >= PATH_B_DOLLAR_FLOOR:
+            if report_dollar is not None:
                 # Check uniqueness among source duplicates
                 duplicate_dollars = []
                 for other in report_rows:
@@ -1046,7 +1055,7 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
                     other_vehicle = normalize_year_4to2(other.get('vehicle', '') or '').lower()
                     if (other_owner, other_vehicle) == (norm_owner, norm_vehicle):
                         od = _parse_dollar(other.get('estimate_total'))
-                        if od is not None and od >= PATH_B_DOLLAR_FLOOR:
+                        if od is not None:
                             duplicate_dollars.append(od)
                 # This row's dollar must appear exactly once among source duplicates
                 this_row_count = sum(1 for d in duplicate_dollars if abs(d - report_dollar) < 0.005)
@@ -1080,11 +1089,20 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
 
         if len(candidates) == 1:
             # Single candidate path: need 1 strong OR 2 weak to confirm.
-            # Any strong contradiction → ambiguous regardless of confirmations.
+            # A strong contradiction (e.g. insurance disagrees) normally routes
+            # to ambiguous — the Leedy-bug safeguard. EXCEPTION (June 19 2026):
+            # a penny-exact dollar confirmation OVERRIDES an insurance
+            # contradiction. Dollar is the harder-to-fake signal; the Leedy
+            # cross-file pair had DIFFERENT dollars, so a real cross-file match
+            # never penny-matches and stays correctly blocked. With one
+            # candidate, uniqueness is trivially satisfied, so 'dollar' in
+            # strong_confirmations is sufficient to trust the override.
             score = score_path_b_signals(row, candidates[0], insurance_lookup)
 
-            if score['has_contradiction']:
-                # E.g. insurance disagrees — Leedy-bug safeguard
+            dollar_overrides = 'dollar' in score['strong_confirmations']
+            if score['has_contradiction'] and not dollar_overrides:
+                # Insurance disagrees and no penny-dollar to vouch for it →
+                # preserve Leedy protection, route to ambiguous.
                 ambiguous.append({
                     'ro_number': ro_number,
                     'owner': row['owner'],
@@ -1115,8 +1133,18 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
         # Score every candidate. Use signals to narrow to exactly one.
         scored = [(c, score_path_b_signals(row, c, insurance_lookup)) for c in candidates]
 
-        # Try strong signals first: candidates with ≥1 strong confirmation and no contradiction
-        strong_winners = [(c, s) for c, s in scored if s['total_strong'] >= 1 and not s['has_contradiction']]
+        # Try strong signals first: candidates with ≥1 strong confirmation that
+        # are either contradiction-free OR carry a penny-exact dollar override
+        # (June 19 2026 — same dollar-beats-insurance rule as the single path).
+        # Crucially, the `== 1` uniqueness check below still does the safety
+        # work: if two candidates both penny-match the same dollar, BOTH become
+        # winners, the count is 2, and we correctly fall through to ambiguous —
+        # so a non-unique dollar can never force a match.
+        strong_winners = [
+            (c, s) for c, s in scored
+            if s['total_strong'] >= 1
+            and (not s['has_contradiction'] or 'dollar' in s['strong_confirmations'])
+        ]
         if len(strong_winners) == 1:
             winner_candidate, winner_score = strong_winners[0]
             match_type = build_match_reason(winner_score, base_type='customer_vehicle')
