@@ -859,6 +859,50 @@ def build_match_reason(score, base_type='customer_vehicle'):
         return base_type + '_weak_' + '+'.join(score['weak_confirmations'])
     return base_type
 
+# ─── Stale-delivered suppression (Batch 1b — June 19 2026) ──────────
+# A report row whose vehicle_out date is older than this many days, AND
+# which matches nothing live in SP, is a delivered/historical car. Such
+# rows were landing in the "ambiguous — needs manual review" bucket
+# (especially repeat-customer / dealer source-duplicate clusters) and
+# inflating the count with cars that left the shop weeks ago and can
+# never match anything. We suppress them silently into `unmatched`.
+#
+# IMPORTANT: this only ever reclassifies rows that had no live SP match
+# anyway — it can never hide a row that would otherwise have matched.
+# Start at 60; revisit after a few weeks of real-world running.
+#
+# NOTE (cross-batch): Item 1 (dead-file cleanup) has its own aging gates
+# (FirstSeen stamp, cancelled-opp). When that ships, reconcile this
+# constant with those so there's one coherent definition of "stale,"
+# rather than two competing aging thresholds.
+STALE_DELIVERED_DAYS = 60
+
+def _vehicle_out_age_days(vehicle_out_raw):
+    """Days since a report row's vehicle_out_datetime, or None if blank/unparseable.
+
+    CCC RO Bulk emits ISO 8601 with offset, e.g. '2026-05-29T17:00:00-05:00'.
+    Blank cells arrive as whitespace. Returns a non-negative int day count
+    (0 if the date is in the future), or None when there's no usable date —
+    None means "don't suppress on age" (we can't prove it's stale).
+    """
+    if not vehicle_out_raw or not str(vehicle_out_raw).strip():
+        return None
+    raw = str(vehicle_out_raw).strip()
+    try:
+        # Python's fromisoformat handles the '-05:00' offset form natively.
+        dt = datetime.fromisoformat(raw)
+    except (ValueError, TypeError):
+        # Fall back: strip the time/offset and try a plain date parse.
+        try:
+            dt = datetime.fromisoformat(raw[:10])
+        except (ValueError, TypeError):
+            return None
+    # Normalize to naive UTC-ish comparison: drop tzinfo, compare to utcnow.
+    if dt.tzinfo is not None:
+        dt = dt.replace(tzinfo=None)
+    delta_days = (datetime.utcnow() - dt).days
+    return max(delta_days, 0)
+
 def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
     """Shared matching engine. Returns (matched_pairs, unmatched, ambiguous).
 
@@ -1066,7 +1110,41 @@ def run_match_engine(report_rows, sharepoint_items, insurance_lookup=None):
                         provisional.append((row, dollar_matched[0], f'customer_vehicle_dollar_source_disambig'))
                         continue
 
-            # Dollar disambiguation failed (or unavailable) — flag as ambiguous
+            # Dollar disambiguation failed (or unavailable). Before flagging as
+            # ambiguous, two silent-suppression guards (Batch 1b — June 19 2026):
+            #
+            # (B) Zero-candidate guard: a source-duplicate report row with NO
+            #     live SP candidates can't possibly be matched — flagging it
+            #     "needs manual review" is pure noise. Route to unmatched,
+            #     exactly like the standard no-candidate path does below.
+            if len(candidates) == 0:
+                unmatched.append({
+                    'ro_number': ro_number,
+                    'owner': row['owner'],
+                    'vehicle': row['vehicle'],
+                    'drop_date': row.get('drop_date', '') or row.get('vehicle_in', ''),
+                    'reason': 'source-side duplicate with no matching SharePoint item (delivered/historical)'
+                })
+                continue
+
+            # (A) Stale-delivered guard: if this car's vehicle_out is older than
+            #     STALE_DELIVERED_DAYS and dollar couldn't uniquely match it to a
+            #     live SP row, it's a delivered/historical car surfacing as noise.
+            #     Suppress into unmatched. Only fires when dollar disambiguation
+            #     already failed above, so it never hides a resolvable match.
+            out_age = _vehicle_out_age_days(row.get('vehicle_out'))
+            if out_age is not None and out_age > STALE_DELIVERED_DAYS:
+                unmatched.append({
+                    'ro_number': ro_number,
+                    'owner': row['owner'],
+                    'vehicle': row['vehicle'],
+                    'drop_date': row.get('drop_date', '') or row.get('vehicle_in', ''),
+                    'reason': f'source-side duplicate, delivered {out_age} days ago (stale, >{STALE_DELIVERED_DAYS}d)'
+                })
+                continue
+
+            # Genuine ambiguous: candidates exist (or recent), but dollar
+            # couldn't uniquely pick one. This is the real "please look at it" case.
             ambiguous.append({
                 'ro_number': ro_number,
                 'owner': row['owner'],
