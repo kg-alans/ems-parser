@@ -16,7 +16,16 @@ _SYNC_FILE = os.path.join(os.path.dirname(__file__), 'last_sync.txt')
 
 # ─── Phase 3 mapping tables ───────────────────────────────────────
 
-# Body technician → DTBS Tech choice value
+# Body technician → DTBS Tech choice value.
+#
+# Architecture note (Batch 4, June 29 2026): this lookup, along with PAINTER_MAPPING,
+# TECH_PLACEHOLDERS, and GLASS_TECHS, is hardcoded in app.py rather than living in a
+# SharePoint list. Trade-off considered: an SP-list version would let HR/personnel
+# changes ship without a git deploy. Costs: extra round-trip per sync, new failure
+# mode (SP list unreachable → all techs fall through to blank), one more list to
+# maintain. For a stable team that changes a couple times a year, the deploy cost
+# is small and a hardcoded list is more reliable. Revisit if turnover frequency
+# rises or if the SP-list pattern proves itself for similar lookups.
 TECH_MAPPING = {
     'Dmitriy Runov':   'Dmitriy',
     'Ludek Srajer':    'Ludek',
@@ -30,12 +39,70 @@ TECH_MAPPING = {
     # Jesus Zavala intentionally excluded — placeholder, never write
 }
 
+# Names CCC writes into tech fields that are NOT real technicians.
+# Stripped at parse time so downstream selection logic and any future
+# tech-related reporting never sees them. (Batch 4, June 29 2026.)
+#  - Jesus Zavala: shop polisher; time for scans/polishing is flagged to
+#    him on many files, so he appears constantly in mechanical (47x) and
+#    occasionally in body (2x). Never a real tech.
+#  - David / Mike Ford: paint preppers; usually under paint but can land
+#    in body — always ignore as techs.
+TECH_PLACEHOLDERS = {'Jesus Zavala', 'David', 'Mike Ford'}
+
+# Glass technicians. CCC has no glass-tech field, so glass techs appear in
+# body OR mechanical depending on the file. Used by the tech-selection
+# priority logic to recognize them wherever they land. Members must also
+# be present in TECH_MAPPING above for the name translation to succeed.
+GLASS_TECHS = {'Tyler Evans', 'Nic Moffitt'}
+
 # Paint technician → DTBS Painter choice value
 PAINTER_MAPPING = {
     'Doug Curtis':     'Doug',
     'Wayne Decker':    'Wayne',
     'Rick Hopkins':    'Rick',
     'Admir Huskic':    'Admir',
+}
+
+# Phase names from CCC's `repair_phase_name` that mean "production is finished
+# with this car" — used by Production Sync to drive Done=True (Batch 4,
+# June 29 2026). Critical: a Done phase means production-complete, NOT
+# delivered. The car can sit for weeks post-Done while the estimator awaits
+# pickup or fights insurance. Closed (delivery / file closed in CCC) is a
+# separate milestone owned by Cleanup Sync.
+#
+# Why each pair: the production team is migrating phase names. Old format
+# uses a space after the colon (`6: Done, To Estimator`); new format omits
+# it (`6:Done, To Estimator`). Per Alan's note: once a phase is on a file,
+# updating the backend phase name does NOT retroactively change the file's
+# stored phase, so live data permanently carries both formats during/after
+# migration. Include BOTH spellings for every phase to survive the crossover.
+#
+# Phase semantics (verified June 29 2026 against the live Production Schedule
+# XML + the team's current phases CSV):
+#   - `6: Done, To Estimator` / `6:Done, To Estimator`: in-progress handoff
+#   - `6: Waiting on Insurance for Delivery` / no-space variant: production
+#     finished, waiting for insurance approval to release
+#   - `6:Repairs Complete, Customer Notified` (new phase, no legacy form):
+#     production-complete, customer notified — confirmed Done by Alan
+#   - `[Completed]`: universal key-to-estimator milestone (47 such rows in
+#     the June 19 reconciliation export carried "done key to Cord" comments)
+#   - `9:TL Car Has Released` / space variant: total loss released — production
+#     will never work it again. (NOT included: `9:TL Needs Release` — release
+#     hasn't happened yet, decision still pending; `9:Possible Total Loss` —
+#     might still be repaired.)
+#
+# A phase that was in an earlier draft of this set — `9: Confirmed Total Loss`
+# — has been retired and does not exist in either the live data or the
+# current phases CSV. Removed June 29 2026 before deploy.
+PRODUCTION_DONE_PHASES = {
+    '6: Done, To Estimator',
+    '6:Done, To Estimator',
+    '6: Waiting on Insurance for Delivery',
+    '6:Waiting on Insurance for Delivery',
+    '6:Repairs Complete, Customer Notified',
+    '[Completed]',
+    '9: TL Car Has Released',
+    '9:TL Car Has Released',
 }
 
 # DTBS Repair Status rank — for phase progression logic.
@@ -432,6 +499,12 @@ PRODUCTION_SYNC_DIFF_FIELDS = [
     ('parts_received_pct',    'Parts Received %',      'percent'),
     ('labor_assigned_pct',    'Labor Assigned %',      'percent'),
     ('repair_plan_comments',  'Repair Plan Notes',     'text'),
+# Done semantics — added June 29 2026 (Batch 4 / Item 4)
+# Production Sync now owns the Done milestone (production-complete, NOT
+# delivered). DoneStatusTime stamped from CCC's real repair_completed_datetime
+# rather than utcNow() to avoid a fake MTD spike when ~35 stale rows flip.
+    ('done',                  'Done',                  'bool'),
+    ('donestatustime',        'Done Status Time',      'datetime'),
 ]
 
 # Flow 10b (Cleanup Sync) — writes: Title, WorkfileID, CCCPromisDate, Done,
@@ -497,6 +570,7 @@ def parse_production_schedule_xml(xml_bytes):
             'repair_phase':      _xml_text(o, 'repair_phase_name'),
             'body_tech':         _xml_text(o, 'body_technician_display_name'),
             'paint_tech':        _xml_text(o, 'paint_technician_display_name'),
+            'mechanical_tech':   _xml_text(o, 'mechanical_technician_display_name'),
             'days_in_shop':       _xml_text(o, 'days_in_shop'),
             'parts_received_pct': _xml_text(o, 'parts_received_percent'),
             'labor_assigned_pct': _xml_text(o, 'labor_assigned_percent'),
@@ -506,8 +580,24 @@ def parse_production_schedule_xml(xml_bytes):
             'estimate_total':    _xml_text(o, 'estimate_gross_amount'),
             'drop_date':         _xml_text(o, 'vehicle_in_datetime'),
             'promise_date':      _xml_text(o, 'repair_completed_datetime'),
+            # Batch 4 (June 29 2026): same XML element as promise_date above,
+            # but exposed under its real CCC name so callers using it as a
+            # "real completion date" don't have to know about the legacy
+            # alias. Per Lesson 108, repair_completed_datetime is a real
+            # human-entered event timestamp on completed phases (not a
+            # placeholder) — safe to stamp DoneStatusTime from it.
+            'repair_completed_datetime': _xml_text(o, 'repair_completed_datetime'),
             'color':             _xml_text(o, 'vehicle_exterior_paint_color'),
         })
+    # Batch 4 (June 29 2026): strip known placeholder names from tech fields at
+    # the parser boundary so every downstream consumer sees clean data.
+    # Filtering here (rather than in selection logic) means: a single place to
+    # maintain the list, no risk of drift, and any future reporting on raw
+    # parsed data also gets the cleanup for free. See TECH_PLACEHOLDERS.
+    for r in results:
+        for fld in ('body_tech', 'paint_tech', 'mechanical_tech'):
+            if r.get(fld, '').strip() in TECH_PLACEHOLDERS:
+                r[fld] = ''
     return results
 
 def parse_vehicles_scheduled_out_xml(xml_bytes):
@@ -617,10 +707,74 @@ def should_write_status(new_status, current_status):
 
 def map_tech(ccc_full_name):
     """Map CCC body tech full name to DTBS Tech choice value.
-    Returns empty string if no mapping (don't write)."""
+    Returns empty string if no mapping (don't write).
+
+    This is a pure name-translation lookup — see select_tech() below for
+    the priority logic that decides WHICH source field to read.
+    """
     if not ccc_full_name:
         return ''
     return TECH_MAPPING.get(ccc_full_name.strip(), '')
+
+def select_tech(row):
+    """Pick the DTBS Tech value for a Production Schedule row using
+    priority-ordered selection (Batch 4, June 29 2026).
+
+    Background: SP "Tech" = body technician only. CCC's data places real
+    techs in different fields depending on the job, and has no glass-tech
+    field at all. The June 19 reconciliation found three failure modes
+    the prior single-field `map_tech(row['body_tech'])` approach missed:
+      - Body techs hiding in `mechanical_technician_display_name` on
+        special-rate jobs (aluminum, EV rate, JLR rate). Confirmed
+        examples: CCC-1173/1092/1123 → Jason / Kyle / Kyle in mechanical.
+      - Glass techs (Tyler Evans, Nic Moffitt) scattered across body OR
+        mechanical depending on the file. CCC has no glass field.
+      - Placeholder names (Jesus Zavala / David / Mike Ford) appearing
+        in tech fields — already stripped at the parser boundary.
+
+    Priority (first match wins):
+      1. KNOWN GLASS TECH present in any tech field → use them. Captures
+         Tyler E / Nic wherever they land. Most glass files are estimated
+         by Jennie, but rare exceptions exist (Cordale-estimated glass on
+         CCC-1162), so the check is identity-based, not estimator-gated.
+      2. BODY tech present → use it. The default, post-placeholder-strip.
+      3. MECHANICAL tech present AND estimator is NOT Jennie → use it.
+         This is the special-rate body-tech-in-mechanical case. The
+         Jennie guard prevents stamping a support/calibration tech (e.g.
+         Uriah) as the tech on a glass file where the real glass tech
+         (e.g. Nic) wasn't included in the export. Confirmed safe by
+         the prompt's data review: Jesus never appears in mechanical-
+         when-body-is-blank, so this fallback won't grab him even if he
+         somehow slipped past the parser strip.
+      4. ELSE → blank (manual entry). Specifically: a Jennie file where
+         only a support tech is present, e.g. CCC-1286.
+
+    Returns the translated DTBS value (e.g. 'Kyle', 'Tyler E') or ''.
+    """
+    body = (row.get('body_tech') or '').strip()
+    mech = (row.get('mechanical_tech') or '').strip()
+    estimator = (row.get('estimator') or '').strip()
+    estimator_first = estimator.split()[0] if estimator else ''
+
+    # 1. Glass tech in ANY field — highest priority, captures them wherever placed
+    for candidate in (body, mech):
+        if candidate in GLASS_TECHS:
+            return map_tech(candidate)
+
+    # 2. Body tech present (default path)
+    if body:
+        mapped = map_tech(body)
+        if mapped:
+            return mapped
+
+    # 3. Mechanical fallback, but never on Jennie files (estimator first-name guard)
+    if mech and estimator_first.lower() != 'jennie':
+        mapped = map_tech(mech)
+        if mapped:
+            return mapped
+
+    # 4. Blank — manual entry case
+    return ''
 
 def map_painter(ccc_full_name):
     """Map CCC paint tech full name to DTBS Painter choice value."""
@@ -1745,7 +1899,9 @@ def match_production_schedule():
         write_status = should_write_status(new_status, sp_status_now)
 
         # Tech & Painter mapping (skip if no mapping)
-        new_tech = map_tech(row.get('body_tech', ''))
+        # Tech uses priority-ordered select_tech (Batch 4, June 29 2026) —
+        # see select_tech docstring for the four-step rule.
+        new_tech = select_tech(row)
         new_painter = map_painter(row.get('paint_tech', ''))
 
         raw_carrier = row.get('insurance_company', '')
@@ -1777,6 +1933,23 @@ def match_production_schedule():
             'parts_received_pct':     row.get('parts_received_pct', ''),
             'labor_assigned_pct':     row.get('labor_assigned_pct', ''),
             'repair_plan_comments':   row.get('repair_plan_comments', ''),
+            # Done semantics — Batch 4 (June 29 2026 / Item 4)
+            # Production Sync owns the Done milestone now: True when the
+            # current repair phase is one of PRODUCTION_DONE_PHASES, False
+            # otherwise. CCC removes closed files from this XML entirely
+            # (delivered/closed files fall off the "actively in the shop"
+            # report), so Production Sync can never wrongly un-Done a
+            # closed row — those rows simply aren't in our input. Cleanup
+            # Sync owns Closed and also stamps Done=True alongside it.
+            # No explicit Closed-pin guard is needed for that reason.
+            'is_production_done':     row.get('repair_phase', '').strip() in PRODUCTION_DONE_PHASES,
+            # Real completion timestamp from CCC — stamped to DoneStatusTime
+            # when Done flips True, instead of utcNow(). Avoids a fake MTD
+            # spike when this change first deploys and ~35 already-completed
+            # rows flip to Done at once (their real completion dates fall
+            # in prior months, so MTD reflects truth, not deploy-day). See
+            # Lesson 108 for why this field is a reliable real timestamp.
+            'repair_completed_datetime': row.get('repair_completed_datetime', ''),
         })
 
     # Compute changes per matched row (May 18 — email visibility feature).
@@ -1784,6 +1957,16 @@ def match_production_schedule():
         sp = next((s for s in sharepoint_items if s.get('id') == m['list_item_id']), {})
         vehicle_out = m.get('vehicle_out_datetime', '')
         vehicle_in = m.get('vehicle_in_datetime', '')
+        # Batch 4 (June 29 2026) — Done logic:
+        # is_production_done is True/False based on the current CCC phase.
+        # If it's True, also stamp DoneStatusTime from repair_completed_datetime
+        # (the real human-entered completion timestamp, NOT utcNow). If False,
+        # the field write is None (PA flow skips writes when the new value is
+        # None or unchanged), so Done flips back to False on the SP row by
+        # virtue of the diff engine — supplement-rework / drop-on-return case.
+        is_done = m.get('is_production_done', False)
+        real_completion = m.get('repair_completed_datetime', '')
+        done_status_time = real_completion if is_done and real_completion else None
         new_values = {
             'ro_number':       m.get('ro_number', ''),
             'workfile_id':     m.get('workfile_id', ''),
@@ -1800,6 +1983,9 @@ def match_production_schedule():
             'parts_received_pct':   m.get('parts_received_pct', ''),
             'labor_assigned_pct':   m.get('labor_assigned_pct', ''),
             'repair_plan_comments': m.get('repair_plan_comments', ''),
+            # Done semantics (Batch 4, June 29 2026)
+            'done':            is_done,
+            'donestatustime':  done_status_time,
         }
         m['changes'] = compute_changes(sp, new_values, PRODUCTION_SYNC_DIFF_FIELDS)
         m['changes_text'] = format_changes_text(m['changes'])
@@ -1891,11 +2077,19 @@ def match_vehicles_scheduled_out():
     for row, sp, mtype in matched_pairs:
         sp_insurance_now = sp.get('insurance', '') or ''
         is_delivered = row.get('is_delivered', False)
-        # Phase 5: file_status_name from CCC drives the new Closed flag.
-        # Done flips when EITHER the vehicle is delivered OR the file is closed in CCC
-        # (file_status=Closed without delivery happens for total losses, etc.)
+        # Batch 4 / Item 4 (June 29 2026) — Done/Closed split:
+        # Cleanup Sync now owns the Closed milestone exclusively (delivery /
+        # file closed in CCC). Done was previously conflated here with
+        # delivery (`is_delivered or is_closed`), which fired Done on every
+        # delivered car regardless of whether production was actually
+        # finished. Done is now PRIMARILY driven by Production Sync (phase-
+        # based). Cleanup Sync still sets Done=True alongside Closed=True
+        # as a guarantee — a delivered/closed file must show Done=True
+        # regardless of what phase it was on when production stopped seeing
+        # it. Neither flow writes Done=False from this side; the only
+        # source of Done=False is Production Sync flipping on a production
+        # phase (drop-on-return for supplement-rework cases).
         is_closed = row.get('file_status', '').strip().lower() == 'closed'
-        should_set_done = is_delivered or is_closed
 
         raw_carrier = row.get('insurance_company', '')
 
@@ -1910,7 +2104,10 @@ def match_vehicles_scheduled_out():
             'vehicle_out_datetime':   row.get('vehicle_out', ''),
             'is_delivered':           is_delivered,
             'is_closed':              is_closed,
-            'should_set_done':        should_set_done,
+            # Cleanup Sync writes Done=True whenever the file is Closed.
+            # Done=True here is monotonic (only ever sets True, never False).
+            # The Done=False side is owned by Production Sync (Batch 4).
+            'should_set_done':        is_closed,
             'is_total_loss':          row.get('total_loss', False),
             'carrier_name':           raw_carrier,
             'normalized_insurance':   normalize_insurance_name(raw_carrier, insurance_lookup),
@@ -1929,6 +2126,9 @@ def match_vehicles_scheduled_out():
             'ro_number':       m.get('ro_number', ''),
             'workfile_id':     m.get('workfile_id', ''),
             'cccpromisdate':   vehicle_out if vehicle_out else sp.get('cccpromisdate', ''),
+            # Done from Cleanup Sync is monotonic True-only (Batch 4):
+            # set True alongside Closed=True; never sets False. Production
+            # Sync owns the False side via its phase-driven logic.
             'done':            m.get('should_set_done', False),
             'closed':          m.get('is_closed', False),
             'actual_delivery': vehicle_out if is_delivered_now and vehicle_out else None,
