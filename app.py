@@ -1313,22 +1313,61 @@ def is_cancelled_opportunity(row):
     """Filter: row represents a workfile that was EMS-exported but never
     became an active RO, and is now safe to delete from DTBS.
 
-    Criteria:
-    - converted_datetime is blank (never became an RO), AND
-    - cancel_date is populated OR workfile_status is Closed
+    Criteria (Batch 2 — June 29 2026):
+      - converted_datetime is blank (never became an RO), AND
+      - cancel_reason is populated (the reliable cancellation signal)
 
-    Cancel reason is explicitly NOT used — estimators choose it based on
-    notification suppression, not accurate categorization.
+    Rationale for the June 29 rewrite:
+      Previous logic deleted on `cancel_date` populated OR
+      `workfile_status == 'Closed'`. The Closed branch was a real bug:
+      Closed-and-billed files (normal lifecycle end-state) would hit the
+      delete bucket even though they're the OPPOSITE of dead — they're
+      completed work that must be KEPT. `cancel_reason_name` (stored under
+      key `cancel_reason` here per parser convention) is in fact the
+      reliable signal: estimators populate it on actual cancellation, and
+      it doesn't appear spuriously on non-cancelled files. Date alone was
+      a weaker proxy than the reason field. See Lesson 138.
     """
     if row.get('converted_datetime'):
         return False  # became an RO at some point — leave alone
-    if row.get('cancel_date'):
-        return True   # explicitly cancelled
-    if row.get('workfile_status', '').strip() == 'Closed':
-        return True   # closed without converting
-    return False      # still open, may convert later
+    if (row.get('cancel_reason') or '').strip():
+        return True   # actually cancelled
+    return False      # still open or in some other terminal state — leave alone
 
-def cancelled_opp_safety_guards(sp_item):
+def _vehicle_token_match(opp_vehicle, sp_vehicle):
+    """Conservative vehicle-agreement check for cancelled-opp delete guard.
+
+    Returns (is_match, reason). True only when Year, Make, and the FIRST model
+    token all agree between the matched Opp row and the SP row. Used by
+    cancelled_opp_safety_guards (Batch 2 — June 29 2026) to plug the
+    "dealer hole": a cancelled Opp for one car must NOT trigger deletion of
+    an SP row for a DIFFERENT same-customer car (e.g. JLR has many vehicles
+    under one customer name; cancelling one must not delete another).
+
+    Examples (both inputs as CCC writes them, e.g. "2018 NISS Pathfinder SL 4WD"):
+      ("2018 NISS Pathfinder SL 4WD", "2018 NISS Pathfinder SL 4WD") → True
+      ("2018 NISS Pathfinder SL",     "2018 NISS Leaf SL")           → False (model)
+      ("2018 NISS Pathfinder",        "2019 NISS Pathfinder")        → False (year)
+      ("2018 NISS Pathfinder",        "2018 TOYO Pathfinder")        → False (make)
+      ("",                            "2018 NISS Pathfinder")        → False (blank either side → unsafe)
+    """
+    opp = (opp_vehicle or '').strip()
+    sp = (sp_vehicle or '').strip()
+    if not opp or not sp:
+        return False, 'vehicle blank on Opp or SP side — cannot verify same car'
+    opp_tokens = opp.split()
+    sp_tokens = sp.split()
+    if len(opp_tokens) < 3 or len(sp_tokens) < 3:
+        return False, f'vehicle string too short to verify (Opp="{opp}", SP="{sp}")'
+    # Year + Make + first model token — case-insensitive
+    o_year, o_make, o_model = opp_tokens[0].lower(), opp_tokens[1].lower(), opp_tokens[2].lower()
+    s_year, s_make, s_model = sp_tokens[0].lower(), sp_tokens[1].lower(), sp_tokens[2].lower()
+    if (o_year, o_make, o_model) == (s_year, s_make, s_model):
+        return True, ''
+    return False, f'vehicle mismatch — Opp="{opp_tokens[0]} {opp_tokens[1]} {opp_tokens[2]}" vs SP="{sp_tokens[0]} {sp_tokens[1]} {sp_tokens[2]}"'
+
+
+def cancelled_opp_safety_guards(sp_item, opp_row=None):
     """Check if a matched SP row has any indicators of human/sync activity
     that should prevent auto-deletion. Returns (is_safe, reason).
 
@@ -1336,10 +1375,17 @@ def cancelled_opp_safety_guards(sp_item):
     - ro_number (Title) populated — sync or human claimed the row
     - Tech, Painter, ProductionNotes, PartsNotes, PartsStatus populated
     - RepairStatus is anything other than blank or 'Prelim'
+    - (Batch 2, June 29 2026) Vehicle disagreement between Opp row and SP row —
+      Year + Make + first-model-token must match. Plugs the "dealer hole" where
+      a cancelled Opp for one car would otherwise trigger deletion of a
+      same-customer SP row for a DIFFERENT car. Only enforced when opp_row is
+      provided (callers must pass it; the parameter defaults to None for
+      backward compatibility, but a None opp_row SKIPS the vehicle check —
+      which is the legacy behavior, not the safe behavior, so all callers
+      should pass opp_row going forward).
 
     SP item dict keys expected: ro_number, tech, painter, production_notes,
-    parts_notes, parts_status, repair_status. These come from the PA Project
-    SP Items Select action — see flow build instructions.
+    parts_notes, parts_status, repair_status, vehicle. Opp row needs: vehicle.
     """
     ro_number = (sp_item.get('ro_number') or '').strip()
     if ro_number:
@@ -1359,6 +1405,12 @@ def cancelled_opp_safety_guards(sp_item):
     repair_status = (sp_item.get('repair_status') or '').strip()
     if repair_status and repair_status != 'Prelim':
         return False, f"SP row RepairStatus is '{repair_status}' — manual review"
+
+    # Vehicle agreement guard — Batch 2 (June 29 2026). See Lesson 139.
+    if opp_row is not None:
+        veh_ok, veh_reason = _vehicle_token_match(opp_row.get('vehicle'), sp_item.get('vehicle'))
+        if not veh_ok:
+            return False, veh_reason
 
     return True, ''
 
@@ -1963,7 +2015,7 @@ def match_cancelled_opportunities():
     # Apply safety guards. Failed guards move matches to ambiguous.
     safe_matches = []
     for row, sp, mtype in matched_pairs:
-        is_safe, reason = cancelled_opp_safety_guards(sp)
+        is_safe, reason = cancelled_opp_safety_guards(sp, opp_row=row)
         if is_safe:
             safe_matches.append((row, sp, mtype))
         else:
@@ -2078,7 +2130,7 @@ def match_opportunities():
     # Apply safety guards. Failed guards → ambiguous bucket.
     safe_deletes = []
     for row, sp, mtype in del_matched_pairs:
-        is_safe, reason = cancelled_opp_safety_guards(sp)
+        is_safe, reason = cancelled_opp_safety_guards(sp, opp_row=row)
         if is_safe:
             safe_deletes.append((row, sp, mtype))
         else:
