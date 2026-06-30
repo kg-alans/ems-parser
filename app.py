@@ -521,6 +521,19 @@ CLEANUP_SYNC_DIFF_FIELDS = [
     ('estimator',             'Estimator',             'text'),
 ]
 
+# Phase 7 (June 30 2026) — Closed Report Sync (Flow 10e).
+# Authoritative source for Closed=Yes and ClosedStatusTime, replacing
+# Flow 13b (utcNow stamp on Closed flip) and Flow 14c (one-time backfill).
+# Writes Closed=True + ClosedStatusTime sourced from CCC's real closed_date.
+# Also writes Done=True monotonic (a closed file must be done).
+CLOSED_SYNC_DIFF_FIELDS = [
+    ('done',                  'Done',                  'bool'),
+    ('closed',                'Closed',                'bool'),
+    ('closed_status_time',    'Closed Status Time',    'date'),
+    ('total_loss',            'Total Loss',            'bool'),
+    ('ro_number',             'RO #',                  'text'),
+    ('workfile_id',           'Workfile ID',           'text'),
+]
 
 # ─── RO Report helpers ────────────────────────────────────────────
 
@@ -622,6 +635,46 @@ def parse_vehicles_scheduled_out_xml(xml_bytes):
             # Path B signal fields (May 20 2026 — dollar/weak signal verification)
             'estimate_total':    _xml_text(o, 'estimate_gross_amount'),
             'color':             _xml_text(o, 'vehicle_exterior_paint_color'),
+        })
+    return results
+
+def parse_closed_report_xml(xml_bytes):
+    """Parse CCC ONE native XML 'Repair Orders Closed' export (Phase 7).
+
+    This report is authoritative for closed state. Unlike the Cleanup Sync
+    report (which carries `vehicle_out_datetime` + `file_status_name` but
+    not a close date), this one carries `closed_date` — the true CCC close
+    timestamp. That field is what Flow 10e stamps as ClosedStatusTime,
+    eliminating the utcNow() drift that Flow 13b imposed on backdated
+    closes.
+
+    Field shape mirrors the Cleanup Sync parser so run_match_engine works
+    on the output without modification.
+    """
+    root = ET.fromstring(xml_bytes)
+    results = []
+    for o in root.findall('.//repairOrder'):
+        ro_number = _xml_text(o, 'repair_order_number')
+        if not ro_number:
+            continue
+        results.append({
+            'ro_number':         ro_number,
+            'workfile_id':       _xml_text(o, 'workfile_id'),
+            'owner':             _xml_text(o, 'owner_name'),
+            'vehicle':           _xml_text(o, 'vehicle_year_make_model'),
+            'estimator':         _xml_text(o, 'service_writer_display_name'),
+            'insurance_company': _xml_text(o, 'carrier_name'),
+            # Authoritative close timestamp — ISO 8601 like '2026-06-16T00:00:00'.
+            # 10e stamps this as ClosedStatusTime (formatted T18:00:00Z to match
+            # the noon-Mountain convention used elsewhere).
+            'closed_date':       _xml_text(o, 'closed_date'),
+            'file_status':       _xml_text(o, 'file_status_name'),
+            'total_loss':        _xml_text(o, 'is_total_loss').lower() == 'true',
+            # Path B signal fields (parity with Cleanup Sync for matcher use)
+            'estimate_total':    _xml_text(o, 'estimate_gross_amount'),
+            # vehicle_out exposed for compatibility — Closed report does
+            # carry it in some rows but it's not the authoritative timestamp.
+            'vehicle_out':       _xml_text(o, 'vehicle_out_datetime'),
         })
     return results
 
@@ -2153,6 +2206,131 @@ def match_vehicles_scheduled_out():
         }
     })
 
+# ─── /match-closed-report endpoint (Phase 7 — Closed Report Sync) ─
+
+@app.route('/match-closed-report', methods=['POST'])
+def match_closed_report():
+    """Phase 7 (June 30 2026) — Closed Report Sync (Flow 10e).
+
+    Authoritative source for Closed=Yes and ClosedStatusTime. Replaces:
+    - Flow 13b (stamped ClosedStatusTime with utcNow() on Closed flip;
+      broke silently on bad triggerBody expressions; even when working
+      drifted on backdated closes).
+    - Flow 14c (one-time straggler-fill tool that read the same Closed
+      report this endpoint now reads natively).
+
+    Why this report and not the Cleanup Sync report:
+    The Cleanup Sync report (`/match-vehicles-scheduled-out`) carries
+    `file_status_name` and `vehicle_out_datetime` but not `closed_date`.
+    Closes that happen without a fresh delivery stamp (total losses,
+    customer pickups not entered as deliveries) don't reliably surface
+    there. The Repair Orders Closed report is delivered-state-agnostic
+    and carries the real `closed_date` per row — exactly what we need
+    to land ClosedStatusTime on its true date.
+
+    Match strategy:
+    Uses run_match_engine same as Cleanup Sync — Path A (workfile_id
+    exact) wins on every closed-report row we've audited, since CCC's
+    Closed report and SP both carry the workfile UUID. Path B fallback
+    is available but rarely fires.
+
+    Writes:
+    - Closed = True (always, every matched row)
+    - ClosedStatusTime = closed_date formatted as 'yyyy-MM-ddT18:00:00Z'
+      (noon Mountain — matches 14b/14c convention, displays as the
+      correct calendar day in SP's Mountain-time views)
+    - Done = True (monotonic — a closed file must be done; never writes
+      Done=False, that side is owned by Production Sync per Batch 4)
+    - Total Loss = is_total_loss from report (correct any drift)
+
+    Does NOT write: insurance, estimator, dates other than CST. Those
+    are owned by other syncs.
+
+    Phase 6 (insurance normalization): accepts insurance_lookup for
+    parity with sister endpoints but does not write insurance — kept
+    in the payload so the matcher's Path B insurance signal works on
+    the rare Path B match.
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No JSON body received'}), 400
+    if 'xml' not in data:
+        return jsonify({'error': 'Missing xml field (base64 of report XML)'}), 400
+
+    sharepoint_items, err = coerce_sharepoint_items(data.get('sharepoint_items'))
+    if err:
+        return jsonify({'error': err}), 400
+
+    insurance_lookup, err = coerce_sharepoint_items(data.get('insurance_lookup'))
+    if err:
+        return jsonify({'error': f'insurance_lookup parse error: {err}'}), 400
+
+    try:
+        xml_bytes = base64.b64decode(data['xml'])
+        report_rows = parse_closed_report_xml(xml_bytes)
+    except Exception as e:
+        return jsonify({'error': f'Failed to parse XML report: {str(e)}'}), 400
+
+    matched_pairs, unmatched, ambiguous = run_match_engine(report_rows, sharepoint_items, insurance_lookup)
+
+    matched = []
+    for row, sp, mtype in matched_pairs:
+        # Real CCC close timestamp -> ClosedStatusTime.
+        # closed_date arrives like '2026-06-16T00:00:00'. Take the date
+        # half, restamp at T18:00:00Z to mirror 14b/14c convention
+        # (noon Mountain, displays as the correct calendar day).
+        raw_closed = row.get('closed_date', '')
+        closed_status_time = (raw_closed[:10] + 'T18:00:00Z') if raw_closed else ''
+
+        matched.append({
+            'list_item_id':           sp.get('id'),
+            'ro_number':              row['ro_number'],
+            'workfile_id':            row.get('workfile_id', ''),
+            'customer_name':          sp.get('customer_name'),
+            'vehicle':                sp.get('vehicle'),
+            'match_type':             mtype,
+            # Always-write source fields
+            'closed_date_raw':        raw_closed,
+            'closed_status_time':     closed_status_time,
+            'is_total_loss':          row.get('total_loss', False),
+            'file_status_raw':        row.get('file_status', ''),
+            # Closed=True for every matched row — by definition, this
+            # row is in CCC's Closed report.
+            'is_closed':              True,
+            # Done=True monotonic (Batch 4 rule, same as Cleanup Sync):
+            # a closed file must show Done=True. Never sets Done=False.
+            'should_set_done':        True,
+        })
+
+    # Compute changes per matched row (email visibility — same shape
+    # as Cleanup Sync's email).
+    for m in matched:
+        sp = next((s for s in sharepoint_items if s.get('id') == m['list_item_id']), {})
+        new_values = {
+            'ro_number':         m.get('ro_number', ''),
+            'workfile_id':       m.get('workfile_id', ''),
+            'done':              m.get('should_set_done', False),
+            'closed':            m.get('is_closed', False),
+            'closed_status_time': m.get('closed_status_time', ''),
+            'total_loss':        m.get('is_total_loss', False),
+        }
+        m['changes'] = compute_changes(sp, new_values, CLOSED_SYNC_DIFF_FIELDS)
+        m['changes_text'] = format_changes_text(m['changes'])
+
+    return jsonify({
+        'matched': matched,
+        'unmatched_report_rows': unmatched,
+        'ambiguous': ambiguous,
+        'summary': {
+            'report_rows_total': len(report_rows),
+            'sharepoint_items': len(sharepoint_items),
+            'insurance_lookup_entries': len(insurance_lookup),
+            'matched': len(matched),
+            'unmatched': len(unmatched),
+            'ambiguous': len(ambiguous),
+        }
+    })
+    
 # ─── /match-cancelled-opportunities endpoint (Phase 4) ────────────
 
 @app.route('/match-cancelled-opportunities', methods=['POST'])
