@@ -1883,10 +1883,14 @@ def match_ro_report():
         new_values = {
             'ro_number':       m.get('ro_number', ''),
             'workfile_id':     m.get('workfile_id', ''),
-            # CCCPromisDate: write Vehicle Out only when CCC has it; else preserve SP
+           # CCCPromisDate: write Vehicle Out only when CCC has it; else preserve SP
             'cccpromisdate':   vehicle_out if vehicle_out else sp.get('cccpromisdate', ''),
-            'actual_delivery': vehicle_out if is_completed and vehicle_out else None,
-            'done':            is_completed,
+            # actual_delivery and done REMOVED July 2 2026 — the RO Bulk
+            # report carries no is_delivered element and blank file_status
+            # on delivered-not-closed cars, so the flow was wiping delivery
+            # dates and stomping Done=False. Flow 10's Update item no longer
+            # writes either field (Cleanup owns delivery; Production owns
+            # Done), so diffing them here would report changes nobody makes.
             'total_loss':      m.get('is_total_loss', False),
             'insurance':       m.get('normalized_insurance', ''),
             'estimator':       m.get('estimator_first_name', ''),
@@ -2144,6 +2148,17 @@ def match_vehicles_scheduled_out():
         # phase (drop-on-return for supplement-rework cases).
         is_closed = row.get('file_status', '').strip().lower() == 'closed'
 
+        # July 2 2026 — monotonic Done, enforced server-side. The PA flow's
+        # Update item writes if(should_set_done, true, false) — a hard write
+        # both directions — so should_set_done=False on a delivered-not-yet-
+        # closed car was stomping Done=False (and Flow 13 then cleared
+        # DoneStatusTime). Fix: never send False when SP already has True.
+        # PA may serialize the SP Yes/No as Python True/False or as
+        # 'true'/'false' strings (same caveat as format_value_for_diff).
+        sp_done_raw = sp.get('done')
+        sp_done = sp_done_raw is True or (
+            isinstance(sp_done_raw, str) and sp_done_raw.lower() in ('true', 'yes', '1'))
+
         raw_carrier = row.get('insurance_company', '')
 
         matched.append({
@@ -2157,10 +2172,12 @@ def match_vehicles_scheduled_out():
             'vehicle_out_datetime':   row.get('vehicle_out', ''),
             'is_delivered':           is_delivered,
             'is_closed':              is_closed,
-            # Cleanup Sync writes Done=True whenever the file is Closed.
-            # Done=True here is monotonic (only ever sets True, never False).
+            # Cleanup Sync writes Done=True whenever the file is Closed,
+            # and PRESERVES an existing Done=True otherwise (July 2 2026).
+            # The flow hard-writes if(should_set_done, true, false), so
+            # monotonicity must be computed here, not assumed there.
             # The Done=False side is owned by Production Sync (Batch 4).
-            'should_set_done':        is_closed,
+            'should_set_done':        is_closed or sp_done,
             'is_total_loss':          row.get('total_loss', False),
             'carrier_name':           raw_carrier,
             'normalized_insurance':   normalize_insurance_name(raw_carrier, insurance_lookup),
