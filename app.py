@@ -2007,6 +2007,20 @@ def match_production_schedule():
             # in prior months, so MTD reflects truth, not deploy-day). See
             # Lesson 108 for why this field is a reliable real timestamp.
             'repair_completed_datetime': row.get('repair_completed_datetime', ''),
+            # July 24 2026 patch — Flow 10a's Update Item action reads
+            # `items(...)?['done']` and `?['donestatustime']` directly.
+            # These were previously only computed in new_values for the
+            # `changes` diff (email display), never returned to PA. Result:
+            # PA received null for both, DoneStatusTime field ended up
+            # written as trigger-time (PA fallback for null on a datetime
+            # write). Every "Done Today" row on the board was actually
+            # "Done first-noticed today" — see LAMOREAUX (real completion
+            # June 5, board showed today's Flow 10a run time). Expose the
+            # values here on the same conditions used in new_values below.
+            'done':               (row.get('repair_phase', '').strip() in PRODUCTION_DONE_PHASES),
+            'donestatustime':     (row.get('repair_completed_datetime', '') or None)
+                                  if (row.get('repair_phase', '').strip() in PRODUCTION_DONE_PHASES)
+                                  else None,
         })
 
     # Compute changes per matched row (May 18 — email visibility feature).
