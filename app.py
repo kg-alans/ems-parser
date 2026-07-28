@@ -511,6 +511,7 @@ PRODUCTION_SYNC_DIFF_FIELDS = [
 # Closed, ActualDelivery, TotalLoss, Insurance, Estimator
 CLEANUP_SYNC_DIFF_FIELDS = [
     ('done',                  'Done',                  'bool'),
+    ('donestatustime',        'Done Status Time',      'datetime'),
     ('closed',                'Closed',                'bool'),
     ('actual_delivery',       'Actual Delivery',       'date'),
     ('total_loss',            'Total Loss',            'bool'),
@@ -528,6 +529,7 @@ CLEANUP_SYNC_DIFF_FIELDS = [
 # Also writes Done=True monotonic (a closed file must be done).
 CLOSED_SYNC_DIFF_FIELDS = [
     ('done',                  'Done',                  'bool'),
+    ('donestatustime',        'Done Status Time',      'datetime'),
     ('closed',                'Closed',                'bool'),
     ('closed_status_time',    'Closed Status Time',    'date'),
     ('total_loss',            'Total Loss',            'bool'),
@@ -2173,6 +2175,34 @@ def match_vehicles_scheduled_out():
         sp_done = sp_done_raw is True or (
             isinstance(sp_done_raw, str) and sp_done_raw.lower() in ('true', 'yes', '1'))
 
+        # July 28 2026 — Delivery = Done (but Done ≠ Delivery).
+        # A car with is_delivered=true has physically left with the customer;
+        # production is unambiguously finished with it even if the CCC file
+        # stays open for billing (files DO get re-opened administratively —
+        # that re-open never un-delivers the car). The June 29 Batch 4 split
+        # dropped delivery from the Done trigger entirely, which left
+        # delivered-not-yet-closed cars stuck Done=False forever when they
+        # fell off the Production Schedule XML before reaching a Done phase.
+        # Restore delivery as a Done trigger, still monotonic True-only.
+        cleanup_should_set_done = is_closed or is_delivered or sp_done
+
+        # DoneStatusTime ruleset (July 28 2026) — fill-if-blank from here.
+        # Priority order across the system:
+        #   Production Sync (overwrite w/ repair_completed_datetime; clears on
+        #     Done=False)  >  Cleanup Sync (fill-if-blank w/ vehicle_out)  >
+        #   Flow 10e (fill-if-blank w/ closed_date)  >  Flow 13 (utcNow,
+        #     manual-edit fallback only).
+        # Cleanup Sync proposes vehicle_out_datetime as the "production was
+        # done by this moment" timestamp, but ONLY when SP's DoneStatusTime
+        # is currently blank — a real completion date from Production Sync
+        # is more precise than a delivery date and must not be overwritten.
+        sp_dst_raw = sp.get('donestatustime')
+        sp_dst = sp_dst_raw.strip() if isinstance(sp_dst_raw, str) else (sp_dst_raw or '')
+        vehicle_out_raw = row.get('vehicle_out', '')
+        donestatustime_write = None
+        if cleanup_should_set_done and not sp_dst and vehicle_out_raw:
+            donestatustime_write = vehicle_out_raw
+
         raw_carrier = row.get('insurance_company', '')
 
         matched.append({
@@ -2186,12 +2216,17 @@ def match_vehicles_scheduled_out():
             'vehicle_out_datetime':   row.get('vehicle_out', ''),
             'is_delivered':           is_delivered,
             'is_closed':              is_closed,
-            # Cleanup Sync writes Done=True whenever the file is Closed,
-            # and PRESERVES an existing Done=True otherwise (July 2 2026).
+            # Cleanup Sync writes Done=True when the file is Closed OR the
+            # vehicle is delivered (July 28 2026 — delivery = done), and
+            # PRESERVES an existing Done=True otherwise (July 2 2026).
             # The flow hard-writes if(should_set_done, true, false), so
             # monotonicity must be computed here, not assumed there.
             # The Done=False side is owned by Production Sync (Batch 4).
-            'should_set_done':        is_closed or sp_done,
+            'should_set_done':        cleanup_should_set_done,
+            # DoneStatusTime proposal — vehicle_out_datetime, fill-if-blank
+            # only (July 28 2026). None when SP already has a value or when
+            # Done isn't firing. PA's Update Item wraps null → no write.
+            'donestatustime_write':   donestatustime_write,
             'is_total_loss':          row.get('total_loss', False),
             'carrier_name':           raw_carrier,
             'normalized_insurance':   normalize_insurance_name(raw_carrier, insurance_lookup),
@@ -2211,10 +2246,14 @@ def match_vehicles_scheduled_out():
             'workfile_id':     m.get('workfile_id', ''),
             'cccpromisdate':   vehicle_out if vehicle_out else sp.get('cccpromisdate', ''),
             # Done from Cleanup Sync is monotonic True-only (Batch 4):
-            # set True alongside Closed=True; never sets False. Production
-            # Sync owns the False side via its phase-driven logic.
+            # set True alongside Closed=True or delivery (July 28 2026);
+            # never sets False. Production Sync owns the False side.
             'done':            m.get('should_set_done', False),
             'closed':          m.get('is_closed', False),
+            # DoneStatusTime — only shows in the email diff when we're
+            # actually proposing a write (fill-if-blank). When None, keep
+            # SP's current value in the comparison so no change registers.
+            'donestatustime':  m.get('donestatustime_write') if m.get('donestatustime_write') else sp.get('donestatustime', ''),
             'actual_delivery': vehicle_out if is_delivered_now and vehicle_out else None,
             'total_loss':      m.get('is_total_loss', False),
             'insurance':       m.get('normalized_insurance', ''),
@@ -2313,6 +2352,18 @@ def match_closed_report():
         raw_closed = row.get('closed_date', '')
         closed_status_time = (raw_closed[:10] + 'T18:00:00Z') if raw_closed else ''
 
+        # DoneStatusTime backstop (July 28 2026) — fill-if-blank only.
+        # By the time a file reaches the Closed report, Production Sync
+        # (repair_completed_datetime) or Cleanup Sync (vehicle_out) should
+        # already have stamped DoneStatusTime. This catches files that
+        # slipped through both (e.g. closed while never appearing on a
+        # Done phase and never marked delivered). Same T18:00:00Z date
+        # convention as ClosedStatusTime. Never overwrites an existing
+        # value — see the DoneStatusTime ruleset in Cleanup Sync.
+        sp_dst_raw = sp.get('donestatustime')
+        sp_dst = sp_dst_raw.strip() if isinstance(sp_dst_raw, str) else (sp_dst_raw or '')
+        donestatustime_write = closed_status_time if (not sp_dst and closed_status_time) else None
+
         matched.append({
             'list_item_id':           sp.get('id'),
             'ro_number':              row['ro_number'],
@@ -2331,6 +2382,8 @@ def match_closed_report():
             # Done=True monotonic (Batch 4 rule, same as Cleanup Sync):
             # a closed file must show Done=True. Never sets Done=False.
             'should_set_done':        True,
+            # DoneStatusTime backstop — fill-if-blank (July 28 2026).
+            'donestatustime_write':   donestatustime_write,
         })
 
     # Compute changes per matched row (email visibility — same shape
@@ -2341,6 +2394,9 @@ def match_closed_report():
             'ro_number':         m.get('ro_number', ''),
             'workfile_id':       m.get('workfile_id', ''),
             'done':              m.get('should_set_done', False),
+            # DoneStatusTime backstop — only registers as a change when we're
+            # actually proposing a write (fill-if-blank, July 28 2026).
+            'donestatustime':    m.get('donestatustime_write') if m.get('donestatustime_write') else sp.get('donestatustime', ''),
             'closed':            m.get('is_closed', False),
             'closed_status_time': m.get('closed_status_time', ''),
             'total_loss':        m.get('is_total_loss', False),
