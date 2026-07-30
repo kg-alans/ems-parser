@@ -2196,12 +2196,25 @@ def match_vehicles_scheduled_out():
         # done by this moment" timestamp, but ONLY when SP's DoneStatusTime
         # is currently blank — a real completion date from Production Sync
         # is more precise than a delivery date and must not be overwritten.
+        # CRITICAL (July 30 2026): never return None here. The PA expression
+        # if(equals(x, null), null, x) turns a None into an EXPLICIT null in
+        # the request body, and an explicit null CLEARS a SharePoint datetime
+        # field. (Flow 10a's unwrapped items(...)?['donestatustime'] omits the
+        # property instead, which is why 10a never had this problem.) On the
+        # first run with this field wired, 10b cleared DoneStatusTime on every
+        # matched row; each clear triggered Flow 13, which saw a blank field on
+        # a Done/Ready-for-Delivery/Delivered row and stamped utcNow — putting
+        # ~60 rows' worth of May/June completions into July MTD.
+        # Fix: when we aren't proposing a new value, echo SP's current value
+        # back. That's a no-op write, the field never goes blank, and Flow 13
+        # has nothing to stamp.
         sp_dst_raw = sp.get('donestatustime')
         sp_dst = sp_dst_raw.strip() if isinstance(sp_dst_raw, str) else (sp_dst_raw or '')
         vehicle_out_raw = row.get('vehicle_out', '')
-        donestatustime_write = None
         if cleanup_should_set_done and not sp_dst and vehicle_out_raw:
             donestatustime_write = vehicle_out_raw
+        else:
+            donestatustime_write = sp_dst or None
 
         raw_carrier = row.get('insurance_company', '')
 
@@ -2360,9 +2373,15 @@ def match_closed_report():
         # Done phase and never marked delivered). Same T18:00:00Z date
         # convention as ClosedStatusTime. Never overwrites an existing
         # value — see the DoneStatusTime ruleset in Cleanup Sync.
+        # Same null-is-destructive caveat as Cleanup Sync (July 30 2026):
+        # echo SP's existing value back rather than returning None, so the
+        # PA expression never emits an explicit null that clears the field.
         sp_dst_raw = sp.get('donestatustime')
         sp_dst = sp_dst_raw.strip() if isinstance(sp_dst_raw, str) else (sp_dst_raw or '')
-        donestatustime_write = closed_status_time if (not sp_dst and closed_status_time) else None
+        if not sp_dst and closed_status_time:
+            donestatustime_write = closed_status_time
+        else:
+            donestatustime_write = sp_dst or None
 
         matched.append({
             'list_item_id':           sp.get('id'),
