@@ -2946,24 +2946,31 @@ def match_scan_report():
             # (customer-pay is common), flag only when both are present and
             # disagree after normalization. Full identity verification needs
             # closed rows in the payload — that's Path A3.
-            sp_ins = (sp.get('insurance') or '').strip()
-            wf_ins = (chosen.get('carrier_name') or '').strip()
-            if sp_ins and not sp_ins.startswith('⚠️') and wf_ins:
-                sp_norm = normalize_insurance_name(sp_ins, insurance_lookup)
-                wf_norm = normalize_insurance_name(wf_ins, insurance_lookup)
-                if sp_norm and wf_norm and sp_norm != wf_norm:
-                    ambiguous.append({
-                        'list_item_id':   sp.get('id'),
-                        'customer_name':  sp.get('customer_name'),
-                        'vehicle':        sp.get('vehicle'),
-                        'vin':            sp_vin,
-                        'reason':         (f'single workfile for VIN but insurance contradicts '
-                                           f'(SP="{sp_norm}" vs scan="{wf_norm}") — likely a prior '
-                                           f'repair on the same vehicle; verify before stamping'),
-                        'candidate_workfile_ids': [chosen['workfile_id']],
-                        'candidate_ros':  [chosen.get('ro_number', '')],
-                    })
-                    continue
+            # Use the shared insurance_signal helper rather than comparing
+            # normalized strings directly: it strips the ⚠️ unrecognized-carrier
+            # marker from BOTH sides and lowercases before comparing, and returns
+            # 'skip' when either side is blank or the lookup is empty. Comparing
+            # raw normalized values (first attempt, Aug 25 2026) read
+            # "⚠️ Nationwide" vs "Nationwide" as a contradiction — 6 of 9 flags
+            # on the first run were marker artifacts, and stamping stopped
+            # entirely. Only a genuine 'disagree' blocks.
+            if insurance_signal(chosen.get('carrier_name', ''),
+                                sp.get('insurance', ''),
+                                insurance_lookup) == 'disagree':
+                ambiguous.append({
+                    'list_item_id':   sp.get('id'),
+                    'customer_name':  sp.get('customer_name'),
+                    'vehicle':        sp.get('vehicle'),
+                    'vin':            sp_vin,
+                    'reason':         (f'single workfile for VIN but insurance contradicts '
+                                       f'(SP="{(sp.get("insurance") or "").strip()}" vs '
+                                       f'scan="{(chosen.get("carrier_name") or "").strip()}") — '
+                                       f'likely a prior repair on the same vehicle; '
+                                       f'verify before stamping'),
+                    'candidate_workfile_ids': [chosen['workfile_id']],
+                    'candidate_ros':  [chosen.get('ro_number', '')],
+                })
+                continue
             reason = "single workfile_id for VIN"
         else:
             chosen, reason = _disambiguate_scan_workfiles(sp, candidate_workfiles, insurance_lookup)
