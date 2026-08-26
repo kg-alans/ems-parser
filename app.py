@@ -1595,12 +1595,12 @@ def cancelled_opp_safety_guards(sp_item, opp_row=None):
       one is present the row has been matched to a CCC file by another sync
       and must not be auto-deleted on Opps alone.
     - Drop Date populated — car is scheduled/physically in the shop
-      (Gate B, Aug 26 2026). A cancelled Opp can share name+vehicle with a
-      shell row for a car that actually dropped (repeat visit, or an insurer
-      re-download that spawned a new file — e.g. Hanson CCC-1842 dup-file
-      cancel vs CCC-1899 active). A drop date is a life-signal the original
-      guard list predates; block and surface for one human look rather than
-      auto-deleting a car that's here.
+      (Gate B, Aug 26 2026). EXCEPTION: does not block when the matched Opp is
+      cancelled (cancel_reason populated). The shop re-enters the drop date on
+      the new live file when it cancels the old one, so the date appears on both
+      rows; an affirmative cancel reason means the drop date on the cancelled
+      shell is stale and safe to delete (Hanson CCC-1842 shell vs CCC-1899
+      live). Still blocks for any non-cancelled path.
     - Tech, Painter, ProductionNotes, PartsNotes, PartsStatus populated
     - RepairStatus is anything other than blank or 'Prelim'
     - (Batch 2, June 29 2026) Vehicle disagreement between Opp row and SP row —
@@ -1623,7 +1623,20 @@ def cancelled_opp_safety_guards(sp_item, opp_row=None):
     if (sp_item.get('workfile_id') or '').strip():
         return False, "SP row has WorkfileID — already matched to a CCC file, not an unclaimed ghost — manual review"
 
-    if (sp_item.get('drop_date') or '').strip():
+    # Drop Date guard (Gate B, Aug 26 2026) — a scheduled/actual drop date is a
+    # life-signal that the car is in the shop. BUT it does NOT block when the
+    # matched Opp is cancelled (cancel_reason populated). Rationale: when the
+    # shop downloads a new insurer assignment and cancels the old file, the drop
+    # date is re-entered on the NEW (live) file, so it appears on BOTH rows —
+    # e.g. Hanson CCC-1842 (cancelled shell) and CCC-1899 (live Teardown) both
+    # carry 8/14. Deleting the cancelled shell therefore cannot orphan the car:
+    # the live file already carries the drop date. So an affirmative cancel
+    # reason means the drop date on that shell is stale and safe to delete.
+    # The guard still fires for any NON-cancelled caller (opp_row missing or
+    # cancel_reason blank), preserving "don't delete a car that's here" for
+    # every path except confirmed-cancelled deletes.
+    opp_cancel_reason = (opp_row.get('cancel_reason') or '').strip() if opp_row else ''
+    if (sp_item.get('drop_date') or '').strip() and not opp_cancel_reason:
         return False, "SP row has a scheduled Drop Date — car may be in the shop — manual review"
 
     if (sp_item.get('tech') or '').strip():
