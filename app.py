@@ -1553,15 +1553,23 @@ def _vehicle_token_match(opp_vehicle, sp_vehicle):
     an SP row for a DIFFERENT same-customer car (e.g. JLR has many vehicles
     under one customer name; cancelling one must not delete another).
 
-    Examples (both inputs as CCC writes them, e.g. "2018 NISS Pathfinder SL 4WD"):
-      ("2018 NISS Pathfinder SL 4WD", "2018 NISS Pathfinder SL 4WD") → True
-      ("2018 NISS Pathfinder SL",     "2018 NISS Leaf SL")           → False (model)
-      ("2018 NISS Pathfinder",        "2019 NISS Pathfinder")        → False (year)
-      ("2018 NISS Pathfinder",        "2018 TOYO Pathfinder")        → False (make)
-      ("",                            "2018 NISS Pathfinder")        → False (blank either side → unsafe)
+    YEAR FORMAT (fixed Aug 25 2026): the Opportunities XML writes 4-digit years
+    ("2024 RANG Range Rover") while SharePoint stores 2-digit ("24 RANG Range
+    Rover") — 1476 of 1515 SP rows. Comparing raw tokens made this guard fail on
+    EVERY normal row: 28 false mismatches in one 10c run, 203 delete candidates,
+    0 deletions. Both sides now run through normalize_year_4to2, matching what
+    Paths A/B already do. Strictness is unchanged — normalization only reformats
+    a leading 4-digit token, never equalizes two different years.
+
+    Examples (Opp side as CCC writes it, SP side as SharePoint stores it):
+      ("2018 NISS Pathfinder SL 4WD", "18 NISS Pathfinder SL 4WD") → True
+      ("2018 NISS Pathfinder SL",     "18 NISS Leaf SL")           → False (model)
+      ("2018 NISS Pathfinder",        "19 NISS Pathfinder")        → False (year)
+      ("2018 NISS Pathfinder",        "18 TOYO Pathfinder")        → False (make)
+      ("",                            "18 NISS Pathfinder")        → False (blank either side → unsafe)
     """
-    opp = (opp_vehicle or '').strip()
-    sp = (sp_vehicle or '').strip()
+    opp = normalize_year_4to2((opp_vehicle or '').strip())
+    sp = normalize_year_4to2((sp_vehicle or '').strip())
     if not opp or not sp:
         return False, 'vehicle blank on Opp or SP side — cannot verify same car'
     opp_tokens = opp.split()
@@ -1978,7 +1986,12 @@ def match_production_schedule():
             'repair_phase_raw':       row.get('repair_phase', ''),
             'is_total_loss':          row.get('total_loss', False),
             'carrier_name':           raw_carrier,
-            'normalized_insurance':   normalize_insurance_name(raw_carrier, insurance_lookup),
+            # Echo guard (Aug 25 2026): Production Schedule carries blank
+            # carrier_name on [Not Started]/[No Plan] files and the flow
+            # writes Insurance unconditionally — blanks were wiping real SP
+            # values ("Insurance: Acuity → (blank)" on new Path B linkages).
+            # Blank carrier → echo SP's current value so the write no-ops.
+            'normalized_insurance':   normalize_insurance_name(raw_carrier, insurance_lookup) if raw_carrier.strip() else sp_insurance_now,
             'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
             # Conditional fields — caller checks the should_write flag
             'new_repair_status':      new_status or '',
@@ -2242,7 +2255,10 @@ def match_vehicles_scheduled_out():
             'donestatustime_write':   donestatustime_write,
             'is_total_loss':          row.get('total_loss', False),
             'carrier_name':           raw_carrier,
-            'normalized_insurance':   normalize_insurance_name(raw_carrier, insurance_lookup),
+            # Echo guard (Aug 25 2026): same wipe risk as Production —
+            # customer-pay delivered cars carry blank carrier_name and the
+            # flow writes Insurance unconditionally. Blank → echo SP.
+            'normalized_insurance':   normalize_insurance_name(raw_carrier, insurance_lookup) if raw_carrier.strip() else (sp.get('insurance', '') or ''),
             'estimator_first_name':   estimator_first_name(row.get('estimator', '')),
             'file_status_raw':        row.get('file_status', ''),
             # Conditional fields
