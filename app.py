@@ -1590,6 +1590,17 @@ def cancelled_opp_safety_guards(sp_item, opp_row=None):
 
     Failed guards route the match to ambiguous instead of delete:
     - ro_number (Title) populated — sync or human claimed the row
+    - WorkfileID populated — a real workfile exists; not an unclaimed ghost
+      (Gate B, Aug 26 2026). A true opportunity-ghost has no workfile_id; if
+      one is present the row has been matched to a CCC file by another sync
+      and must not be auto-deleted on Opps alone.
+    - Drop Date populated — car is scheduled/physically in the shop
+      (Gate B, Aug 26 2026). A cancelled Opp can share name+vehicle with a
+      shell row for a car that actually dropped (repeat visit, or an insurer
+      re-download that spawned a new file — e.g. Hanson CCC-1842 dup-file
+      cancel vs CCC-1899 active). A drop date is a life-signal the original
+      guard list predates; block and surface for one human look rather than
+      auto-deleting a car that's here.
     - Tech, Painter, ProductionNotes, PartsNotes, PartsStatus populated
     - RepairStatus is anything other than blank or 'Prelim'
     - (Batch 2, June 29 2026) Vehicle disagreement between Opp row and SP row —
@@ -1601,12 +1612,19 @@ def cancelled_opp_safety_guards(sp_item, opp_row=None):
       which is the legacy behavior, not the safe behavior, so all callers
       should pass opp_row going forward).
 
-    SP item dict keys expected: ro_number, tech, painter, production_notes,
-    parts_notes, parts_status, repair_status, vehicle. Opp row needs: vehicle.
+    SP item dict keys expected: ro_number, workfile_id, drop_date, tech,
+    painter, production_notes, parts_notes, parts_status, repair_status,
+    vehicle. Opp row needs: vehicle.
     """
     ro_number = (sp_item.get('ro_number') or '').strip()
     if ro_number:
         return False, f"SP row has RO# '{ro_number}' — manual review"
+
+    if (sp_item.get('workfile_id') or '').strip():
+        return False, "SP row has WorkfileID — already matched to a CCC file, not an unclaimed ghost — manual review"
+
+    if (sp_item.get('drop_date') or '').strip():
+        return False, "SP row has a scheduled Drop Date — car may be in the shop — manual review"
 
     if (sp_item.get('tech') or '').strip():
         return False, "SP row has Tech assigned — manual review"
@@ -1630,6 +1648,74 @@ def cancelled_opp_safety_guards(sp_item, opp_row=None):
             return False, veh_reason
 
     return True, ''
+
+
+def resolve_cancelled_deletes(delete_candidates, sharepoint_items):
+    """Gate B (Aug 26 2026) — delete-side pre-match on name + vehicle-token.
+
+    WHY THIS EXISTS. Cancelled-Opp deletions and field-stamping used to share
+    one confidence bar inside run_match_engine: a single SP candidate needs
+    1 strong OR 2 weak signals to confirm. That bar is correct for STAMPING
+    (a wrong match corrupts a live row) but wrong for DELETING an inert
+    opportunity-ghost: a ghost row carries only name + vehicle + estimator
+    (one weak signal), so it never cleared the bar and NO cancelled ghost was
+    ever deleted — Flow 10c reported delete candidates but 0 deletions for
+    weeks. The blast radius of a delete is not the match bar; it is the safety
+    guards (cancelled_opp_safety_guards), which independently verify the SP row
+    is inert (no RO#, no WorkfileID, no Drop Date, no tech/painter/notes/parts,
+    no live RepairStatus) AND that the vehicle token agrees. So the delete side
+    can safely match on name + vehicle-token alone and let the guards do the
+    filtering.
+
+    This function does ONLY the single-candidate name+vehicle-token pairing.
+    Everything it does not claim (0 or 2+ token matches for a given cancelled
+    Opp) is returned as leftover and handed to the normal run_match_engine
+    unchanged — so genuinely ambiguous cases still get full signal scoring and
+    still land in the ambiguous bucket. The confidence bar for STAMPING is not
+    touched anywhere by this.
+
+    IMPORTANT: this returns provisional pairs only. Callers MUST still run each
+    pair through cancelled_opp_safety_guards before deleting. The token match
+    finds a candidate; the guards decide if it dies.
+
+    Args:
+        delete_candidates: cancelled Opps rows (is_cancelled_opportunity True).
+        sharepoint_items: projected SP open items.
+
+    Returns:
+        (delete_pairs, leftover_rows)
+          delete_pairs  — list of (opp_row, sp_item, match_type) for exactly-one
+                          token-matched pairs. match_type = 'cancelled_customer_vehicle_token'.
+          leftover_rows — opp rows with 0 or 2+ token matches; hand to engine.
+    """
+    def _norm_name(s):
+        return re.sub(r'\s+', ' ', (s or '').strip()).lower()
+
+    # Index SP rows by normalized customer name for quick lookup.
+    sp_by_name = {}
+    for sp in sharepoint_items:
+        key = _norm_name(sp.get('customer_name'))
+        if key:
+            sp_by_name.setdefault(key, []).append(sp)
+
+    delete_pairs = []
+    leftover_rows = []
+    for row in delete_candidates:
+        name_key = _norm_name(row.get('owner'))
+        candidates = sp_by_name.get(name_key, [])
+        # Keep only SP rows whose vehicle token (Year+Make+first-model) agrees.
+        token_matches = [
+            sp for sp in candidates
+            if _vehicle_token_match(row.get('vehicle'), sp.get('vehicle'))[0]
+        ]
+        if len(token_matches) == 1:
+            delete_pairs.append((row, token_matches[0], 'cancelled_customer_vehicle_token'))
+        else:
+            # 0 matches → no SP ghost for this cancelled Opp (or vehicle differs);
+            # 2+ matches → genuinely ambiguous which ghost. Let the engine decide.
+            leftover_rows.append(row)
+
+    return delete_pairs, leftover_rows
 
 # ─── /parse endpoint ──────────────────────────────────────────────
 
@@ -2623,13 +2709,29 @@ def match_opportunities():
             r['ro_number'] = f"WF:{r.get('workfile_id', '')}"
 
     # === DELETE SIDE ===
-    del_matched_pairs, del_unmatched, del_ambiguous = run_match_engine(
-        delete_candidates, sharepoint_items, insurance_lookup
+    # Gate B (Aug 26 2026): resolve single-candidate cancelled deletes on
+    # name + vehicle-token FIRST, at a lower match bar than run_match_engine's
+    # stamp-grade threshold. This is safe because cancelled_opp_safety_guards
+    # (below) is the real filter — it independently verifies the SP row is an
+    # inert ghost. Rows this does NOT claim (0 or 2+ token matches) fall through
+    # to run_match_engine for full signal scoring, unchanged. Stamping is
+    # untouched — this only affects the delete bucket. See resolve_cancelled_deletes.
+    token_delete_pairs, delete_leftovers = resolve_cancelled_deletes(
+        delete_candidates, sharepoint_items
     )
+
+    del_matched_pairs, del_unmatched, del_ambiguous = run_match_engine(
+        delete_leftovers, sharepoint_items, insurance_lookup
+    )
+
+    # Token-matched pairs and engine-matched pairs both go through the SAME
+    # safety guards. The token pairs came in on a lower match bar; the guards
+    # are where every delete is actually vetted.
+    all_delete_pairs = token_delete_pairs + del_matched_pairs
 
     # Apply safety guards. Failed guards → ambiguous bucket.
     safe_deletes = []
-    for row, sp, mtype in del_matched_pairs:
+    for row, sp, mtype in all_delete_pairs:
         is_safe, reason = cancelled_opp_safety_guards(sp, opp_row=row)
         if is_safe:
             safe_deletes.append((row, sp, mtype))
