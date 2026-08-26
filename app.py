@@ -2934,6 +2934,36 @@ def match_scan_report():
 
         if len(candidate_workfiles) == 1:
             chosen = candidate_workfiles[0]
+            # Insurance sanity check on the single-candidate path (Aug 25 2026).
+            # A lone VIN match is NOT proof of identity. A repeat customer's
+            # second visit shares the VIN with their own prior, closed repair,
+            # and this endpoint receives only OPEN SP rows — so the closed row
+            # already holding that workfile_id is invisible here. Stamping blind
+            # put CCC-1111 (URIE, CHRIS / Auto-Owners / delivered 6/3) onto a new
+            # Urie, Christine / Acuity row for the same Lexus, creating a
+            # duplicate workfile_id across a closed and an open row.
+            # Mirrors the Path B rule: skip when either side is blank
+            # (customer-pay is common), flag only when both are present and
+            # disagree after normalization. Full identity verification needs
+            # closed rows in the payload — that's Path A3.
+            sp_ins = (sp.get('insurance') or '').strip()
+            wf_ins = (chosen.get('carrier_name') or '').strip()
+            if sp_ins and not sp_ins.startswith('⚠️') and wf_ins:
+                sp_norm = normalize_insurance_name(sp_ins, insurance_lookup)
+                wf_norm = normalize_insurance_name(wf_ins, insurance_lookup)
+                if sp_norm and wf_norm and sp_norm != wf_norm:
+                    ambiguous.append({
+                        'list_item_id':   sp.get('id'),
+                        'customer_name':  sp.get('customer_name'),
+                        'vehicle':        sp.get('vehicle'),
+                        'vin':            sp_vin,
+                        'reason':         (f'single workfile for VIN but insurance contradicts '
+                                           f'(SP="{sp_norm}" vs scan="{wf_norm}") — likely a prior '
+                                           f'repair on the same vehicle; verify before stamping'),
+                        'candidate_workfile_ids': [chosen['workfile_id']],
+                        'candidate_ros':  [chosen.get('ro_number', '')],
+                    })
+                    continue
             reason = "single workfile_id for VIN"
         else:
             chosen, reason = _disambiguate_scan_workfiles(sp, candidate_workfiles, insurance_lookup)
