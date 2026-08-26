@@ -1537,11 +1537,19 @@ def is_cancelled_opportunity(row):
       it doesn't appear spuriously on non-cancelled files. Date alone was
       a weaker proxy than the reason field. See Lesson 138.
     """
+    reason = (row.get('cancel_reason') or '').strip()
     if row.get('converted_datetime'):
-        return False  # became an RO at some point — leave alone
-    if (row.get('cancel_reason') or '').strip():
-        return True   # actually cancelled
-    return False      # still open or in some other terminal state — leave alone
+        # Converted-then-cancelled (Gate B, Aug 26 2026): a file that became an
+        # RO and was later cancelled. These are deletable EXCEPT Total Loss,
+        # which is an active shop event that must stay on the board. Path 2 in
+        # /match-opportunities handles these with a reduced guard set (vehicle-
+        # token only) because the SP RO#/status is a fossil of the killed file.
+        if reason and reason != 'Total Loss':
+            return True
+        return False  # never-cancelled OR Total Loss — leave alone
+    if reason:
+        return True   # never-converted cancelled lead — Path 1 (full guards)
+    return False      # still open or other terminal state — leave alone
 
 def _vehicle_token_match(opp_vehicle, sp_vehicle):
     """Conservative vehicle-agreement check for cancelled-opp delete guard.
@@ -2743,9 +2751,24 @@ def match_opportunities():
     all_delete_pairs = token_delete_pairs + del_matched_pairs
 
     # Apply safety guards. Failed guards → ambiguous bucket.
+    # Two paths (Gate B, Aug 26 2026):
+    #   Path 1 — never-converted cancelled leads → full guards (RO#, WorkfileID,
+    #            drop date, tech, painter, notes, status, vehicle-token).
+    #   Path 2 — converted-then-cancelled (reason != Total Loss) → vehicle-token
+    #            guard ONLY. The SP row's RO#/tech/status is a fossil of the CCC
+    #            file that was killed (e.g. Mejia CCC-0868 → moved to CCC-0900),
+    #            so those signals are intentionally ignored; the CCC cancel
+    #            reason is trusted. Vehicle-token stays to prevent deleting a
+    #            DIFFERENT same-customer car (Leedy/Lesson 163 collision class).
     safe_deletes = []
     for row, sp, mtype in all_delete_pairs:
-        is_safe, reason = cancelled_opp_safety_guards(sp, opp_row=row)
+        if row.get('converted_datetime'):
+            # Path 2 — trust the cancel reason; only verify it's the right car.
+            is_safe, reason = _vehicle_token_match(row.get('vehicle'), sp.get('vehicle'))
+        else:
+            # Path 1 — unchanged full guard set.
+            is_safe, reason = cancelled_opp_safety_guards(sp, opp_row=row)
+
         if is_safe:
             safe_deletes.append((row, sp, mtype))
         else:
