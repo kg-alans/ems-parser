@@ -1731,9 +1731,30 @@ def resolve_cancelled_deletes(delete_candidates, sharepoint_items):
         ]
         if len(token_matches) == 1:
             delete_pairs.append((row, token_matches[0], 'cancelled_customer_vehicle_token'))
+        elif len(token_matches) == 2:
+            # Fossil+successor case (Gate B, Aug 26 2026). A converted-then-
+            # cancelled file (e.g. insurer re-download) commonly leaves TWO SP
+            # rows for the same customer+vehicle: a bare shell (no RO, no
+            # workfile — the killed original) and a live successor (has an RO —
+            # e.g. Hanson shell + CCC-1899). resolve to the SHELL only when it is
+            # unambiguous: exactly one row is bare and the other has an RO. The
+            # bare shell is what the cancelled Opp refers to; the RO'd successor
+            # is a live car and must never be the delete target. If both are bare
+            # or both have ROs, we can't tell them apart → hand to the engine.
+            # NOTE: Path 2 (converted-cancelled) drops the RO# guard, so picking
+            # the correct sibling HERE is the only thing protecting the live car.
+            bare = [sp for sp in token_matches
+                    if not (sp.get('ro_number') or '').strip()
+                    and not (sp.get('workfile_id') or '').strip()]
+            rod  = [sp for sp in token_matches if (sp.get('ro_number') or '').strip()]
+            if len(bare) == 1 and len(rod) == 1:
+                delete_pairs.append((row, bare[0], 'cancelled_fossil_of_live_successor'))
+            else:
+                leftover_rows.append(row)
         else:
             # 0 matches → no SP ghost for this cancelled Opp (or vehicle differs);
-            # 2+ matches → genuinely ambiguous which ghost. Let the engine decide.
+            # 3+ matches → dealer-hole pile (JLR etc.); too many siblings to
+            # safely pick one. Let the engine decide / route to ambiguous.
             leftover_rows.append(row)
 
     return delete_pairs, leftover_rows
