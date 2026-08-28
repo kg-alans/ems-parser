@@ -41,7 +41,7 @@
 
     .board-body { height:calc(100vh - 80px - 64px); overflow-y:scroll; padding:0 20px 8px; scrollbar-width:none; }
     .board-body::-webkit-scrollbar { display:none; }
-    .col-header { display:grid; grid-template-columns:110px 100px 170px 1fr 140px 90px 90px 0.9fr 96px 92px 78px; gap:0; padding:7px 12px 7px 18px; background:var(--bg); position:sticky; top:0; z-index:5; border-bottom:1px solid var(--border); margin-bottom:6px; }
+    .col-header { display:grid; grid-template-columns:110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px; gap:0; padding:7px 12px 7px 18px; background:var(--bg); position:sticky; top:0; z-index:5; border-bottom:1px solid var(--border); margin-bottom:6px; }
     .col-label { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; text-align:center; }
     .col-label.left { text-align:left; }
   
@@ -115,8 +115,6 @@
     <span class="col-label">Painter</span>
     <span class="col-label">Repair Status</span>
     <span class="col-label">CCC Promise</span>
-    <span class="col-label" style="text-align:right">Est $</span>
-    <span class="col-label" style="text-align:right">Hrs</span>
   </div>
   <div id="groups-container"></div>
 </div>
@@ -299,16 +297,6 @@ function fmtDate(iso) {
   const d=new Date(iso+'T12:00:00');
   return MONTHS_S[d.getMonth()]+' '+d.getDate();
 }
-// Est $ — rounded, comma-grouped, no cents. Dash for null/0 (no estimate yet).
-function fmtDollars(v){
-  if(v==null||isNaN(v)||v===0) return '—';
-  return '$'+Math.round(v).toLocaleString('en-US');
-}
-// Labor hours — one decimal. Dash for null/0 (nothing assigned yet).
-function fmtHrs(v){
-  if(v==null||isNaN(v)||v===0) return '—';
-  return Number(v).toFixed(1);
-}
 
 const GROUPS = [
   {label:'Past Due',     color:'#e3324f',key:'pastdue'},
@@ -318,12 +306,31 @@ const GROUPS = [
   {label:'Due in 2 Days',color:'#4e82c7',key:'twodays'},
 ];
 
+// ── DYNAMIC DUE-DAY LABELS (Thu/Fri only) ──
+// Mon–Wed keep "Due Tomorrow"/"Due in 2 Days". On Thu/Fri, name the real
+// weekday so "in 2 days" doesn't read wrong across the weekend.
+function dynamicLabel(group){
+  if(group.key!=='tomorrow' && group.key!=='twodays') return group.label;
+  const dow=new Date().getDay();          // 0=Sun … 6=Sat
+  if(dow!==4 && dow!==5) return group.label; // only Thursday(4) / Friday(5)
+  const steps=group.key==='tomorrow'?1:2;
+  const d=new Date();
+  let added=0;
+  while(added<steps){                     // walk forward, skipping weekends
+    d.setDate(d.getDate()+1);
+    const wd=d.getDay();
+    if(wd!==0 && wd!==6) added++;
+  }
+  const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  return 'Due '+DAYS[d.getDay()];
+}
+
 function groupHeader(group, count) {
   const g = document.createElement('div');
   g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid #3a4255;background:#1a1e2a';
   g.innerHTML =
     `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>` +
-    `<span style="font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${group.label}</span>` +
+    `<span style="font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${dynamicLabel(group)}</span>` +
     `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>`;
   return g;
 }
@@ -368,8 +375,6 @@ async function loadBoardData(renderFn) {
       doneToday:isToday(r.doneTime),
       closedStatusTime:r.closedStatusTime||null,
       closedToday:isToday(r.closedStatusTime),
-      estimateTotal:(r.estimateTotal!=null&&r.estimateTotal!=='')?Number(r.estimateTotal):null,
-      laborHrs:(r.laborHrs!=null&&r.laborHrs!=='')?Number(r.laborHrs):null,
       targetLate:r.target&&r.promise?new Date(r.target)>new Date(r.promise):false,
     }));
     const active = jobs.filter(j=>{
@@ -422,7 +427,7 @@ function renderBoard(grouped) {
       const e = getEst(job.estimator);
       const row = document.createElement('div');
       row.className = 'job-row';
-      row.style.cssText = `grid-template-columns:110px 100px 170px 1fr 140px 90px 90px 0.9fr 96px 92px 78px;background:${colors.bg};border-left-color:${e.bg};color:${colors.text}`;
+      row.style.cssText = `grid-template-columns:110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px;background:${colors.bg};border-left-color:${e.bg};color:${colors.text}`;
       row.innerHTML =
         `<div class="cell">${badgeHTML(job.estimator)}</div>`+
         `<div class="cell" style="font-weight:700">${job.ro}</div>`+
@@ -432,9 +437,7 @@ function renderBoard(grouped) {
         `<div class="cell cell-sm">${job.tech}</div>`+
         `<div class="cell cell-sm">${job.painter}</div>`+
         `<div class="cell cell-center"><span class="repair-status">${job.repairStatus}</span></div>`+
-        `<div class="cell cell-center" style="font-size:13px;font-weight:600;opacity:0.9">${fmtDate(job.promise)}</div>`+
-        `<div class="cell cell-sm" style="text-align:right;justify-content:flex-end;font-variant-numeric:tabular-nums">${fmtDollars(job.estimateTotal)}</div>`+
-        `<div class="cell cell-sm" style="text-align:right;justify-content:flex-end;font-variant-numeric:tabular-nums">${fmtHrs(job.laborHrs)}</div>`;
+        `<div class="cell cell-center" style="font-size:13px;font-weight:600;opacity:0.9">${fmtDate(job.promise)}</div>`;
       groupEl.appendChild(row);
     });
     container.appendChild(groupEl);

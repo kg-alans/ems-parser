@@ -279,12 +279,31 @@ const GROUPS = [
   {label:'Due in 2 Days',color:'#4e82c7',key:'twodays'},
 ];
 
+// ── DYNAMIC DUE-DAY LABELS (Thu/Fri only) ──
+// Mon–Wed keep "Due Tomorrow"/"Due in 2 Days". On Thu/Fri, name the real
+// weekday so "in 2 days" doesn't read wrong across the weekend.
+function dynamicLabel(group){
+  if(group.key!=='tomorrow' && group.key!=='twodays') return group.label;
+  const dow=new Date().getDay();          // 0=Sun … 6=Sat
+  if(dow!==4 && dow!==5) return group.label; // only Thursday(4) / Friday(5)
+  const steps=group.key==='tomorrow'?1:2;
+  const d=new Date();
+  let added=0;
+  while(added<steps){                     // walk forward, skipping weekends
+    d.setDate(d.getDate()+1);
+    const wd=d.getDay();
+    if(wd!==0 && wd!==6) added++;
+  }
+  const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  return 'Due '+DAYS[d.getDay()];
+}
+
 function groupHeader(group, count) {
   const g = document.createElement('div');
   g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid #3a4255;background:#1a1e2a';
   g.innerHTML =
     `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>` +
-    `<span style="font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${group.label}</span>` +
+    `<span style="font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${dynamicLabel(group)}</span>` +
     `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>`;
   return g;
 }
