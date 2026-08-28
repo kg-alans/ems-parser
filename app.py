@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from datetime import datetime
+from datetime import datetime, date, timedelta, timezone
 import tempfile
 import os
 import base64
@@ -7,6 +7,7 @@ import json
 import re
 import xml.etree.ElementTree as ET
 from dbfread import DBF
+import openpyxl
 
 app = Flask(__name__)
 # ─── Display Board data store ─────────────────────────────────────
@@ -3433,6 +3434,423 @@ def mtd_by_estimator_get():
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'good'})
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TIME OFF — roster, XLSX import, and the /timeoff cache feeding both boards
+#
+# Pipeline (two flows, because Render's process memory does not survive a
+# deploy or a cold start and Troy's export only arrives monthly):
+#
+#   Import flow  (monthly, on file drop)
+#     Workday XLSX lands in OneDrive -> PA sends it here as base64 to
+#     /parse-timeoff -> this returns SP-ready rows -> PA upserts them into
+#     the DTBS Calendar list. PA's Excel connector cannot read this file
+#     directly: "List rows present in a table" needs a real Excel Table
+#     object and a Workday export is a bare sheet.
+#
+#   Cache flow   (daily, early morning)
+#     PA reads DTBS Calendar -> POSTs the items to /timeoff -> this resolves
+#     names and caches the result -> boards GET /timeoff. Running daily means
+#     the cache self-heals after any deploy, and hand-edits made directly in
+#     SharePoint reach the boards the next morning.
+#
+# SharePoint is the durable store. This module is only a cache.
+#
+# /timeoff is deliberately SEPARATE from /estimator-data. That endpoint
+# returns a bare JSON array consumed by ten HTML files (six estimator boards
+# plus 3day, 3day-tv, 3day-mobile, 3day-auto); wrapping it in an object to
+# carry time off would break all ten at once.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ─── Roster ───────────────────────────────────────────────────────────────
+#
+# FOUR namespaces, all different, all required:
+#   key       - the full name as Workday writes it in the export's Worker column
+#   'person'  - the DTBS Calendar Person choice value (the SP org roster spelling)
+#   'tech'    - the Bodyshop Production Tracking Tech choice value (short name)
+#   'painter' - the Painter choice value (short name)
+#   'estimator' - the Estimator choice value (first name)
+#
+# Do NOT put board display strings in here. The 3-Day list renders Cordale as
+# "CORD" via a transform inside badgeHTML(), but the stored value is "Cordale"
+# and that is what the chip logic compares against. Same trap with Rick: the
+# man's name is Ricky Hopkins, the Painter choice value is "Rick".
+#
+# Keys are full names, never a first/last split, because the roster collides:
+#   Jason Moffitt / Nic Moffitt      - both techs
+#   Tyler Evans   / Tyler Peterson   - one glass tech, one shop foreman
+#   Cordale Briggs / Troy Briggs     - one estimator, one manager
+#
+# ALIAS KEYS: where Alan's spelling and the SP Person roster disagree, both
+# spellings are keyed to the same record. Workday's exact spelling is
+# unconfirmed for Demchenko, Hopkins, Briggs and Gonzales, and an unmatched
+# key would silently drop that person's time off.
+#
+# 'group' and 'role' drive the month view, where everyone appears. The tech,
+# painter and estimator values drive the OFF chips — only a populated value
+# can raise one, so office, parts and production staff are chip-inert by
+# construction. That is intentional (Aug 27): if the Production Manager is out
+# for a week the month view shows it and neither board says a word.
+#
+# Hardcoded rather than an SP list, same trade-off as TECH_MAPPING above: the
+# roster turns over a couple of times a year, and an SP round-trip would add a
+# failure mode where an unreachable list silently blanks every chip on both
+# boards.
+#
+# UNMAPPED NAMES ARE NEVER SILENT. Anything that fails to resolve is returned
+# for the summary email — never swallowed into a car that quietly stops
+# flagging.
+# ──────────────────────────────────────────────────────────────────────────
+ROSTER = {
+    # ── Technicians → Tech choice ────────────────────────────────────────
+    'Dmitriy Runov':    {'person': 'Dmitriy Runov',    'group': 'Technicians', 'role': 'Technician',       'tech': 'Dmitriy'},
+    'Ludek Srajer':     {'person': 'Ludek Srajer',     'group': 'Technicians', 'role': 'Technician',       'tech': 'Ludek'},
+    'Aleks Demchenko':  {'person': 'Aleks Demchenko',  'group': 'Technicians', 'role': 'Technician',       'tech': 'Demchenko'},
+    'Alex Demchenko':   {'person': 'Aleks Demchenko',  'group': 'Technicians', 'role': 'Technician',       'tech': 'Demchenko'},  # alias
+    'Jason Moffitt':    {'person': 'Jason Moffitt',    'group': 'Technicians', 'role': 'Technician',       'tech': 'Jason'},
+    'Uriah Scalf':      {'person': 'Uriah Scalf',      'group': 'Technicians', 'role': 'Technician',       'tech': 'Uriah'},
+    'Kyle Parks':       {'person': 'Kyle Parks',       'group': 'Technicians', 'role': 'Technician',       'tech': 'Kyle'},
+    'Carlos Orozco':    {'person': 'Carlos Orozco',    'group': 'Technicians', 'role': 'Technician',       'tech': 'Carlos'},
+    'Nic Moffitt':      {'person': 'Nic Moffitt',      'group': 'Technicians', 'role': 'Glass Technician', 'tech': 'Nic'},
+    'Tyler Evans':      {'person': 'Tyler Evans',      'group': 'Technicians', 'role': 'Glass Technician', 'tech': 'Tyler E'},
+
+    # ── Paint → Painter choice ───────────────────────────────────────────
+    'Doug Curtis':      {'person': 'Doug Curtis',      'group': 'Paint',       'role': 'Painter',          'painter': 'Doug'},
+    'Wayne Decker':     {'person': 'Wayne Decker',     'group': 'Paint',       'role': 'Painter',          'painter': 'Wayne'},
+    'Ricky Hopkins':    {'person': 'Ricky Hopkins',    'group': 'Paint',       'role': 'Painter',          'painter': 'Rick'},
+    'Rick Hopkins':     {'person': 'Ricky Hopkins',    'group': 'Paint',       'role': 'Painter',          'painter': 'Rick'},    # alias
+    'Admir Huskic':     {'person': 'Admir Huskic',     'group': 'Paint',       'role': 'Painter',          'painter': 'Admir'},
+    # Paint prep — deliberately NO painter value. David is in TECH_PLACEHOLDERS
+    # and is never an assigned painter; a value here would raise chips on cars
+    # he isn't on.
+    'David Alfaro':     {'person': 'David Alfaro',     'group': 'Paint',       'role': 'Paint Prep'},
+
+    # ── Estimators → Estimator choice (first names) ──────────────────────
+    'Cordale Briggs':   {'person': 'Cord Briggs',      'group': 'Estimators',  'role': 'Estimator',        'estimator': 'Cordale'},
+    'Cord Briggs':      {'person': 'Cord Briggs',      'group': 'Estimators',  'role': 'Estimator',        'estimator': 'Cordale'},  # alias
+    'Dana Hulse':       {'person': 'Dana Hulse',       'group': 'Estimators',  'role': 'Estimator',        'estimator': 'Dana'},
+    'Logan Lindsey':    {'person': 'Logan Lindsey',    'group': 'Estimators',  'role': 'Estimator',        'estimator': 'Logan'},
+    'Alan Smith':       {'person': 'Alan Smith',       'group': 'Estimators',  'role': 'Estimator',        'estimator': 'Alan'},
+    'Jennie Nicolls':   {'person': 'Jennie Nicolls',   'group': 'Estimators',  'role': 'Glass Estimator',  'estimator': 'Jennie'},
+
+    # ── Production team — month view only, no chip ───────────────────────
+    'Troy Briggs':      {'person': 'Troy Briggs',      'group': 'Production',  'role': 'Manager'},
+    'Connor Dolan':     {'person': 'Connor Dolan',     'group': 'Production',  'role': 'Production Manager'},
+    'Tyler Peterson':   {'person': 'Tyler Peterson',   'group': 'Production',  'role': 'Shop Foreman'},
+    'Alex Hardman':     {'person': 'Alex Hardman',     'group': 'Production',  'role': 'Production Assistant'},
+
+    # ── Parts ────────────────────────────────────────────────────────────
+    'Aaron Schow':      {'person': 'Aaron Schow',      'group': 'Parts',       'role': 'Parts Manager'},
+    'Jocelyne Lopez':   {'person': 'Jocelyne Lopez',   'group': 'Parts',       'role': 'Parts Clerk'},
+
+    # ── Lot / detail ─────────────────────────────────────────────────────
+    'Erin Dewsnup':     {'person': 'Erin Dewsnup',     'group': 'Lot',         'role': 'Lot Tech'},
+    'Tabitha Gonzales': {'person': 'Tabitha Gonzales', 'group': 'Lot',         'role': 'Lot Tech'},
+    'Tabitha Gonzalez': {'person': 'Tabitha Gonzales', 'group': 'Lot',         'role': 'Lot Tech'},  # alias
+    'Jesus Zavala':     {'person': 'Jesus Zavala',     'group': 'Lot',         'role': 'Polisher'},
+
+    # ── Office ───────────────────────────────────────────────────────────
+    'Corine DeTurk':    {'person': 'Corine DeTurk',    'group': 'Office',      'role': 'Controller'},
+    'Brooke Paul':      {'person': 'Brooke Paul',      'group': 'Office',      'role': 'Administration'},
+    'Julee Gonzales':   {'person': 'Julee Gonzales',   'group': 'Office',      'role': 'Administration'},
+}
+
+# Section order on the month view.
+ROSTER_GROUP_ORDER = ['Estimators', 'Production', 'Technicians', 'Paint', 'Parts', 'Lot', 'Office']
+
+# Departed. Kept OUT of ROSTER so they never appear on the month view, but
+# named here so a stale SP calendar row is reported as "delete this" rather
+# than "add this to ROSTER" — two different fixes.
+#
+# NOTE: Mike Ford stays in TECH_PLACEHOLDERS regardless of this set. Historical
+# CCC workfiles still carry his name in tech fields and the parser must keep
+# stripping it, same principle as retaining renamed phases in PHASE_MAPPING.
+ROSTER_DEPARTED = {'Mike Ford', 'Tristan Curtis'}
+
+# Case- and whitespace-insensitive lookup across every spelling we accept:
+# Workday keys, alias keys, and the SP Person choice values.
+_ROSTER_INDEX = {}
+for _k, _v in ROSTER.items():
+    _ROSTER_INDEX[' '.join(_k.lower().split())] = _v
+    _ROSTER_INDEX[' '.join(_v['person'].lower().split())] = _v
+_ROSTER_DEPARTED_INDEX = {' '.join(n.lower().split()) for n in ROSTER_DEPARTED}
+
+
+def roster_lookup(name):
+    """Resolve any accepted spelling to its ROSTER record. None if unknown."""
+    if not name:
+        return None
+    return _ROSTER_INDEX.get(' '.join(str(name).lower().split()))
+
+
+def roster_is_departed(name):
+    if not name:
+        return False
+    return ' '.join(str(name).lower().split()) in _ROSTER_DEPARTED_INDEX
+
+
+# ─── Time-off cache ───────────────────────────────────────────────────────
+# Module-level, same pattern as _estimator_data. Empty after every deploy and
+# cold start, which is why the cache flow runs daily rather than monthly.
+_timeoff = {'updated': None, 'days': {}, 'people': {}, 'closed': [],
+            'unmapped': [], 'departed': []}
+
+
+def _to_iso_date(v):
+    """Normalize a date from openpyxl, SharePoint, or a string to yyyy-MM-dd."""
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v.strftime('%Y-%m-%d')
+    if isinstance(v, date):
+        return v.strftime('%Y-%m-%d')
+    s = str(v).strip()
+    m = re.match(r'^(\d{4})-(\d{2})-(\d{2})', s)
+    if m:
+        return m.group(0)
+    for fmt in ('%m/%d/%Y', '%m/%d/%y', '%d/%m/%Y'):
+        try:
+            return datetime.strptime(s, fmt).strftime('%Y-%m-%d')
+        except ValueError:
+            pass
+    return None
+
+
+@app.route('/parse-timeoff', methods=['POST'])
+def parse_timeoff():
+    """Parse Troy's monthly Workday export into SP-ready DTBS Calendar rows.
+
+    Expects {'file': '<base64 of the .xlsx>'}.
+
+    The export is one row per person per day — no date ranges to expand, no
+    layout to interpret. The header row is located by content rather than by
+    position so a Workday change that adds a title or filter banner above it
+    does not break the import.
+
+    Returns rows carrying a DedupeKey (person|date) so the upsert can replace
+    a revised month instead of duplicating it.
+    """
+    payload = request.get_json(silent=True) or {}
+    b64 = payload.get('file') or payload.get('content') or ''
+    if not b64:
+        return jsonify({'error': "Expected {'file': '<base64 xlsx>'}"}), 400
+
+    try:
+        raw = base64.b64decode(b64)
+    except Exception as exc:
+        return jsonify({'error': 'file is not valid base64: %s' % exc}), 400
+
+    tmp = tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False)
+    try:
+        tmp.write(raw)
+        tmp.close()
+        wb = openpyxl.load_workbook(tmp.name, read_only=True, data_only=True)
+    except Exception as exc:
+        os.unlink(tmp.name)
+        return jsonify({'error': 'could not open workbook: %s' % exc}), 400
+
+    try:
+        ws = wb[wb.sheetnames[0]]
+        grid = [list(r) for r in ws.iter_rows(values_only=True)]
+    finally:
+        wb.close()
+        os.unlink(tmp.name)
+
+    header_idx, header = None, None
+    for i, row in enumerate(grid[:20]):
+        cells = [(' '.join(str(c).lower().split()) if c is not None else '') for c in row]
+        if 'time off date' in cells and 'worker' in cells:
+            header_idx, header = i, cells
+            break
+    if header_idx is None:
+        return jsonify({'error': "no header row containing 'Time Off Date' and 'Worker'"}), 400
+
+    col = {name: idx for idx, name in enumerate(header) if name}
+    c_date = col.get('time off date')
+    c_worker = col.get('worker')
+    c_type = col.get('time off type')
+    c_units = col.get('units')
+
+    rows, unmapped, skipped = [], [], 0
+    seen = set()
+    for raw_row in grid[header_idx + 1:]:
+        if not raw_row or all(c is None or str(c).strip() == '' for c in raw_row):
+            continue
+        worker = raw_row[c_worker] if c_worker is not None and c_worker < len(raw_row) else None
+        iso = _to_iso_date(raw_row[c_date]) if c_date is not None and c_date < len(raw_row) else None
+        if not worker or not iso:
+            skipped += 1
+            continue
+        worker = str(worker).strip()
+
+        if roster_is_departed(worker):
+            skipped += 1
+            continue
+
+        entry = roster_lookup(worker)
+        if entry is None:
+            if worker not in unmapped:
+                unmapped.append(worker)
+            continue
+
+        key = (entry['person'], iso)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        off_type = (str(raw_row[c_type]).strip()
+                    if c_type is not None and c_type < len(raw_row) and raw_row[c_type]
+                    else 'Time Off')
+        try:
+            hours = (float(raw_row[c_units])
+                     if c_units is not None and c_units < len(raw_row) and raw_row[c_units] is not None
+                     else None)
+        except (TypeError, ValueError):
+            hours = None
+
+        rows.append({
+            'Title':     '%s — %s' % (entry['person'], off_type),
+            'EventDate': iso,
+            'EventType': 'PTO',
+            'Person':    entry['person'],
+            'Hours':     hours,
+            'DedupeKey': '%s|%s' % (entry['person'], iso),
+        })
+
+    rows.sort(key=lambda r: (r['EventDate'], r['Person']))
+    dates = [r['EventDate'] for r in rows]
+    return jsonify({
+        'rows': rows,
+        'unmapped': unmapped,
+        'summary': {
+            'rows_returned': len(rows),
+            'people': len(set(r['Person'] for r in rows)),
+            'first_date': dates[0] if dates else None,
+            'last_date': dates[-1] if dates else None,
+            'skipped_blank_or_departed': skipped,
+            'unmapped_count': len(unmapped),
+        },
+    })
+
+
+@app.route('/timeoff', methods=['POST'])
+def timeoff_post():
+    """Cache DTBS Calendar items, resolved to board-ready choice values.
+
+    Expects the raw array from PA's Get items. Choice fields arrive as
+    {'Value': ...} and are unwrapped here.
+
+    All name translation happens on this side. The boards receive values that
+    compare directly against job.tech / job.painter / job.estimator, so the
+    Cordale/Cord and Rick/Ricky reconciliation lives in one dict instead of
+    being duplicated across ten HTML files.
+    """
+    global _timeoff
+    data = request.get_json(silent=True)
+    if not isinstance(data, list):
+        return jsonify({'error': 'Expected a JSON array of DTBS Calendar items'}), 400
+
+    days, people, closed, unmapped, departed = {}, {}, [], [], []
+    for item in data:
+        if not isinstance(item, dict):
+            continue
+        iso = _to_iso_date(item.get('EventDate'))
+        if not iso:
+            continue
+        # Blank EndDate means a single day — the convention the list was built on.
+        end_iso = _to_iso_date(item.get('EndDate')) or iso
+
+        raw_type = item.get('EventType')
+        if isinstance(raw_type, dict):
+            raw_type = raw_type.get('Value')
+        ev_type = (raw_type or 'PTO').strip()
+
+        raw_person = item.get('Person')
+        if isinstance(raw_person, dict):
+            raw_person = raw_person.get('Value')
+        person = (raw_person or '').strip()
+
+        try:
+            hours = float(item['Hours']) if item.get('Hours') not in (None, '') else None
+        except (TypeError, ValueError):
+            hours = None
+
+        # Expand to individual days. Guard against a fat-fingered EndDate
+        # years out, which would otherwise build a span of thousands of keys.
+        span = []
+        d0 = datetime.strptime(iso, '%Y-%m-%d').date()
+        d1 = datetime.strptime(end_iso, '%Y-%m-%d').date()
+        if d1 < d0:
+            d1 = d0
+        if (d1 - d0).days > 366:
+            d1 = d0
+        cur = d0
+        while cur <= d1:
+            span.append(cur.strftime('%Y-%m-%d'))
+            cur += timedelta(days=1)
+
+        # Shop-wide closure: no Person. Carried for the month view, and
+        # available later if bizDayDTP is taught to subtract holidays.
+        if ev_type == 'Shop Closed' and not person:
+            for d in span:
+                if d not in closed:
+                    closed.append(d)
+            continue
+
+        if roster_is_departed(person):
+            if person not in departed:
+                departed.append(person)
+            continue
+
+        entry = roster_lookup(person)
+        if entry is None:
+            if person and person not in unmapped:
+                unmapped.append(person)
+            continue
+
+        for d in span:
+            bucket = days.setdefault(d, {'tech': [], 'painter': [], 'estimator': []})
+            for ns in ('tech', 'painter', 'estimator'):
+                val = entry.get(ns)
+                if val and val not in bucket[ns]:
+                    bucket[ns].append(val)
+
+            plist = people.setdefault(d, [])
+            if not any(p['person'] == entry['person'] for p in plist):
+                plist.append({
+                    'person': entry['person'],
+                    'role':   entry['role'],
+                    'group':  entry['group'],
+                    'hours':  hours,
+                })
+
+    for d in people:
+        people[d].sort(key=lambda p: (ROSTER_GROUP_ORDER.index(p['group'])
+                                      if p['group'] in ROSTER_GROUP_ORDER else 99,
+                                      p['person']))
+
+    _timeoff = {
+        'updated':  datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+        'days':     days,
+        'people':   people,
+        'closed':   sorted(closed),
+        'unmapped': unmapped,
+        'departed': departed,
+    }
+    return jsonify({
+        'status': 'ok',
+        'days': len(days),
+        'shop_closed_days': len(closed),
+        'unmapped': unmapped,
+        'departed': departed,
+    })
+
+
+@app.route('/timeoff', methods=['GET'])
+def timeoff_get():
+    response = jsonify(_timeoff)
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
