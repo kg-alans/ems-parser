@@ -398,6 +398,7 @@ async function loadBoardData(renderFn) {
       if(j.repairStatus==='Ready for Delivery'||j.repairStatus==='Total Loss'||j.repairStatus==='Done') return false;
       if(j.closedStatusTime&&!j.closedToday) return false;
       if(j.done&&!j.doneToday) return false;
+      if(j.doneToday) return false;
       if(!j.repairStatus&&j.dtp<0) return false;
       return true;
     });
