@@ -45,7 +45,13 @@
     .col-label { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; text-align:center; }
     .col-label.left { text-align:left; }
   
-    .board-footer { position:fixed; bottom:0; left:0; right:0; height:64px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:10; }
+    /* Closed-MTD-by-estimator bar (added Sep 21 2026): replaces the plain
+       border-top divider. .board-footer is position:fixed, so an
+       absolutely-positioned child sits relative to IT, not the page --
+       top:0 here lands exactly on the old border-top's position. */
+    .closed-bar { position:absolute; top:0; left:0; right:0; height:4px; display:flex; overflow:hidden; background:var(--border); }
+    .closed-bar-seg { height:100%; }
+    .board-footer { position:fixed; bottom:0; left:0; right:0; height:64px; background:#060810; display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:10; }
     .footer-mtd { display:flex; gap:32px; align-items:center; }
     .footer-section { display:flex; flex-direction:column; align-items:center; gap:2px; }
     .footer-section-label { font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:#3a6abf; text-align:center; }
@@ -122,6 +128,7 @@
 </div>
 
 <footer class="board-footer">
+  <div class="closed-bar" id="closed-bar" role="img" aria-label="Closed MTD dollars by estimator"></div>
   <div class="footer-mtd">
     <div class="footer-section">
       <span class="footer-section-label">Completed MTD</span>
@@ -170,6 +177,7 @@ document.addEventListener('click',function(e){
 const JSON_URL  = 'https://kgdtbs.onrender.com/estimator-data';
 const SYNC_URL  = 'https://kgdtbs.onrender.com/last-sync';
 const MTD_URL   = 'https://kgdtbs.onrender.com/mtd';
+const MTD_BY_EST_URL = 'https://kgdtbs.onrender.com/mtd-by-estimator';
 const REFRESH   = 5 * 60 * 1000;
 
 const STATUS_RANK = {
@@ -243,6 +251,39 @@ async function fetchMTD() {
     if(pl) pl.textContent = fmtH(data.projectedLabor);
     const plbl = document.getElementById('projected-label');
     if(plbl){ const MN=['January','February','March','April','May','June','July','August','September','October','November','December']; plbl.textContent='Projected '+MN[new Date().getMonth()]; }
+  } catch(e){}
+}
+
+// ── CLOSED-MTD BY ESTIMATOR BAR (added Sep 21 2026) ──
+// The divider line at the top of the footer is now a proportional bar:
+// each estimator's share of Closed MTD dollars, in their own badge color
+// (getEst — same colors used everywhere else on the board, so "Cord's
+// segment" reads the same green as Cord's badge). /mtd-by-estimator already
+// returns real dollar totals per estimator (not counts, despite the
+// scaffolding default in app.py suggesting otherwise) alongside the "All"
+// total, so the percentage is plain division done here on every refresh --
+// no backend or Power Automate change needed. CLOSED_BAR_ORDER is a fixed
+// order (not object-key iteration) so segments don't reshuffle position
+// between refreshes as dollar amounts move around.
+const CLOSED_BAR_ORDER = ['Cordale','Dana','Jennie','Logan','Other'];
+
+async function fetchMtdByEstimator() {
+  try {
+    const res = await fetch(MTD_BY_EST_URL+'?_='+Date.now());
+    if(!res.ok) return;
+    const data = await res.json();
+    const bar = document.getElementById('closed-bar');
+    if(!bar) return;
+    const total = (data.All && data.All.closed) || 0;
+    if(total <= 0){ bar.innerHTML=''; return; }
+    bar.innerHTML = CLOSED_BAR_ORDER.map(name => {
+      const amt = (data[name] && data[name].closed) || 0;
+      if(amt <= 0) return '';
+      const pct = (amt/total)*100;
+      const e = getEst(name);
+      const dollarStr = '$'+Math.round(amt).toLocaleString('en-US');
+      return `<div class="closed-bar-seg" style="flex:0 0 ${pct}%;background:${e.bg}" title="${name}: ${dollarStr} (${pct.toFixed(1)}%)"></div>`;
+    }).join('');
   } catch(e){}
 }
 
@@ -437,10 +478,11 @@ async function loadBoardData(renderFn) {
 
 function startRefresh(renderFn) {
   (function(){const plbl=document.getElementById('projected-label');if(plbl){const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];plbl.textContent='Projected '+MN[new Date().getMonth()];}})();
-  loadBoardData(renderFn); fetchLastSync(); fetchMTD();
+  loadBoardData(renderFn); fetchLastSync(); fetchMTD(); fetchMtdByEstimator();
   setInterval(()=>loadBoardData(renderFn), REFRESH);
   setInterval(fetchLastSync, REFRESH);
   setInterval(fetchMTD, REFRESH);
+  setInterval(fetchMtdByEstimator, REFRESH);
   setInterval(()=>location.reload(), 30*60*1000);
 }
 
