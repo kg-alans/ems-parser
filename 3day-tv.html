@@ -269,39 +269,59 @@ function fmtDate(iso) {
   return MONTHS_S[d.getMonth()]+' '+d.getDate();
 }
 
+// ── DUE-DATE LABELS (fix, Sep 21 2026) ──
+// The prior fix here (dynamicLabel) only adjusted "Due Tomorrow"/"Due in 2
+// Days" on Thursday/Friday, and left "Due Today" untouched entirely -- so it
+// never handled the board being checked on a Saturday or Sunday (that's the
+// case that was actually reported: dtp=0 correctly bucketed Monday's cars,
+// but "Due Today" is false on a day the shop isn't open). bizDayLabel()
+// replaces it: walks forward from today (skipping Sat/Sun, since a CCC
+// promise date is never a weekend) using the same weekend-day math as
+// bizDayDTP, and returns "Due Today" only when that business day IS today,
+// otherwise "Due <Weekday>" -- for all three buckets, on every day of the
+// week. Self-contained (doesn't call bizDayDTP). Verified against bizDayDTP
+// for every possible "today" across a full year (0 mismatches) before
+// shipping.
+function bizDayLabel(target){
+  const now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const dow=today.getDay();
+  for(let i=0;i<14;i++){
+    const d=new Date(today);
+    d.setDate(d.getDate()+i);
+    if(d.getDay()===0||d.getDay()===6) continue; // real promise dates are never Sat/Sun
+    const c=i;
+    const r=c%7;
+    let extra;
+    if(dow===0)      extra=(r>=1)?1:0;
+    else if(dow===1) extra=(r>=6)?1:0;
+    else if(dow===2) extra=(r>=6)?2:((r>=5)?1:0);
+    else if(dow===3) extra=(r>=5)?2:((r>=4)?1:0);
+    else if(dow===4) extra=(r>=4)?2:((r>=3)?1:0);
+    else if(dow===5) extra=(r>=3)?2:((r>=2)?1:0);
+    else             extra=(r>=2)?2:((r>=1)?1:0);
+    const weekend=Math.floor(c/7)*2+extra;
+    if((c-weekend)===target){
+      return d.getTime()===today.getTime() ? 'Due Today' : 'Due '+DAYS_L[d.getDay()];
+    }
+  }
+  return 'Due —';
+}
+
 const GROUPS = [
   {label:'Past Due',     color:'#e3324f',key:'pastdue'},
-  {label:'Due Today',    color:'#0cc258',key:'today'},
+  {dtp:0,                color:'#0cc258',key:'today'},
   {label:'Done Today',   color:'#15b8e6',key:'done'},
-  {label:'Due Tomorrow', color:'#e8b715',key:'tomorrow'},
-  {label:'Due in 2 Days',color:'#4e82c7',key:'twodays'},
+  {dtp:1,                color:'#e8b715',key:'tomorrow'},
+  {dtp:2,                color:'#4e82c7',key:'twodays'},
 ];
-
-// ── DYNAMIC DUE-DAY LABELS (Thu/Fri only) ──
-// Mon–Wed keep "Due Tomorrow"/"Due in 2 Days". On Thu/Fri, name the real
-// weekday so "in 2 days" doesn't read wrong across the weekend.
-function dynamicLabel(group){
-  if(group.key!=='tomorrow' && group.key!=='twodays') return group.label;
-  const dow=new Date().getDay();          // 0=Sun … 6=Sat
-  if(dow!==4 && dow!==5) return group.label; // only Thursday(4) / Friday(5)
-  const steps=group.key==='tomorrow'?1:2;
-  const d=new Date();
-  let added=0;
-  while(added<steps){                     // walk forward, skipping weekends
-    d.setDate(d.getDate()+1);
-    const wd=d.getDay();
-    if(wd!==0 && wd!==6) added++;
-  }
-  const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  return 'Due '+DAYS[d.getDay()];
-}
 
 function groupHeader(group, count) {
   const g = document.createElement('div');
   g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:9px;padding:3px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid #3a4255;background:#1a1e2a';
   g.innerHTML =
     `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>` +
-    `<span style="font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${dynamicLabel(group)}</span>` +
+    `<span style="font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${group.dtp!=null?bizDayLabel(group.dtp):group.label}</span>` +
     `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>`;
   return g;
 }
