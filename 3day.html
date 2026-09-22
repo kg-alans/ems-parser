@@ -254,18 +254,30 @@ async function fetchMTD() {
   } catch(e){}
 }
 
-// ── CLOSED-MTD BY ESTIMATOR BAR (added Sep 21 2026) ──
-// The divider line at the top of the footer is now a proportional bar:
-// each estimator's share of Closed MTD dollars, in their own badge color
-// (getEst — same colors used everywhere else on the board, so "Cord's
-// segment" reads the same green as Cord's badge). /mtd-by-estimator already
-// returns real dollar totals per estimator (not counts, despite the
-// scaffolding default in app.py suggesting otherwise) alongside the "All"
-// total, so the percentage is plain division done here on every refresh --
-// no backend or Power Automate change needed. CLOSED_BAR_ORDER is a fixed
-// order (not object-key iteration) so segments don't reshuffle position
-// between refreshes as dollar amounts move around.
-const CLOSED_BAR_ORDER = ['Cordale','Dana','Jennie','Logan','Other'];
+// ── CLOSED-MTD BY ESTIMATOR BAR (added Sep 21 2026; recolored same day) ──
+// The divider line at the top of the footer is a proportional bar: each
+// estimator's share of Closed MTD dollars. Segment colors are the board's
+// own semantic palette rather than badge colors, so the bar reads as its
+// own thing:
+//   Cordale -> on-track green      (getRowColors' dtp-ok fill, #06612c)
+//   Dana    -> possible-problem yellow (getRowColors' warn fill, #e8b715)
+//   Logan   -> past-due red        (getRowColors' bad fill, #721928)
+//   Jennie  -> purple (picked by Alan, #610d91)
+//   Other   -> section-header gray (the "Due Today" dot color, #8a95a8)
+// /mtd-by-estimator already returns real dollar totals per estimator (not
+// counts, despite the scaffolding default in app.py suggesting otherwise)
+// alongside the "All" total, so the percentage is plain division done here
+// on every refresh -- no backend or Power Automate change needed. Segments
+// are sorted largest-to-smallest by dollar amount on every refresh, so the
+// bar always reads as a live ranking of who's carrying the month rather
+// than holding a fixed legend position.
+const CLOSED_BAR_COLORS = {
+  'Cordale': '#06612c',
+  'Dana':    '#e8b715',
+  'Jennie':  '#610d91',
+  'Logan':   '#721928',
+  'Other':   '#8a95a8',
+};
 
 async function fetchMtdByEstimator() {
   try {
@@ -276,13 +288,14 @@ async function fetchMtdByEstimator() {
     if(!bar) return;
     const total = (data.All && data.All.closed) || 0;
     if(total <= 0){ bar.innerHTML=''; return; }
-    bar.innerHTML = CLOSED_BAR_ORDER.map(name => {
-      const amt = (data[name] && data[name].closed) || 0;
-      if(amt <= 0) return '';
-      const pct = (amt/total)*100;
-      const e = getEst(name);
-      const dollarStr = '$'+Math.round(amt).toLocaleString('en-US');
-      return `<div class="closed-bar-seg" style="flex:0 0 ${pct}%;background:${e.bg}" title="${name}: ${dollarStr} (${pct.toFixed(1)}%)"></div>`;
+    const rows = Object.keys(CLOSED_BAR_COLORS)
+      .map(name => ({ name, amt: (data[name] && data[name].closed) || 0 }))
+      .filter(r => r.amt > 0)
+      .sort((a,b) => b.amt - a.amt);
+    bar.innerHTML = rows.map(r => {
+      const pct = (r.amt/total)*100;
+      const dollarStr = '$'+Math.round(r.amt).toLocaleString('en-US');
+      return `<div class="closed-bar-seg" style="flex:0 0 ${pct}%;background:${CLOSED_BAR_COLORS[r.name]}" title="${r.name}: ${dollarStr} (${pct.toFixed(1)}%)"></div>`;
     }).join('');
   } catch(e){}
 }
