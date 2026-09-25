@@ -3731,9 +3731,6 @@ def parse_timeoff():
             continue
         seen.add(key)
 
-        off_type = (str(raw_row[c_type]).strip()
-                    if c_type is not None and c_type < len(raw_row) and raw_row[c_type]
-                    else 'Time Off')
         try:
             hours = (float(raw_row[c_units])
                      if c_units is not None and c_units < len(raw_row) and raw_row[c_units] is not None
@@ -3741,8 +3738,22 @@ def parse_timeoff():
         except (TypeError, ValueError):
             hours = None
 
+        # Title matches the hand-entry convention ("Cord Briggs Off") so the
+        # calendar reads the same regardless of who created the row.
+        #
+        # The Workday "Time Off Type" (WTO / Personal Purpose) is deliberately
+        # NOT shown. It's HR's category, the shop floor can't act on it, and a
+        # calendar the whole team can open is the wrong place to publish why
+        # someone is out. A PARTIAL day does show its hours, because that is
+        # the one thing a reader would treat differently — Wayne's 6-hour
+        # Nov 27 and Dec 24 are half-days, not full absences.
+        if hours is not None and hours < 8:
+            title = '%s Off (%gh)' % (entry['person'], hours)
+        else:
+            title = '%s Off' % entry['person']
+
         rows.append({
-            'Title':     '%s — %s' % (entry['person'], off_type),
+            'Title':     title,
             'EventDate': iso,
             'EventType': 'PTO',
             'Person':    entry['person'],
