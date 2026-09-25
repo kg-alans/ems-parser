@@ -30,7 +30,7 @@ _SYNC_FILE = os.path.join(os.path.dirname(__file__), 'last_sync.txt')
 TECH_MAPPING = {
     'Dmitriy Runov':   'Dmitriy',
     'Ludek Srajer':    'Ludek',
-    'Alex Demchenko':  'Demchenko',
+    'Aleks Demchenko':  'Demchenko',
     'Jason Moffitt':   'Jason',
     'Uriah Scalf':     'Uriah',
     'Kyle Parks':      'Kyle',
