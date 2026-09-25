@@ -3567,26 +3567,39 @@ ROSTER_GROUP_ORDER = ['Estimators', 'Production', 'Technicians', 'Paint', 'Parts
 # stripping it, same principle as retaining renamed phases in PHASE_MAPPING.
 ROSTER_DEPARTED = {'Mike Ford', 'Tristan Curtis'}
 
-# Case- and whitespace-insensitive lookup across every spelling we accept:
-# Workday keys, alias keys, and the SP Person choice values.
+# Case-, whitespace-, and suffix-insensitive lookup across every spelling we
+# accept: Workday keys, alias keys, and the SP Person choice values.
+#
+# The parenthetical strip exists because Workday appends employment status to
+# the Worker name — "Jason Moffitt (On Leave)" arrived in the Sep 25 file and
+# failed to resolve, silently dropping a technician's time off. Any future
+# "(LOA)", "(Terminated)", "(Per Diem)" now resolves to the same person.
+# Departed detection runs through the same normalizer, so "Mike Ford
+# (Terminated)" is still recognized as departed rather than reported unknown.
+def _roster_norm(name):
+    """Lowercase, drop any (parenthetical), collapse whitespace."""
+    s = re.sub(r'\([^)]*\)', ' ', str(name))
+    return ' '.join(s.lower().split())
+
+
 _ROSTER_INDEX = {}
 for _k, _v in ROSTER.items():
-    _ROSTER_INDEX[' '.join(_k.lower().split())] = _v
-    _ROSTER_INDEX[' '.join(_v['person'].lower().split())] = _v
-_ROSTER_DEPARTED_INDEX = {' '.join(n.lower().split()) for n in ROSTER_DEPARTED}
+    _ROSTER_INDEX[_roster_norm(_k)] = _v
+    _ROSTER_INDEX[_roster_norm(_v['person'])] = _v
+_ROSTER_DEPARTED_INDEX = {_roster_norm(n) for n in ROSTER_DEPARTED}
 
 
 def roster_lookup(name):
     """Resolve any accepted spelling to its ROSTER record. None if unknown."""
     if not name:
         return None
-    return _ROSTER_INDEX.get(' '.join(str(name).lower().split()))
+    return _ROSTER_INDEX.get(_roster_norm(name))
 
 
 def roster_is_departed(name):
     if not name:
         return False
-    return ' '.join(str(name).lower().split()) in _ROSTER_DEPARTED_INDEX
+    return _roster_norm(name) in _ROSTER_DEPARTED_INDEX
 
 
 # ─── Time-off cache ───────────────────────────────────────────────────────
@@ -3616,6 +3629,18 @@ def _to_iso_date(v):
     return None
 
 
+_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+
+def _short_date(iso):
+    d = datetime.strptime(iso, '%Y-%m-%d').date()
+    return '%s %d' % (_MON[d.month - 1], d.day)
+
+
+def _esc(s):
+    return (str(s).replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;'))
+
+
 @app.route('/parse-timeoff', methods=['POST'])
 def parse_timeoff():
     """Parse Troy's monthly Workday export into SP-ready DTBS Calendar rows.
@@ -3627,8 +3652,12 @@ def parse_timeoff():
     position so a Workday change that adds a title or filter banner above it
     does not break the import.
 
-    Returns rows carrying a DedupeKey (person|date) so the upsert can replace
-    a revised month instead of duplicating it.
+    Returns rows carrying a DedupeKey (person|date) so the delete-and-replace
+    can tell import-created rows from hand-entered ones, plus a per-person
+    rollup and two prebuilt HTML fragments for the summary email. The HTML is
+    assembled here rather than in Power Automate because the PA equivalent is
+    a Select + Join + string-concat loop per table — a lot of actions to
+    maintain for a once-a-month email.
     """
     payload = request.get_json(silent=True) or {}
     b64 = payload.get('file') or payload.get('content') or ''
@@ -3671,7 +3700,7 @@ def parse_timeoff():
     c_type = col.get('time off type')
     c_units = col.get('units')
 
-    rows, unmapped, skipped = [], [], 0
+    rows, unmapped, departed, skipped = [], [], [], 0
     seen = set()
     for raw_row in grid[header_idx + 1:]:
         if not raw_row or all(c is None or str(c).strip() == '' for c in raw_row):
@@ -3683,7 +3712,11 @@ def parse_timeoff():
             continue
         worker = str(worker).strip()
 
+        # Reported separately from unmapped: a departed name means "Workday is
+        # still exporting someone who left", not "add this to ROSTER".
         if roster_is_departed(worker):
+            if worker not in departed:
+                departed.append(worker)
             skipped += 1
             continue
 
@@ -3715,16 +3748,61 @@ def parse_timeoff():
             'Person':    entry['person'],
             'Hours':     hours,
             'DedupeKey': '%s|%s' % (entry['person'], iso),
+            '_group':    entry['group'],
+            '_role':     entry['role'],
         })
 
     rows.sort(key=lambda r: (r['EventDate'], r['Person']))
+
+    # Per-person rollup, grouped in roster order so the email reads the way the
+    # shop is organized rather than alphabetically.
+    agg = {}
+    for r in rows:
+        a = agg.setdefault(r['Person'], {
+            'person': r['Person'], 'role': r['_role'], 'group': r['_group'],
+            'days': 0, 'dates': [], 'partial': [],
+        })
+        a['days'] += 1
+        a['dates'].append(r['EventDate'])
+        if r['Hours'] is not None and r['Hours'] < 8:
+            a['partial'].append('%s (%sh)' % (_short_date(r['EventDate']), r['Hours']))
+    by_person = sorted(agg.values(), key=lambda a: (
+        ROSTER_GROUP_ORDER.index(a['group']) if a['group'] in ROSTER_GROUP_ORDER else 99,
+        a['person']))
+
+    parts = ['<table><tr><th>Person</th><th>Role</th><th>Days</th><th>Dates</th></tr>']
+    for a in by_person:
+        ds = ', '.join(_short_date(d) for d in a['dates'])
+        if a['partial']:
+            ds += ' <em style="color:#6b1a2b">— partial: %s</em>' % _esc(', '.join(a['partial']))
+        parts.append('<tr><td><strong>%s</strong></td><td>%s</td><td>%d</td><td>%s</td></tr>'
+                     % (_esc(a['person']), _esc(a['role']), a['days'], ds))
+    parts.append('</table>')
+    html_by_person = ''.join(parts) if by_person else '<div class="empty">No rows imported.</div>'
+
+    if unmapped:
+        html_unmapped = ('<table><tr><th>Name as it appears in the file</th></tr>'
+                         + ''.join('<tr><td>%s</td></tr>' % _esc(n) for n in unmapped)
+                         + '</table>')
+    else:
+        html_unmapped = '<div class="empty">None — every name resolved.</div>'
+
+    # Internal grouping keys stay out of the rows PA writes to SharePoint.
+    for r in rows:
+        r.pop('_group', None)
+        r.pop('_role', None)
+
     dates = [r['EventDate'] for r in rows]
     return jsonify({
         'rows': rows,
         'unmapped': unmapped,
+        'departed': departed,
+        'by_person': by_person,
+        'html_by_person': html_by_person,
+        'html_unmapped': html_unmapped,
         'summary': {
             'rows_returned': len(rows),
-            'people': len(set(r['Person'] for r in rows)),
+            'people': len(by_person),
             'first_date': dates[0] if dates else None,
             'last_date': dates[-1] if dates else None,
             'skipped_blank_or_departed': skipped,
