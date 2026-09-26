@@ -37,15 +37,32 @@
     .cell-center { text-align:center; }
     .cell-sm { font-size:11px; opacity:0.85; text-align:center; }
     .repair-status { font-size:12px; font-weight:600; }
+
+    /* OFF chips (Time-Off board spec, added Sep 25 2026) — small badges marking
+       that a job's tech/painter/estimator is off within the conflict window
+       (promise date + 2 prior business days). Purely visual, never affects sort. */
+    .off-chip {
+      position:absolute; font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:800;
+      letter-spacing:0.05em; color:#fff; background:#e3324f; border:1.5px solid #0b0e14;
+      border-radius:4px; padding:1px 3px; line-height:1.1; white-space:nowrap; pointer-events:none; z-index:2;
+    }
+    .off-chip-badge { top:-7px; right:-7px; }
+    .off-chip-cell  { top:0; right:0; }
     .status-msg { text-align:center; padding:40px; font-family:'Barlow Condensed',sans-serif; font-size:18px; color:var(--muted); }
 
     .board-body { height:calc(100vh - 80px - 64px); overflow-y:scroll; padding:0 20px 8px; scrollbar-width:none; }
     .board-body::-webkit-scrollbar { display:none; }
-    .col-header { display:grid; grid-template-columns:110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px; gap:0; padding:7px 12px 7px 18px; background:var(--bg); position:sticky; top:0; z-index:5; border-bottom:1px solid var(--border); margin-bottom:6px; }
+    .col-header { display:grid; grid-template-columns:110px 100px 170px 1fr 140px 90px 90px 0.9fr 96px 92px 78px; gap:0; padding:7px 12px 7px 18px; background:var(--bg); position:sticky; top:0; z-index:5; border-bottom:1px solid var(--border); margin-bottom:6px; }
     .col-label { font-family:'Barlow Condensed',sans-serif; font-size:12px; font-weight:700; letter-spacing:0.18em; color:var(--muted); text-transform:uppercase; text-align:center; }
     .col-label.left { text-align:left; }
   
-    .board-footer { position:fixed; bottom:0; left:0; right:0; height:64px; background:#060810; border-top:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:10; }
+    /* Closed-MTD-by-estimator bar (added Sep 21 2026): replaces the plain
+       border-top divider. .board-footer is position:fixed, so an
+       absolutely-positioned child sits relative to IT, not the page --
+       top:0 here lands exactly on the old border-top's position. */
+    .closed-bar { position:absolute; top:0; left:0; right:0; height:4px; display:flex; overflow:hidden; background:var(--border); }
+    .closed-bar-seg { height:100%; }
+    .board-footer { position:fixed; bottom:0; left:0; right:0; height:64px; background:#060810; display:flex; align-items:center; justify-content:space-between; padding:0 20px; z-index:10; }
     .footer-mtd { display:flex; gap:32px; align-items:center; }
     .footer-section { display:flex; flex-direction:column; align-items:center; gap:2px; }
     .footer-section-label { font-family:'Barlow Condensed',sans-serif; font-size:8px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:#3a6abf; text-align:center; }
@@ -71,7 +88,6 @@
   </style>
 </head>
 <body>
-<div style="background:#7c3aed;color:#fff;text-align:center;font-family:sans-serif;font-size:12px;font-weight:700;padding:4px;letter-spacing:0.05em">TEST B · /estimator-data · client-computed business-day DTP · status filter relaxed</div>
 <div class="view-switch">
   <button class="view-btn" onclick="document.getElementById('viewMenu').classList.toggle('open')" aria-label="Switch view">
     <span class="hb"></span><span class="hb"></span><span class="hb"></span>
@@ -116,11 +132,14 @@
     <span class="col-label">Painter</span>
     <span class="col-label">Repair Status</span>
     <span class="col-label">CCC Promise</span>
+    <span class="col-label" style="text-align:right">Est $</span>
+    <span class="col-label" style="text-align:right">Hrs</span>
   </div>
   <div id="groups-container"></div>
 </div>
 
 <footer class="board-footer">
+  <div class="closed-bar" id="closed-bar" role="img" aria-label="Closed MTD dollars by estimator"></div>
   <div class="footer-mtd">
     <div class="footer-section">
       <span class="footer-section-label">Completed MTD</span>
@@ -139,7 +158,7 @@
     </div>
     <div class="footer-sep"></div>
     <div class="footer-section">
-      <span class="footer-section-label">Projected MTD</span>
+      <span class="footer-section-label" id="projected-label">Projected</span>
       <div class="footer-stats">
         <div class="footer-stat"><span class="footer-stat-value" id="projected-dollars">—</span></div>
         <div class="footer-stat"><span class="footer-stat-value" id="projected-labor">—</span></div>
@@ -169,6 +188,8 @@ document.addEventListener('click',function(e){
 const JSON_URL  = 'https://kgdtbs.onrender.com/estimator-data';
 const SYNC_URL  = 'https://kgdtbs.onrender.com/last-sync';
 const MTD_URL   = 'https://kgdtbs.onrender.com/mtd';
+const MTD_BY_EST_URL = 'https://kgdtbs.onrender.com/mtd-by-estimator';
+const TIMEOFF_URL = 'https://kgdtbs.onrender.com/timeoff';
 const REFRESH   = 5 * 60 * 1000;
 
 const STATUS_RANK = {
@@ -236,11 +257,75 @@ async function fetchMTD() {
     if(dl) dl.textContent = fmtH(data.doneLabor);
     if(cd) cd.textContent = fmt$(data.closedDollars);
     if(cl) cl.textContent = fmtH(data.closedLabor);
-    // Projected MTD — populates once the flow adds these fields; stays "—" until then
     const pd = document.getElementById('projected-dollars');
     const pl = document.getElementById('projected-labor');
     if(pd) pd.textContent = fmt$(data.projectedDollars);
     if(pl) pl.textContent = fmtH(data.projectedLabor);
+    const plbl = document.getElementById('projected-label');
+    if(plbl){ const MN=['January','February','March','April','May','June','July','August','September','October','November','December']; plbl.textContent='Projected '+MN[new Date().getMonth()]; }
+  } catch(e){}
+}
+
+// ── CLOSED-MTD BY ESTIMATOR BAR (added Sep 21 2026; recolored same day) ──
+// The divider line at the top of the footer is a proportional bar: each
+// estimator's share of Closed MTD dollars. Segment colors are the board's
+// own semantic palette rather than badge colors, so the bar reads as its
+// own thing:
+//   Cordale -> on-track green      (getRowColors' dtp-ok fill, #06612c)
+//   Dana    -> possible-problem yellow (getRowColors' warn fill, #e8b715)
+//   Logan   -> past-due red        (getRowColors' bad fill, #721928)
+//   Jennie  -> purple (picked by Alan, #610d91)
+//   Other   -> section-header gray (the "Due Today" dot color, #8a95a8)
+// /mtd-by-estimator already returns real dollar totals per estimator (not
+// counts, despite the scaffolding default in app.py suggesting otherwise)
+// alongside the "All" total, so the percentage is plain division done here
+// on every refresh -- no backend or Power Automate change needed. Segments
+// are sorted largest-to-smallest by dollar amount on every refresh, so the
+// bar always reads as a live ranking of who's carrying the month rather
+// than holding a fixed legend position.
+const CLOSED_BAR_COLORS = {
+  'Cordale': '#06612c',
+  'Dana':    '#e8b715',
+  'Jennie':  '#610d91',
+  'Logan':   '#721928',
+  'Other':   '#8a95a8',
+};
+
+async function fetchMtdByEstimator() {
+  try {
+    const res = await fetch(MTD_BY_EST_URL+'?_='+Date.now());
+    if(!res.ok) return;
+    const data = await res.json();
+    const bar = document.getElementById('closed-bar');
+    if(!bar) return;
+    const total = (data.All && data.All.closed) || 0;
+    if(total <= 0){ bar.innerHTML=''; return; }
+    const rows = Object.keys(CLOSED_BAR_COLORS)
+      .map(name => ({ name, amt: (data[name] && data[name].closed) || 0 }))
+      .filter(r => r.amt > 0)
+      .sort((a,b) => b.amt - a.amt);
+    bar.innerHTML = rows.map(r => {
+      const pct = (r.amt/total)*100;
+      const dollarStr = '$'+Math.round(r.amt).toLocaleString('en-US');
+      return `<div class="closed-bar-seg" style="flex:0 0 ${pct}%;background:${CLOSED_BAR_COLORS[r.name]}" title="${r.name}: ${dollarStr} (${pct.toFixed(1)}%)"></div>`;
+    }).join('');
+  } catch(e){}
+}
+
+// ── TIME OFF (Time-Off board spec, added Sep 25 2026) ──
+// Module-level cache, same pattern as ROWS elsewhere: /timeoff changes twice a
+// day (Flow 19, 8am/4pm), so a stale-by-REFRESH(5min) read is irrelevant. Starts
+// empty so the board renders with zero chips before the first fetch resolves,
+// and stays empty (never throws) if /timeoff is unreachable or mid-cold-start —
+// per spec §7, a missing/empty cache must never block rendering.
+let TIMEOFF = { days: {} };
+
+async function fetchTimeoff() {
+  try {
+    const res = await fetch(TIMEOFF_URL+'?_='+Date.now());
+    if(!res.ok) return;
+    const data = await res.json();
+    TIMEOFF = (data && data.days) ? data : { days: {} };
   } catch(e){}
 }
 
@@ -286,10 +371,13 @@ function getEst(name) {
   return MAP[(name||'').toLowerCase()] || {bg:'#555566',dark:'#1a1a22',glow:'#555566'};
 }
 
-function badgeHTML(name, fontSize='14px') {
+function offChip(cls){ return '<span class="off-chip '+cls+'">OFF</span>'; }
+
+function badgeHTML(name, fontSize='14px', off=false) {
   const e = getEst(name);
   const display = (name||'').toLowerCase()==='cordale' ? 'CORD' : (name||'').toUpperCase();
-  return `<span style="font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 6px ${e.glow},0 0 2px ${e.border}">${display}</span>`;
+  const chip = off ? offChip('off-chip-badge') : '';
+  return `<span style="position:relative;font-family:'Barlow Condensed',sans-serif;font-size:${fontSize};font-weight:900;letter-spacing:0.1em;padding:4px 10px;border-radius:5px;display:inline-block;white-space:nowrap;background:${e.bg};color:${e.dark};border:3px solid ${e.dark};box-shadow:0 0 6px ${e.glow},0 0 2px ${e.border}">${display}${chip}</span>`;
 }
 
 function fmtDate(iso) {
@@ -297,13 +385,62 @@ function fmtDate(iso) {
   const d=new Date(iso+'T12:00:00');
   return MONTHS_S[d.getMonth()]+' '+d.getDate();
 }
+// Est $ — rounded, comma-grouped, no cents. Dash for null/0 (no estimate yet).
+function fmtDollars(v){
+  if(v==null||isNaN(v)||v===0) return '—';
+  return '$'+Math.round(v).toLocaleString('en-US');
+}
+// Labor hours — one decimal. Dash for null/0 (nothing assigned yet).
+function fmtHrs(v){
+  if(v==null||isNaN(v)||v===0) return '—';
+  return Number(v).toFixed(1);
+}
+
+// ── DUE-DATE LABELS (fix, Sep 21 2026) ──
+// The prior fix here (dynamicLabel) only adjusted "Due Tomorrow"/"Due in 2
+// Days" on Thursday/Friday, and left "Due Today" untouched entirely -- so it
+// never handled the board being checked on a Saturday or Sunday (that's the
+// case that was actually reported: dtp=0 correctly bucketed Monday's cars,
+// but "Due Today" is false on a day the shop isn't open). bizDayLabel()
+// replaces it: walks forward from today (skipping Sat/Sun, since a CCC
+// promise date is never a weekend) using the same weekend-day math as
+// bizDayDTP, and returns "Due Today" only when that business day IS today,
+// otherwise "Due <Weekday>" -- for all three buckets, on every day of the
+// week. Self-contained (doesn't call bizDayDTP). Verified against bizDayDTP
+// for every possible "today" across a full year (0 mismatches) before
+// shipping.
+function bizDayLabel(target){
+  const now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const dow=today.getDay();
+  for(let i=0;i<14;i++){
+    const d=new Date(today);
+    d.setDate(d.getDate()+i);
+    if(d.getDay()===0||d.getDay()===6) continue; // real promise dates are never Sat/Sun
+    const c=i;
+    const r=c%7;
+    let extra;
+    if(dow===0)      extra=(r>=1)?1:0;
+    else if(dow===1) extra=(r>=6)?1:0;
+    else if(dow===2) extra=(r>=6)?2:((r>=5)?1:0);
+    else if(dow===3) extra=(r>=5)?2:((r>=4)?1:0);
+    else if(dow===4) extra=(r>=4)?2:((r>=3)?1:0);
+    else if(dow===5) extra=(r>=3)?2:((r>=2)?1:0);
+    else             extra=(r>=2)?2:((r>=1)?1:0);
+    const weekend=Math.floor(c/7)*2+extra;
+    if((c-weekend)===target){
+      return d.getTime()===today.getTime() ? 'Due Today' : 'Due '+DAYS_L[d.getDay()];
+    }
+  }
+  return 'Due —';
+}
 
 const GROUPS = [
   {label:'Past Due',     color:'#e3324f',key:'pastdue'},
-  {label:'Due Today',    color:'#0cc258',key:'today'},
+  {dtp:0,                color:'#0cc258',key:'today'},
   {label:'Done Today',   color:'#15b8e6',key:'done'},
-  {label:'Due Tomorrow', color:'#e8b715',key:'tomorrow'},
-  {label:'Due in 2 Days',color:'#4e82c7',key:'twodays'},
+  {dtp:1,                color:'#e8b715',key:'tomorrow'},
+  {dtp:2,                color:'#4e82c7',key:'twodays'},
 ];
 
 function groupHeader(group, count) {
@@ -311,19 +448,14 @@ function groupHeader(group, count) {
   g.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:9px;padding:6px 10px;border-radius:4px 4px 0 0;margin-bottom:2px;border-left:4px solid #3a4255;background:#1a1e2a';
   g.innerHTML =
     `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>` +
-    `<span style="font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${group.label}</span>` +
+    `<span style="font-family:'Saira',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.2em;text-transform:uppercase;color:#b0bccf;text-shadow:0 0 8px #b0bccfaa,0 0 16px #b0bccf44">${group.dtp!=null?bizDayLabel(group.dtp):group.label}</span>` +
     `<div style="width:8px;height:8px;border-radius:50%;background:#8a95a8;box-shadow:0 0 6px #8a95a8cc,0 0 12px #8a95a855;flex-shrink:0"></div>`;
   return g;
 }
 
 // ── BUSINESS-DAY DTP (mirrors Flow 1 "DTBS Days to Promise", June-1 weekend math) ──
-// calendar = promise - today (calendar days, shop-local time)
-// weekend  = floor(cal/7)*2 + partial-week leftover by today's day-of-week
-// dtp      = calendar - weekend   (weekends only; holidays not subtracted, matching the flow)
 function bizDayDTP(promiseStr){
   if(!promiseStr) return NaN;
-  // Parse the date PARTS directly to avoid new Date("yyyy-mm-dd") being read as
-  // UTC midnight (which in Mountain time is 6pm the previous day -> off-by-one).
   const m=String(promiseStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
   if(!m) return NaN;
   const pday=new Date(parseInt(m[1],10),parseInt(m[2],10)-1,parseInt(m[3],10));
@@ -332,7 +464,7 @@ function bizDayDTP(promiseStr){
   const cal=Math.round((pday-today)/86400000);
   const sign=cal<0?-1:1;
   const c=Math.abs(cal);
-  const dow=today.getDay();               // 0=Sun..6=Sat (matches PA dayOfWeek)
+  const dow=today.getDay();
   const r=c%7;
   let extra;
   if(dow===0)      extra=(r>=1)?1:0;
@@ -345,6 +477,45 @@ function bizDayDTP(promiseStr){
   const weekend=Math.floor(c/7)*2+extra;
   return sign*(c-weekend);
 }
+
+// ── TIME OFF CONFLICT WINDOW (Time-Off board spec, added Sep 25 2026) ──
+// Conflict window: the promise date plus the 2 business days before it.
+// Returns up to 3 ISO date strings (oldest first), or [] for a bad/blank date.
+// Weekends are skipped, matching bizDayDTP/bizDayLabel. Dates are built from
+// parsed parts, not new Date('yyyy-mm-dd'), for the same off-by-one guard
+// bizDayDTP already uses (a bare ISO string parses as UTC midnight, which is
+// 6pm the previous day in Mountain).
+function conflictWindow(promiseStr){
+  const m = String(promiseStr||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m) return [];
+  const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const d = new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10));
+  const out = [iso(d)];
+  let back = 0, guard = 0;
+  while(back < 2 && guard < 14){
+    d.setDate(d.getDate()-1); guard++;
+    if(d.getDay()===0 || d.getDay()===6) continue;
+    out.unshift(iso(d)); back++;
+  }
+  return out;
+}
+
+// Returns e.g. {tech:true, painter:false, estimator:true}. Compares against
+// job.tech/job.painter/job.estimator -- the stored choice values -- never
+// against badge display text (badgeHTML renders Cordale as 'CORD').
+function offFlags(job, timeoff){
+  const out = {tech:false, painter:false, estimator:false};
+  if(!timeoff || !timeoff.days) return out;
+  for(const d of conflictWindow(job.promise)){
+    const day = timeoff.days[d];
+    if(!day) continue;
+    if(job.tech      && (day.tech||[]).includes(job.tech))           out.tech = true;
+    if(job.painter   && (day.painter||[]).includes(job.painter))     out.painter = true;
+    if(job.estimator && (day.estimator||[]).includes(job.estimator)) out.estimator = true;
+  }
+  return out;
+}
+
 async function loadBoardData(renderFn) {
   try {
     const res = await fetch(JSON_URL+'?_='+Date.now());
@@ -355,22 +526,25 @@ async function loadBoardData(renderFn) {
       estimator:r.estimator||'', tech:r.tech||'', painter:r.painter||'',
       repairStatus:r.repairStatus||'', insurance:r.insurance||'',
       promise:r.promise||'', target:r.target||'',
-      dtp:bizDayDTP(r.promise),   // computed business-day DTP (estimator-data dtp can be null)
+      dtp:bizDayDTP(r.promise),
       totalLoss:r.totalLoss==='True'||r.totalLoss===true,
       done:r.done===true||r.done==='True',
       doneToday:isToday(r.doneTime),
       closedStatusTime:r.closedStatusTime||null,
       closedToday:isToday(r.closedStatusTime),
+      estimateTotal:(r.estimateTotal!=null&&r.estimateTotal!=='')?Number(r.estimateTotal):null,
+      laborHrs:(r.laborHrs!=null&&r.laborHrs!=='')?Number(r.laborHrs):null,
       targetLate:r.target&&r.promise?new Date(r.target)>new Date(r.promise):false,
     }));
     const active = jobs.filter(j=>{
-      if(!j.ro) return false;                                  // no RO -> junk
+      if(!j.ro) return false;
       if(j.totalLoss) return false;
       if(isNaN(j.dtp)||j.dtp>2) return false;
       if(j.repairStatus==='Ready for Delivery'||j.repairStatus==='Total Loss'||j.repairStatus==='Done') return false;
-      if(j.closedStatusTime&&!j.closedToday) return false;     // closed (unless today)
-      if(j.done&&!j.doneToday) return false;                   // done (unless today)
-      if(!j.repairStatus&&j.dtp<0) return false;               // null status + overdue = probably delivered
+      if(j.closedStatusTime&&!j.closedToday) return false;
+      if(j.done&&!j.doneToday) return false;
+      if(j.doneToday) return false;
+      if(!j.repairStatus&&j.dtp<0) return false;
       return true;
     });
     renderFn({
@@ -387,10 +561,13 @@ async function loadBoardData(renderFn) {
 }
 
 function startRefresh(renderFn) {
-  loadBoardData(renderFn); fetchLastSync(); fetchMTD();
+  (function(){const plbl=document.getElementById('projected-label');if(plbl){const MN=['January','February','March','April','May','June','July','August','September','October','November','December'];plbl.textContent='Projected '+MN[new Date().getMonth()];}})();
+  loadBoardData(renderFn); fetchLastSync(); fetchMTD(); fetchMtdByEstimator(); fetchTimeoff();
   setInterval(()=>loadBoardData(renderFn), REFRESH);
   setInterval(fetchLastSync, REFRESH);
   setInterval(fetchMTD, REFRESH);
+  setInterval(fetchMtdByEstimator, REFRESH);
+  setInterval(fetchTimeoff, REFRESH);
   setInterval(()=>location.reload(), 30*60*1000);
 }
 
@@ -410,19 +587,22 @@ function renderBoard(grouped) {
     jobs.forEach(job => {
       const colors = getRowColors(job);
       const e = getEst(job.estimator);
+      const flags = offFlags(job, TIMEOFF);
       const row = document.createElement('div');
       row.className = 'job-row';
-      row.style.cssText = `grid-template-columns:110px 100px 170px 1.3fr 140px 90px 90px 1.1fr 96px;background:${colors.bg};border-left-color:${e.bg};color:${colors.text}`;
+      row.style.cssText = `grid-template-columns:110px 100px 170px 1fr 140px 90px 90px 0.9fr 96px 92px 78px;background:${colors.bg};border-left-color:${e.bg};color:${colors.text}`;
       row.innerHTML =
-        `<div class="cell">${badgeHTML(job.estimator)}</div>`+
+        `<div class="cell">${badgeHTML(job.estimator, '14px', flags.estimator)}</div>`+
         `<div class="cell" style="font-weight:700">${job.ro}</div>`+
         `<div class="cell">${job.customer}</div>`+
         `<div class="cell" style="font-weight:400;opacity:0.9">${job.vehicle}</div>`+
         `<div class="cell cell-sm">${job.insurance}</div>`+
-        `<div class="cell cell-sm">${job.tech}</div>`+
-        `<div class="cell cell-sm">${job.painter}</div>`+
-        `<div class="cell cell-center"><span class="repair-status">${job.repairStatus||'No Status'}</span></div>`+
-        `<div class="cell cell-center" style="font-size:13px;font-weight:600;opacity:0.9">${fmtDate(job.promise)}</div>`;
+        `<div class="cell cell-sm" style="position:relative">${job.tech}${flags.tech?offChip('off-chip-cell'):''}</div>`+
+        `<div class="cell cell-sm" style="position:relative">${job.painter}${flags.painter?offChip('off-chip-cell'):''}</div>`+
+        `<div class="cell cell-center"><span class="repair-status">${job.repairStatus}</span></div>`+
+        `<div class="cell cell-center" style="font-size:13px;font-weight:600;opacity:0.9">${fmtDate(job.promise)}</div>`+
+        `<div class="cell cell-sm" style="text-align:right;justify-content:flex-end;font-variant-numeric:tabular-nums">${fmtDollars(job.estimateTotal)}</div>`+
+        `<div class="cell cell-sm" style="text-align:right;justify-content:flex-end;font-variant-numeric:tabular-nums">${fmtHrs(job.laborHrs)}</div>`;
       groupEl.appendChild(row);
     });
     container.appendChild(groupEl);
