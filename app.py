@@ -969,6 +969,34 @@ def _date_within_one_day(date_a, date_b):
         return abs(da - db) <= 1
     return a == b
 
+def _ccc_datetime_to_utc_z(value):
+    """Normalize a CCC datetime string to true UTC in 'yyyy-MM-ddTHH:mm:ssZ'.
+
+    Sep 29 2026. CCC's XML carries offset-bearing timestamps such as
+    '2026-09-04T17:00:00-05:00' (5 PM Central = 4 PM Mountain). Flows 10a
+    and 10b were passing that string straight through to the SharePoint
+    Update item, and the column ended up holding 15:00Z — displayed as
+    9:00 AM Mountain, seven hours early. Values sent already in Z form
+    (the noon 'T18:00:00Z' stamps from 10e and the backfill flows) display
+    correctly, so the rule is: this service owns the conversion and only
+    ever hands SharePoint a UTC 'Z' string. The PA expressions stay as
+    passthroughs.
+
+    Returns the converted string, or the input unchanged when it is blank,
+    carries no offset (nothing to convert — treated as already UTC), or
+    cannot be parsed. Never raises.
+    """
+    if not value or not str(value).strip():
+        return value
+    raw = str(value).strip()
+    try:
+        dt = datetime.fromisoformat(raw.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return raw
+    if dt.tzinfo is None:
+        return raw
+    return dt.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
 def weak_signal_estimator(report_estimator, sp_estimator):
     """True if estimator first names match (case-insensitive)."""
     return estimator_first_name_match(report_estimator, sp_estimator)
@@ -2162,7 +2190,10 @@ def match_production_schedule():
             # June 5, board showed today's Flow 10a run time). Expose the
             # values here on the same conditions used in new_values below.
             'done':               (row.get('repair_phase', '').strip() in PRODUCTION_DONE_PHASES),
-            'donestatustime':     (row.get('repair_completed_datetime', '') or None)
+            # Sep 29 2026 — converted to true UTC 'Z' form before it leaves
+            # here; the flow passes it straight to SharePoint. See
+            # _ccc_datetime_to_utc_z.
+            'donestatustime':     (_ccc_datetime_to_utc_z(row.get('repair_completed_datetime', '')) or None)
                                   if (row.get('repair_phase', '').strip() in PRODUCTION_DONE_PHASES)
                                   else None,
         })
@@ -2180,7 +2211,7 @@ def match_production_schedule():
         # None or unchanged), so Done flips back to False on the SP row by
         # virtue of the diff engine — supplement-rework / drop-on-return case.
         is_done = m.get('is_production_done', False)
-        real_completion = m.get('repair_completed_datetime', '')
+        real_completion = _ccc_datetime_to_utc_z(m.get('repair_completed_datetime', ''))
         done_status_time = real_completion if is_done and real_completion else None
         new_values = {
             'ro_number':       m.get('ro_number', ''),
@@ -2354,7 +2385,9 @@ def match_vehicles_scheduled_out():
         sp_dst = sp_dst_raw.strip() if isinstance(sp_dst_raw, str) else (sp_dst_raw or '')
         vehicle_out_raw = row.get('vehicle_out', '')
         if cleanup_should_set_done and not sp_dst and vehicle_out_raw:
-            donestatustime_write = vehicle_out_raw
+            # Sep 29 2026 — true UTC 'Z' form, never the raw offset string.
+            # See _ccc_datetime_to_utc_z.
+            donestatustime_write = _ccc_datetime_to_utc_z(vehicle_out_raw)
         else:
             donestatustime_write = sp_dst or None
 
