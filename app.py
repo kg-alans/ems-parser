@@ -2469,6 +2469,10 @@ def match_closed_report():
       correct calendar day in SP's Mountain-time views)
     - Done = True (monotonic — a closed file must be done; never writes
       Done=False, that side is owned by Production Sync per Batch 4)
+    - DoneStatusTime backstop (Sep 29 2026): FILL a blank stamp with the
+      earlier of vehicle_out and closed_date; CLAMP an existing stamp
+      whose date is later than closed_date back to closed_date. Closed is
+      a hard ceiling on production-done. See the inline comment block.
     - Total Loss = is_total_loss from report (correct any drift)
 
     Does NOT write: insurance, estimator, dates other than CST. Those
@@ -2510,22 +2514,63 @@ def match_closed_report():
         raw_closed = row.get('closed_date', '')
         closed_status_time = (raw_closed[:10] + 'T18:00:00Z') if raw_closed else ''
 
-        # DoneStatusTime backstop (July 28 2026) — fill-if-blank only.
-        # By the time a file reaches the Closed report, Production Sync
-        # (repair_completed_datetime) or Cleanup Sync (vehicle_out) should
-        # already have stamped DoneStatusTime. This catches files that
-        # slipped through both (e.g. closed while never appearing on a
-        # Done phase and never marked delivered). Same T18:00:00Z date
-        # convention as ClosedStatusTime. Never overwrites an existing
-        # value — see the DoneStatusTime ruleset in Cleanup Sync.
-        # Same null-is-destructive caveat as Cleanup Sync (July 30 2026):
-        # echo SP's existing value back rather than returning None, so the
-        # PA expression never emits an explicit null that clears the field.
+        # DoneStatusTime backstop — two rules (Sep 29 2026; supersedes the
+        # July 28 fill-if-blank-with-closed_date version).
+        #
+        # Definition agreed Sep 29 2026: a car counts as Completed in the
+        # month of the EARLIEST evidence production was finished — CCC
+        # repair_completed (Production Sync), vehicle_out (Cleanup Sync), or
+        # the file close. A file cannot be production-done AFTER it is
+        # closed: the shop closes files at month end once repairs are done
+        # and money is accounted for, even when the customer picks up days
+        # later (Hartle CCC-1623 closed 8/31, picked up 9/2). So closed_date
+        # is a hard ceiling on DoneStatusTime.
+        #
+        # Rule 1 — FILL when SP has no DoneStatusTime: use the earlier of the
+        #   Closed report's vehicle_out_datetime and closed_date. The old
+        #   closed_date-only fill put re-closed old files into the current
+        #   month (Rosquist CCC-0689: delivered 4/14, re-closed 9/3, stamped
+        #   9/3 -> counted in September). vehicle_out-only would have the
+        #   opposite failure on close-before-pickup files. Earliest of the two
+        #   is right in both cases; closed_date alone when vehicle_out is
+        #   blank (total losses closed without a pickup).
+        #
+        # Rule 2 — CLAMP when SP already has a DoneStatusTime whose calendar
+        #   date is LATER than closed_date: pull it back to closed_date. This
+        #   is the one deliberate exception to "never overwrite an existing
+        #   stamp." It exists for the Cleanup Sync fill path, which only has
+        #   vehicle_out (the pickup date) and so lands close-before-pickup
+        #   cars in the pickup month (Mann CCC-1664: closed 8/31, picked up
+        #   9/1, stamped 9/1 -> counted in September). 10e runs minutes after
+        #   10b in the AHK batch, so the correction lands in the same run.
+        #   Comparison is on the yyyy-MM-dd prefix of the stored UTC value;
+        #   with the shop's hours that is the Mountain date in practice, and
+        #   a same-Mountain-day false positive only moves the time to noon.
+        #
+        # Both rules write the same 'yyyy-MM-ddT18:00:00Z' noon-Mountain
+        # convention as ClosedStatusTime. Everything else is the July 30 2026
+        # echo-back: when neither rule fires, return SP's current value so
+        # the PA expression never emits an explicit null (which clears the
+        # field and used to trigger Flow 13 utcNow stamps).
         sp_dst_raw = sp.get('donestatustime')
         sp_dst = sp_dst_raw.strip() if isinstance(sp_dst_raw, str) else (sp_dst_raw or '')
-        if not sp_dst and closed_status_time:
-            donestatustime_write = closed_status_time
+        closed_day = raw_closed[:10] if raw_closed else ''
+        vehicle_out_raw = (row.get('vehicle_out') or '').strip()
+        vehicle_out_day = vehicle_out_raw[:10] if vehicle_out_raw else ''
+        sp_dst_day = _date_prefix(sp_dst)
+
+        if not sp_dst:
+            # Rule 1 — fill with the earliest evidence available.
+            candidates = [d for d in (vehicle_out_day, closed_day)
+                          if d and re.match(r'^\d{4}-\d{2}-\d{2}$', d)]
+            donestatustime_write = (min(candidates) + 'T18:00:00Z') if candidates else None
+        elif (closed_day and re.match(r'^\d{4}-\d{2}-\d{2}$', closed_day)
+              and re.match(r'^\d{4}-\d{2}-\d{2}$', sp_dst_day)
+              and sp_dst_day > closed_day):
+            # Rule 2 — existing stamp is after the close; clamp to the close.
+            donestatustime_write = closed_day + 'T18:00:00Z'
         else:
+            # Echo-back — no-op write, field never goes blank.
             donestatustime_write = sp_dst or None
 
         matched.append({
@@ -2546,7 +2591,8 @@ def match_closed_report():
             # Done=True monotonic (Batch 4 rule, same as Cleanup Sync):
             # a closed file must show Done=True. Never sets Done=False.
             'should_set_done':        True,
-            # DoneStatusTime backstop — fill-if-blank (July 28 2026).
+            # DoneStatusTime backstop — fill (earliest evidence) or clamp
+            # to closed_date (Sep 29 2026); echo-back otherwise.
             'donestatustime_write':   donestatustime_write,
         })
 
@@ -2558,8 +2604,8 @@ def match_closed_report():
             'ro_number':         m.get('ro_number', ''),
             'workfile_id':       m.get('workfile_id', ''),
             'done':              m.get('should_set_done', False),
-            # DoneStatusTime backstop — only registers as a change when we're
-            # actually proposing a write (fill-if-blank, July 28 2026).
+            # DoneStatusTime backstop — registers as a change when a fill or a
+            # clamp is proposed (Sep 29 2026); echo-back diffs as no change.
             'donestatustime':    m.get('donestatustime_write') if m.get('donestatustime_write') else sp.get('donestatustime', ''),
             'closed':            m.get('is_closed', False),
             'closed_status_time': m.get('closed_status_time', ''),
