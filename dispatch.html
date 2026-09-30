@@ -60,11 +60,10 @@
   /* ── one-line car row (zones 1 and 2) ── */
   .row{flex-shrink:0;background:#161c28;border-radius:5px;border:1px solid #232c3c;border-left:4px solid var(--slate-bar);padding:3px 7px 3px 6px;cursor:pointer;color:#cdd8ec;}
   .row:hover{background:#1b2333;border-color:#34405a;}
-  .row-main{display:grid;grid-template-columns:72px minmax(0,1fr) auto auto auto auto;align-items:center;column-gap:7px;height:18px;}
+  .row-main{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;column-gap:8px;height:19px;}
   .r-ro{font-family:'Saira',sans-serif;font-size:12px;font-weight:800;letter-spacing:0.02em;white-space:nowrap;}
   .r-who{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:600;}
   .r-who .veh{font-weight:400;font-size:10.5px;opacity:0.62;margin-left:6px;}
-  .r-money{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;opacity:0.85;white-space:nowrap;text-align:right;min-width:44px;}
   .r-parts{font-family:'Saira',sans-serif;font-size:9.5px;font-weight:700;white-space:nowrap;min-width:52px;text-align:right;color:#8fa0bd;}
   .r-parts b{font-weight:800;}
   .r-days{font-family:'Saira',sans-serif;font-size:10px;font-weight:800;padding:1px 6px;border-radius:3px;background:#1c2433;color:#9db0cf;white-space:nowrap;min-width:34px;text-align:center;}
@@ -78,16 +77,30 @@
   .est-pill{font-family:'Saira',sans-serif;font-size:8.5px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;padding:1px 6px;border-radius:8px;white-space:nowrap;flex-shrink:0;line-height:1.35;}
   .nm{text-transform:uppercase;letter-spacing:0.01em;}
   .r-note{font-size:10px;opacity:0.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
-  .promise{font-family:'Saira',sans-serif;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;white-space:nowrap;flex-shrink:0;}
+  /* RO number on a pill in the estimator's colour — replaces the estimator name */
+  .ro-pill{font-family:'Saira',sans-serif;font-size:11.5px;font-weight:800;letter-spacing:0.02em;white-space:nowrap;padding:1px 8px;border-radius:9px;color:#000;line-height:1.35;flex-shrink:0;}
+  .ro-pill.copyable{padding:1px 8px;border-radius:9px;}
+  .ro-pill.copyable:hover{filter:brightness(1.15);}
+  .ro-pill.copyable.copied{color:#000;}
+  /* promise banner — its own strip under the car, coloured by how close the date is */
+  .pb{display:block;text-align:center;margin-top:4px;font-family:'Saira',sans-serif;font-size:10px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:2px 8px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pb-red{background:#c8202b;color:#ffffff;}
+  .pb-yellow{background:#ffb31e;color:#2e1f00;}
+  .pb-green{background:#34d17a;color:#04210f;}
+  .pb-far{background:#1c2433;color:#aac0e0;}
 
   /* ── tech rows (zone 3) ── */
-  .tech-row{flex:1 0 auto;min-height:92px;display:flex;background:#0d111a;border:1px solid #1c2333;border-radius:6px;overflow:hidden;}
-  .tech-id{flex:0 0 138px;background:#161b26;border-right:1px solid #232c3c;padding:8px 9px;display:flex;flex-direction:column;gap:5px;cursor:pointer;}
+  .tech-row{flex:1 0 auto;min-height:104px;display:flex;background:#0d111a;border:1px solid #1c2333;border-radius:6px;overflow:hidden;}
+  .tech-id{flex:0 0 156px;background:#161b26;border-right:1px solid #232c3c;padding:8px 9px;display:flex;flex-direction:column;gap:3px;cursor:pointer;}
   .tech-id:hover{background:#1c2434;}
   .tech-name{font-family:'Saira',sans-serif;font-size:17px;font-weight:800;color:#fff;letter-spacing:0.02em;line-height:1;}
-  .tech-wait{font-family:'Saira',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.06em;color:#8fa0bd;text-transform:uppercase;}
-  .tech-parts{font-family:'Saira',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.06em;color:#d4a531;text-transform:uppercase;}
-  .tech-wait b{font-size:15px;color:#fff;font-weight:800;margin-right:3px;}
+  .tech-name{margin-bottom:3px;}
+  .tech-stat{font-family:'Saira',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.06em;color:#8fa0bd;text-transform:uppercase;line-height:1.25;}
+  .tech-stat b{display:inline-block;min-width:14px;font-size:13px;font-weight:800;color:#fff;margin-right:4px;}
+  .tech-stat.lead b{font-size:15px;}
+  .tech-stat.parts b{color:#e0b64a;}
+  .tech-stat.supp b{color:#ee957d;}
+  .tech-stat.zero{opacity:0.38;}
   .tech-open{margin-top:auto;font-family:'Saira',sans-serif;font-size:10px;font-weight:800;letter-spacing:0.05em;color:#7fc0ff;background:#13233f;border:1px solid #2a466e;border-radius:4px;padding:3px 6px;text-align:center;text-transform:uppercase;}
   .tech-id:hover .tech-open{background:#1a3055;}
   .off-badge{font-family:'Saira',sans-serif;font-size:9px;font-weight:800;letter-spacing:0.08em;padding:1px 6px;border-radius:3px;background:#ffb31e;color:#2e1f00;align-self:flex-start;}
@@ -97,7 +110,6 @@
   .chip:hover{background:#1b2333;border-color:#34405a;}
   .chip-top{display:flex;align-items:center;gap:5px;}
   .chip-top .r-days{margin-left:auto;}
-  .chip-promise{margin-top:3px;}
   .chip-cust{text-transform:uppercase;letter-spacing:0.01em;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25;}
   .chip-sub{display:flex;align-items:center;gap:5px;margin-top:2px;min-width:0;}
   .chip-veh{font-size:9.5px;opacity:0.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
@@ -206,7 +218,7 @@
   </section>
   <section class="zone z-tech">
     <div class="zone-head">
-      <div><div class="zone-title">Assigned &mdash; repairs not started</div><div class="zone-sub">Each tech's cars in teardown or on a supplement hold &middot; click a tech for every open job, parts holds included</div></div>
+      <div><div class="zone-title">Assigned &mdash; repairs not started</div><div class="zone-sub">Each tech's cars in teardown or with no phase set &middot; click a tech for every open job, parts and supp holds included</div></div>
       <div class="zone-count" id="nTech">&ndash;</div>
     </div>
     <div class="zone-body" id="zTech"></div>
@@ -243,7 +255,7 @@ const BODY_TECHS=['Carlos','Demchenko','Dmitriy','Jason','Kyle','Ludek','Uriah']
 const EST_COLORS={
   Cordale:{bg:'#4fc96b',c:'#000000',short:'Cord'},
   Dana:   {bg:'#f5c800',c:'#000000',short:'Dana'},
-  Logan:  {bg:'#ff7468',c:'#000000',short:'Logan'},
+  Logan:  {bg:'#f5483b',c:'#000000',short:'Logan'},
   Alan:   {bg:'#5fb0f5',c:'#000000',short:'Alan'},
   Other:  {bg:'#aab2c0',c:'#000000',short:'Other'}
 };
@@ -311,11 +323,11 @@ function waitType(j){
   if(j.status==='Sublet') return 'SUB';
   return null;
 }
-// A tech's row shows only cars whose repairs have not started: teardown, a
-// supplement or insurance hold, or no phase set. Parts holds are NOT counted
-// here (Sep 30 2026) — SharePoint cannot tell a pre-repair parts hold from a
-// reassembly one, so they get their own section in the tech's drawer instead.
-const NOT_STARTED_ORDER=['TECH','EST','INS','NONE'];
+// A tech's row shows only cars that are assigned and not started: teardown,
+// or no phase set. Parts holds and supplement/insurance holds are NOT shown
+// on the row (Sep 30 2026) — they are counted beside the tech's name and get
+// their own sections in the tech's drawer.
+const NOT_STARTED_ORDER=['TECH','NONE'];
 
 // ═══ DATES (never new Date('yyyy-mm-dd') — that parses as UTC midnight and
 //     lands on the previous day in Mountain time) ═══════
@@ -392,6 +404,11 @@ function isLive(j){
   if(EXCLUDE_ESTIMATORS.includes(j.estimator)) return false;
   if(DONE_STATUSES.includes(j.status)||j.doneFlag||j.finished) return false;
   if(j.status==='Total Loss') return false;
+  // Drop Date in the future = not at the shop yet. These reach the page only
+  // when a scheduled car still carries an old status in SharePoint (the sync
+  // does not overwrite a status while CCC says [Scheduled]); they showed up
+  // as "-12d".
+  if(j.daysInShop!=null && j.daysInShop<0) return false;
   // total-loss flag with no phase set = paperwork waiting on a release, not a car to hand out.
   // A TL flag on a car with a real status (e.g. "hold, possible total") stays and gets a TL tag.
   if(j.totalLoss && (j.status===''||NOT_RELEASED.includes(j.status))) return false;
@@ -445,7 +462,6 @@ function shortVehicle(v){
   if(p.length&&/^\d{4}$/.test(p[0])) p[0]=p[0].slice(2);
   return p.slice(0,3).join(' ');
 }
-function money(n){ if(!n) return '&#8212;'; return n>=1000?'$'+(n/1000).toFixed(n>=10000?0:1)+'k':'$'+n; }
 function daysClass(d){ if(d==null) return ''; if(d>=DAYS_RED) return ' d-red'; if(d>=DAYS_ORANGE) return ' d-orange'; if(d>=DAYS_AMBER) return ' d-amber'; return ''; }
 function daysChip(j){ return '<span class="r-days'+daysClass(j.daysInShop)+'" title="Days since drop-off">'+(j.daysInShop==null?'&#8212;':j.daysInShop+'d')+'</span>'; }
 function partsTxt(j){
@@ -463,14 +479,25 @@ function copyRO(el,ro){
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ro).then(done).catch(done);}
   else{try{const t=document.createElement('textarea');t.value=ro;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);}catch(e){}done();}
 }
+// RO number on a pill in the estimator's colour. `cls` keeps the old sizing
+// class for the detail card.
 function roSpan(j,cls){
-  return '<span class="'+cls+' copyable" title="Click to copy RO" data-ro="'+esc(j.ro)+'">'+esc(j.ro)+'</span>';
+  const e=EST_COLORS[j.estimator]||EST_UNKNOWN;
+  return '<span class="ro-pill '+(cls||'')+' copyable" style="background:'+e.bg+'" title="'+esc(j.estimator||'No estimator')+' \u00B7 click to copy RO" data-ro="'+esc(j.ro)+'">'+esc(j.ro)+'</span>';
 }
-function estPill(name,useShort){
+function estPill(name){
   if(!name) return '';
   const e=EST_COLORS[name]||EST_UNKNOWN;
-  const label=(useShort&&e.short)?e.short:name;
-  return '<span class="est-pill" style="background:'+e.bg+';color:'+e.c+'" title="Estimator: '+esc(name)+'">'+esc(label)+'</span>';
+  return '<span class="est-pill" style="background:'+e.bg+';color:'+e.c+'" title="Estimator: '+esc(name)+'">'+esc(name)+'</span>';
+}
+// Promise date as its own strip under the car. Red when late or due today and
+// behind, otherwise the Production View gate colour inside 5 working days,
+// and a quiet strip when the date is further out.
+function promiseBanner(j,compact){
+  const p=promiseChip(j); if(!p) return '';
+  const cls=p.tier?'pb-'+p.tier:'pb-far';
+  // the tech-row chips are narrow, so they drop the word "Promised"
+  return '<span class="pb '+cls+'" title="Promised '+p.date+'">'+(j.dtp<0?'\u26A0 ':'')+(compact?'':'Promised ')+p.date+' \u00B7 '+p.txt+'</span>';
 }
 // Rows and chips show the last name only; a first initial is added when two
 // different customers on the page share that last name. Companies go through
@@ -502,18 +529,18 @@ function buildRow(j,opts){
   el.className='row';
   if(opts.barColor) el.style.borderLeftColor=opts.barColor;
   el.title=tipFor(j);
-  const p=promiseChip(j);
-  const pHtml=p?'<span class="promise" style="background:'+p.bg+';color:'+p.c+'" title="Promised '+p.date+'">'+p.date+' &middot; '+p.txt+'</span>':'';
-  let html='<div class="row-main">'+roSpan(j,'r-ro')+
+  let html='<div class="row-main">'+roSpan(j)+
     '<span class="r-who"><span class="nm">'+esc(shortCustomer(j))+'</span><span class="veh">'+esc(shortVehicle(j.vehicle))+'</span></span>'+
-    (pHtml||'<span></span>')+partsTxt(j)+'<span class="r-money">'+money(j.dollars)+'</span>'+daysChip(j)+'</div>';
+    partsTxt(j)+daysChip(j)+'</div>';
   if(opts.sub){
     const tags=[];
-    if(opts.showEst&&j.estimator) tags.push(estPill(j.estimator));
     if(opts.statusTag) tags.push('<span class="tag" style="color:'+(opts.barColor||'#8fa0bd')+'">'+esc(j.status)+'</span>');
     if(j.totalLoss) tags.push('<span class="tag tl">TL?</span>');
     html+='<div class="row-sub">'+tags.join('')+'<span class="r-note">'+esc(j.notes[0]||'')+'</span></div>';
+  } else if(j.totalLoss){
+    html+='<div class="row-sub"><span class="tag tl">TL?</span></div>';
   }
+  html+=promiseBanner(j);
   el.innerHTML=html;
   el.addEventListener('click',function(e){
     const ro=e.target.closest('.copyable'); if(ro){copyRO(ro,ro.dataset.ro);return;}
@@ -528,15 +555,14 @@ function buildChip(j,type){
   const el=document.createElement('div');
   el.className='chip';
   el.style.borderLeftColor=w.color;
-  const p=promiseChip(j);
   el.title=tipFor(j);
   const label=(type==='TECH'||type==='NONE')?(j.status==='Pre-Production'?'No phase set':j.status):w.label;
-  el.innerHTML='<div class="chip-top">'+roSpan(j,'r-ro')+estPill(j.estimator,true)+daysChip(j)+'</div>'+
+  el.innerHTML='<div class="chip-top">'+roSpan(j)+daysChip(j)+'</div>'+
     '<div class="chip-cust">'+esc(shortCustomer(j))+'</div>'+
     '<div class="chip-sub"><span class="tag" style="color:'+w.color+'">'+esc(label)+'</span>'+
       (j.totalLoss?'<span class="tag tl">TL?</span>':'')+
       '<span class="chip-veh">'+esc(shortVehicle(j.vehicle))+'</span></div>'+
-    (p?'<div class="chip-promise"><span class="promise" style="background:'+p.bg+';color:'+p.c+'" title="Promised '+p.date+'">'+p.date+' &middot; '+p.txt+'</span></div>':'');
+    promiseBanner(j,true);
   el.addEventListener('click',function(e){
     const ro=e.target.closest('.copyable'); if(ro){copyRO(ro,ro.dataset.ro);return;}
     openCar(j);
@@ -561,7 +587,7 @@ function buildCard(j){
   }
   const noteHtml=j.notes.length?'<div class="note"><span class="note-lbl">PRODUCTION NOTES</span><div class="note-full">'+esc(j.notes.join('\n'))+'</div></div>':'';
   const techHtml=esc(j.tech||'—')+(j.techFromNote?'<span class="from-note" title="CCC has no tech on this file yet; read from the newest “To XX” note">NOTE</span>':'');
-  card.innerHTML='<div class="card-top"><span class="card-ro-wrap">'+roSpan(j,'card-ro')+estPill(j.estimator)+(j.totalLoss?'<span class="tag tl">TL?</span>':'')+'</span>'+chipHtml+'</div>'+
+  card.innerHTML='<div class="card-top"><span class="card-ro-wrap">'+roSpan(j)+(j.estimator?'<span class="tag">'+esc(j.estimator)+'</span>':'')+(j.totalLoss?'<span class="tag tl">TL?</span>':'')+'</span>'+chipHtml+'</div>'+
     '<div class="card-cust">'+esc(j.customer)+'</div>'+
     '<div class="card-veh">'+esc(shortVehicle(j.vehicle))+'</div>'+
     '<div class="card-ins">'+(esc(j.insurance)||'&#8212;')+'</div>'+
@@ -641,14 +667,17 @@ function render(){
     const mine=p.filter(function(j){return j.tech===tech && NOT_STARTED_ORDER.includes(waitType(j));});
     const open=techJobs(p,tech);
     const onParts=open.filter(function(j){return waitType(j)==='PARTS';}).length;
+    const onHold=open.filter(function(j){const t=waitType(j);return t==='EST'||t==='INS';}).length;
+    function stat(n,label,cls){return '<div class="tech-stat '+cls+(n?'':' zero')+'"><b>'+n+'</b>'+label+'</div>';}
     total+=mine.length;
     const row=document.createElement('div');row.className='tech-row';
     const id=document.createElement('div');id.className='tech-id';
     id.title='Show every open job for '+tech;
     id.innerHTML='<div class="tech-name">'+esc(tech)+'</div>'+
       (OFF_TODAY.includes(tech)?'<span class="off-badge">OFF TODAY</span>':'')+
-      '<div class="tech-wait"><b>'+mine.length+'</b>not started</div>'+
-      (onParts?'<div class="tech-parts">'+onParts+' on parts</div>':'')+
+      stat(mine.length,'not started','lead')+
+      stat(onParts,'waiting on parts','parts')+
+      stat(onHold,'on supp hold','supp')+
       '<div class="tech-open">'+open.length+' open job'+(open.length===1?'':'s')+' &rsaquo;</div>';
     id.addEventListener('click',function(){openTech(tech);});
     const cars=document.createElement('div');cars.className='tech-cars';
