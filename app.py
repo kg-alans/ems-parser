@@ -135,10 +135,29 @@ DTBS_STATUS_RANK = {
 
 # CCC Repair Phase → DTBS Repair Status mapping.
 # Returns None for "skip — manual stays". Whitespace in CCC values is normalized
-# at lookup time (collapse multiple spaces, trim) so "2:X-Ray" and "2: X-Ray" both match.
+# at lookup time (collapse multiple spaces, trim, drop the space after a colon)
+# so "2:X-Ray" and "2: X-Ray" both match ONE key.
+#
+# KEY SPELLING RULE (Sep 30 2026): a key only ever needs one spelling, and you
+# do not have to get the spacing right. Lookups arrive normalized, and the
+# dict itself is re-keyed through the same normalizer right after
+# normalize_phase_key is defined (search "PHASE_MAPPING re-key"). Before that
+# guard existed, four keys written with a space after the colon
+# ('8: parts: take to annex', '8:parts: BACK ORDERED PARTS',
+# '8:parts: Waiting for parts delivery', '10: sublet detail') could never
+# match anything — Lopez CCC-2136 sat on back-order hold in CCC while
+# SharePoint kept showing Paint.
 PHASE_MAPPING = {
     # Bracketed (auto-assigned)
-    '[Not Started]':                       None,
+    # [Not Started] = the car is physically here and no repair phase has been
+    # set yet (Sep 30 2026). Verified against the Sep 29 Production Schedule:
+    # all 36 [Not Started] rows carried days_in_shop >= 1 and all 44
+    # [Scheduled] rows carried 0, including 12 whose scheduled-in date had
+    # already passed. Alan confirmed Lambson CCC-2124 and Slater CCC-2012 on
+    # the lot. Writing Pre-Production gives SharePoint an arrival signal
+    # without a new column; /dispatch reads it as "here, not released yet".
+    # [Scheduled] and [No Plan] stay None — CCC does not consider those here.
+    '[Not Started]':                       'Pre-Production',
     '[Scheduled]':                         None,
     '[No Plan]':                           None,
     '[Completed]':                         'Ready for Delivery',
@@ -217,11 +236,11 @@ PHASE_MAPPING = {
     '7:In House Mechanical':               'Sublet',
 
     # Phase 8: Parts
-    '8: parts: take to annex':             'Waiting on Parts',
+    '8:parts:take to annex':               'Waiting on Parts',
     '8:parts:CHECK':                       'Waiting on Parts',
     '8:Parts on Order':                    'Waiting on Parts',
-    '8:parts: BACK ORDERED PARTS':         'Waiting on Parts',
-    '8:parts: Waiting for parts delivery': 'Waiting on Parts',
+    '8:parts:BACK ORDERED PARTS':          'Waiting on Parts',
+    '8:parts:Waiting for parts delivery':  'Waiting on Parts',
     '8:parts:Paint Delay':                 'Waiting on Parts',
     '8:parts:Reassy Delay':                'Waiting on Parts',
     '8:parts:Repair Delay':                'Waiting on Parts',
@@ -244,7 +263,7 @@ PHASE_MAPPING = {
     '9:Production Delay (see notes)':      None,
 
     # Phase 10
-    '10: sublet detail':                   'Sublet',
+    '10:sublet detail':                    'Sublet',
     '10:Detail':                           'QC',  # Added May 28 — same logic as 5:Detail
 }
 
@@ -734,6 +753,13 @@ def normalize_phase_key(phase):
     # Collapse internal whitespace, then remove any space directly after a colon
     collapsed = re.sub(r'\s+', ' ', phase.strip())
     return re.sub(r':\s+', ':', collapsed)
+
+# PHASE_MAPPING re-key (Sep 30 2026). Run every key through the same
+# normalizer the lookups use, so a key typed as CCC displays it
+# ('8:parts: BACK ORDERED PARTS') and a key typed without the space both land
+# on the one spelling map_phase_to_status will ask for. This makes an
+# unreachable key impossible rather than relying on careful typing.
+PHASE_MAPPING = {normalize_phase_key(_k): _v for _k, _v in PHASE_MAPPING.items()}
 
 def map_phase_to_status(ccc_phase):
     """Map a CCC repair_phase_name to a DTBS RepairStatus value.
@@ -3367,6 +3393,13 @@ def board_jennie():
 @app.route('/other', methods=['GET'])
 def board_other():
     return send_from_directory('.', 'other.html')
+
+# Dispatch board (Sep 30 2026) — cars at the shop with no tech yet, and each
+# tech's assigned cars whose repairs have not started. Reads /estimator-data
+# like every other board; no feed or flow change.
+@app.route('/dispatch', methods=['GET'])
+def board_dispatch():
+    return send_from_directory('.', 'dispatch.html')
 
 # ─── /last-sync endpoint ──────────────────────────────────────────
 

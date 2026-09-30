@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920">
+<title>Dispatch — Ken Garff Body &amp; Glass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Changa+One&family=Saira:wght@600;700;800&family=Lexend+Deca:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Same tokens as the Production View boards (main.html) so the two read as one system. */
+  :root{--bg:#0b0e14;--text:#d8e4f8;--muted:#56647d;--header-bg:#6b1a2b;--header-rim:#8c2038;--accent:#ff9999;
+    --slate-bar:#3a4a6a;--wait-bar:#c0309a;
+    --green-bar:#55ee88;--yellow-bar:#ffaa00;--red-bar:#ff6060;--done-bar:#55aaff;--stale-bar:#8b6fd4;
+    --tech-c:#5b8fb0;--est-c:#e07a5f;--appr-c:#3fb0a0;--parts-c:#d4a531;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:'Lexend Deca',sans-serif;overflow:hidden;}
+
+  /* ── header (mirrors main.html) ── */
+  .board-header{height:72px;background:var(--header-bg);border-bottom:3px solid var(--header-rim);display:flex;align-items:center;justify-content:space-between;padding:0 22px;gap:18px;position:relative;}
+  .header-left{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
+  .shop-name{font-family:'Changa One',display;font-size:21px;color:#fff;line-height:1;}
+  .page-chip{font-family:'Saira',sans-serif;font-size:15px;font-weight:800;letter-spacing:0.04em;padding:2px 8px;border-radius:5px;background:#4a0a0a;color:#ff9999;border:1px solid #c50f1f;}
+  .sw{width:4px;height:12px;border-radius:1px;flex-shrink:0;}
+  .header-right{display:flex;align-items:center;gap:14px;margin-right:34px;}
+  .search-wrap{display:flex;flex-direction:column;gap:2px;}
+  .search-box{background:#2a0e14;border:1px solid #8c2038;border-radius:6px;padding:6px 10px;color:#fff;font-family:'Lexend Deca';font-size:12px;width:170px;outline:none;}
+  .search-box::placeholder{color:#cc8a92;}
+  .search-hint{font-size:8.5px;letter-spacing:0.04em;color:#8a96ad;text-align:center;}
+  .clkwrap{text-align:right;}
+  .clk{font-family:'Saira',sans-serif;font-size:20px;font-weight:700;color:#fff;line-height:1;}
+  .sync{font-size:10px;font-weight:500;color:var(--accent);margin-top:2px;}
+  .sync.stale{color:#ffb84d;}
+  .view-switch{position:absolute;top:8px;right:10px;z-index:58;}
+  .view-btn{background:transparent;border:none;padding:5px;cursor:pointer;display:flex;flex-direction:column;gap:3px;border-radius:5px;}
+  .view-btn:hover{background:rgba(255,160,150,0.15);}
+  .view-btn .hb{display:block;width:20px;height:2.5px;border-radius:2px;background:var(--accent);}
+  .view-menu{position:absolute;top:108%;right:0;background:#161c28;border:1px solid #2a3346;border-radius:7px;padding:5px;min-width:160px;z-index:58;box-shadow:0 8px 24px #000a;display:none;}
+  .view-menu.open{display:block;}
+  .view-opt{display:block;padding:7px 10px;border-radius:5px;font-size:13px;font-weight:600;color:#d8e4f8;text-decoration:none;}
+  .view-opt:hover{background:#222a3a;}
+  .view-opt.active{background:#2a1216;color:var(--accent);}
+
+  /* ── three zones, left to right in the order a car moves ── */
+  .dispatch{height:calc(100vh - 72px);display:flex;gap:8px;padding:10px;}
+  .zone{background:#10141f;border:1px solid #1c2333;border-radius:8px;display:flex;flex-direction:column;overflow:hidden;height:100%;min-width:0;}
+  .zone.z-est{flex:0 0 468px;}
+  .zone.z-ready{flex:0 0 468px;}
+  .zone.z-tech{flex:1 1 auto;}
+  .zone-head{padding:7px 11px 7px;border-bottom:2px solid #3a4458;flex-shrink:0;background:#161b26;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .zone-title{font-family:'Saira',sans-serif;font-size:12.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#c3cde0;line-height:1.1;}
+  .zone-sub{font-size:9.5px;color:#6f7d96;margin-top:2px;letter-spacing:0.02em;}
+  /* each zone carries its own key: only what that zone's marks mean */
+  .zone-key{display:flex;flex-wrap:wrap;align-items:center;gap:3px 11px;margin-top:5px;}
+  .kk{display:flex;align-items:center;gap:4px;font-size:9.5px;color:#93a1ba;white-space:nowrap;}
+  .kk .r-days{min-width:0;font-size:9px;padding:0 4px;}
+  .kk .promise{font-size:8.5px;}
+  .kk .from-note{margin-left:0;}
+  .zone-count{font-family:'Saira',sans-serif;font-size:22px;font-weight:800;color:#fff;line-height:0.9;}
+  .zone-body{flex:1;overflow-y:auto;padding:5px;display:flex;flex-direction:column;gap:3px;scrollbar-width:thin;scrollbar-color:#6b1a2b #0d1018;}
+  .zone-body::-webkit-scrollbar{width:7px;} .zone-body::-webkit-scrollbar-track{background:#0d1018;} .zone-body::-webkit-scrollbar-thumb{background:#6b1a2b;border-radius:4px;border:1px solid #0d1018;}
+  .divider{font-family:'Saira',sans-serif;font-size:9.5px;font-weight:800;letter-spacing:0.1em;padding:2px 2px 2px 7px;margin:3px 0 0;border-left:3px solid;display:flex;align-items:center;justify-content:space-between;text-transform:uppercase;flex-shrink:0;}
+  .divider:first-child{margin-top:0;}
+  .divider.est-div{border-left:none;padding-left:0;color:#93a1ba;}
+  .divider-n{font-size:9px;opacity:0.7;font-weight:700;padding-right:4px;}
+  .empty{font-size:10px;opacity:0.3;text-align:center;padding:14px 4px;font-style:italic;}
+
+  /* ── one-line car row (zones 1 and 2) ── */
+  .row{flex-shrink:0;background:#161c28;border-radius:5px;border:1px solid #232c3c;border-left:4px solid var(--slate-bar);padding:3px 7px 3px 6px;cursor:pointer;color:#cdd8ec;}
+  .row:hover{background:#1b2333;border-color:#34405a;}
+  .row-main{display:grid;grid-template-columns:72px minmax(0,1fr) auto auto auto auto;align-items:center;column-gap:7px;height:18px;}
+  .r-ro{font-family:'Saira',sans-serif;font-size:12px;font-weight:800;letter-spacing:0.02em;white-space:nowrap;}
+  .r-who{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:600;}
+  .r-who .veh{font-weight:400;font-size:10.5px;opacity:0.62;margin-left:6px;}
+  .r-money{font-family:'Saira',sans-serif;font-size:11px;font-weight:700;opacity:0.85;white-space:nowrap;text-align:right;min-width:44px;}
+  .r-parts{font-family:'Saira',sans-serif;font-size:9.5px;font-weight:700;white-space:nowrap;min-width:52px;text-align:right;color:#8fa0bd;}
+  .r-parts b{font-weight:800;}
+  .r-days{font-family:'Saira',sans-serif;font-size:10px;font-weight:800;padding:1px 6px;border-radius:3px;background:#1c2433;color:#9db0cf;white-space:nowrap;min-width:34px;text-align:center;}
+  .r-days.warm{background:#3a2a0a;color:#ffcf6a;}
+  .r-days.stale{background:var(--stale-bar);color:#0c0814;}
+  .row-sub{display:flex;align-items:center;gap:6px;margin-top:2px;min-width:0;height:15px;}
+  .tag{font-family:'Saira',sans-serif;font-size:8.5px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,0.06);white-space:nowrap;flex-shrink:0;}
+  .tag.tl{background:#3a1518;color:#ff9a9a;}
+  /* estimator pill — same colours as the SharePoint list's estimator pills */
+  .est-pill{font-family:'Saira',sans-serif;font-size:8.5px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;padding:1px 6px;border-radius:8px;white-space:nowrap;flex-shrink:0;line-height:1.35;}
+  .nm{text-transform:uppercase;letter-spacing:0.01em;}
+  .r-note{font-size:10px;opacity:0.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  .promise{font-family:'Saira',sans-serif;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;white-space:nowrap;flex-shrink:0;}
+
+  /* ── tech rows (zone 3) ── */
+  .tech-row{flex:1 0 auto;min-height:92px;display:flex;background:#0d111a;border:1px solid #1c2333;border-radius:6px;overflow:hidden;}
+  .tech-id{flex:0 0 138px;background:#161b26;border-right:1px solid #232c3c;padding:8px 9px;display:flex;flex-direction:column;gap:5px;cursor:pointer;}
+  .tech-id:hover{background:#1c2434;}
+  .tech-name{font-family:'Saira',sans-serif;font-size:17px;font-weight:800;color:#fff;letter-spacing:0.02em;line-height:1;}
+  .tech-wait{font-family:'Saira',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.06em;color:#8fa0bd;text-transform:uppercase;}
+  .tech-wait b{font-size:15px;color:#fff;font-weight:800;margin-right:3px;}
+  .tech-open{margin-top:auto;font-family:'Saira',sans-serif;font-size:10px;font-weight:800;letter-spacing:0.05em;color:#7fc0ff;background:#13233f;border:1px solid #2a466e;border-radius:4px;padding:3px 6px;text-align:center;text-transform:uppercase;}
+  .tech-id:hover .tech-open{background:#1a3055;}
+  .off-badge{font-family:'Saira',sans-serif;font-size:9px;font-weight:800;letter-spacing:0.08em;padding:1px 6px;border-radius:3px;background:#ffb31e;color:#2e1f00;align-self:flex-start;}
+  .tech-cars{flex:1;min-width:0;padding:6px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:5px;}
+  .tech-none{font-size:10.5px;opacity:0.32;font-style:italic;padding:6px 4px;}
+  .chip{width:190px;background:#161c28;border:1px solid #232c3c;border-left:4px solid var(--slate-bar);border-radius:5px;padding:4px 7px 5px 6px;cursor:pointer;color:#cdd8ec;}
+  .chip:hover{background:#1b2333;border-color:#34405a;}
+  .chip-top{display:flex;align-items:center;gap:5px;}
+  .chip-top .r-days{margin-left:auto;}
+  .chip-promise{margin-top:3px;}
+  .chip-cust{text-transform:uppercase;letter-spacing:0.01em;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25;}
+  .chip-sub{display:flex;align-items:center;gap:5px;margin-top:2px;min-width:0;}
+  .chip-veh{font-size:9.5px;opacity:0.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+  .from-note{font-size:9px;font-family:'Saira',sans-serif;font-weight:800;color:#e8c06a;background:#3a2c12;border:1px solid #6b5220;border-radius:3px;padding:0 4px;margin-left:4px;letter-spacing:0.04em;}
+
+  /* ── slide-over panel: a tech's open jobs, or one car ── */
+  .side-overlay{position:fixed;inset:72px 0 0 0;background:rgba(4,7,12,0.55);display:none;justify-content:flex-end;z-index:60;}
+  .side-overlay.open{display:flex;}
+  .side-panel{width:940px;max-width:92vw;height:100%;background:#0c111c;border-left:2px solid #2a466e;box-shadow:-12px 0 32px #000a;display:flex;flex-direction:column;}
+  .side-panel.narrow{width:330px;}
+  .side-head{padding:12px 16px;border-bottom:2px solid #1d3050;position:relative;flex-shrink:0;}
+  .side-title{font-family:'Saira',sans-serif;font-size:15px;font-weight:800;letter-spacing:0.08em;color:#7fc0ff;text-transform:uppercase;}
+  .side-sub{font-size:10.5px;color:#6f7d96;margin-top:2px;}
+  .side-close{position:absolute;top:10px;right:14px;background:none;border:none;color:#7e8aa3;font-size:22px;line-height:1;cursor:pointer;}
+  .side-close:hover{color:#fff;}
+  .side-body{flex:1;overflow-y:auto;padding:10px;scrollbar-width:thin;scrollbar-color:#6b1a2b #0d1018;}
+  .side-group{margin-bottom:10px;}
+  .side-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(214px,1fr));gap:6px;align-items:start;}
+
+  /* ── full card (same markup and classes as main.html) ── */
+  .card{background:#161c28;border-radius:6px;padding:6px 7px;border:1.5px solid #232c3c;border-left:5px solid var(--slate-bar);position:relative;color:#cdd8ec;overflow:hidden;}
+  .card.bar-green.wt-bar{border-left-color:var(--green-bar);}
+  .card.bar-yellow.wt-bar{border-left-color:var(--yellow-bar);}
+  .card.bar-red.wt-bar{border-left-color:var(--red-bar);}
+  .card.bar-green.wt-full{border-left-color:var(--green-bar);border-color:var(--green-bar);background:#0f2418;}
+  .card.bar-yellow.wt-full{border-left-color:var(--yellow-bar);border-color:var(--yellow-bar);background:#2a2008;}
+  .card.bar-red.wt-full{border-left-color:var(--red-bar);border-color:var(--red-bar);background:#2a1518;}
+  .card.bar-estimator{border-left-color:var(--wait-bar);border-color:var(--wait-bar);background:#23102099;}
+  .card.bar-insurance{border-left-color:var(--wait-bar);border-color:#232c3c;}
+  .card.bar-stale{border-left-color:#6b5b95;border-color:#6b5b95;background:#1c1830;}
+  .card-top{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:3px;}
+  .card-ro-wrap{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+  .card-ro{font-family:'Saira';font-size:12.5px;font-weight:800;letter-spacing:0.02em;}
+  .copyable{cursor:pointer;border-radius:3px;padding:0 2px;transition:background 0.15s;}
+  .copyable:hover{background:#2a3346;}
+  .copyable.copied{background:#0d3a2a;color:#7fe0b0;}
+  .card-dtp{font-family:'Saira';font-size:9.5px;font-weight:800;padding:2px 6px;border-radius:3px;letter-spacing:0.03em;white-space:nowrap;}
+  .chip-stack{display:flex;flex-direction:column;align-items:flex-end;gap:1px;}
+  .date-source{font-family:'Saira',sans-serif;font-size:7px;font-weight:700;letter-spacing:0.14em;color:rgba(255,255,255,0.85);text-transform:uppercase;line-height:1;}
+  .over-badge{font-size:11px;line-height:1;margin-left:2px;color:#ff5252;}
+  .bar-pct.over{color:#ff7070;font-weight:800;}
+  .card-cust{font-size:12.5px;font-weight:600;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card-veh{font-size:11px;opacity:0.78;line-height:1.15;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card-ins{font-size:10px;opacity:0.7;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .card-people{display:flex;gap:10px;font-size:10.5px;opacity:0.8;margin-bottom:5px;}
+  .card-people b{font-family:'Saira';font-weight:600;opacity:0.55;letter-spacing:0.03em;margin-right:3px;}
+  .bars{display:flex;flex-direction:column;gap:3px;margin-bottom:5px;}
+  .bar-row{display:flex;align-items:center;gap:5px;}
+  .bar-lbl{font-family:'Saira';font-size:8.5px;font-weight:700;letter-spacing:0.05em;opacity:0.6;width:30px;flex-shrink:0;}
+  .bar-track{flex:1;height:5px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:3px;}
+  .bar-pct{font-family:'Saira';font-size:9px;font-weight:700;opacity:0.75;width:30px;text-align:right;flex-shrink:0;}
+  .bar-blank{flex:1;font-size:9px;opacity:0.4;font-style:italic;}
+  .card-phase{font-family:'Saira',sans-serif;font-size:9.5px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:#8fa0bd;background:rgba(255,255,255,0.05);border-radius:3px;padding:2px 6px;margin-bottom:4px;display:inline-block;}
+  .note{border-top:1px solid rgba(255,255,255,0.1);padding-top:4px;margin-top:1px;}
+  .note-lbl{font-family:'Saira';font-weight:700;font-size:8px;letter-spacing:0.06em;opacity:0.55;display:block;margin-bottom:1px;}
+  .note-full{font-size:10.5px;line-height:1.35;opacity:0.9;white-space:pre-line;}
+  .card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:5px;}
+  .card-dollars{font-family:'Saira';font-size:11.5px;font-weight:700;opacity:0.9;}
+  .card-days{font-family:'Saira';font-size:9.5px;font-weight:700;opacity:0.5;}
+  .card-days.days-stale{opacity:1;background:#8b6fd4;color:#0c0814;padding:1px 7px;border-radius:3px;font-weight:800;}
+  @keyframes chipPulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.55;transform:scale(0.94);}}
+  .card-dtp.chip-pulse{animation:chipPulse 1.4s ease-in-out infinite;}
+  .loading{flex:1;display:flex;align-items:center;justify-content:center;font-family:'Saira';font-size:14px;letter-spacing:0.1em;color:#5a6478;}
+</style>
+</head>
+<body>
+<header class="board-header">
+  <div class="header-left">
+    <div class="shop-name">Ken Garff Body &amp; Glass</div>
+    <div class="page-chip">DISPATCH</div>
+  </div>
+  <div class="header-right">
+    <div class="search-wrap">
+      <input class="search-box" id="search" placeholder="Search" oninput="render()">
+      <div class="search-hint">'Name' &middot; 'RO' &middot; 'Vehicle' &middot; 'Insurance'</div>
+    </div>
+    <div class="clkwrap"><div class="clk" id="clk">&#8211;:&#8211; &#8211;</div><div class="sync" id="sync">Loading&#8230;</div></div>
+  </div>
+  <div class="view-switch">
+    <button class="view-btn" onclick="document.getElementById('viewMenu').classList.toggle('open')" aria-label="Switch view">
+      <span class="hb"></span><span class="hb"></span><span class="hb"></span>
+    </button>
+    <div class="view-menu" id="viewMenu">
+      <a class="view-opt" href="/main">Production View</a>
+      <a class="view-opt" href="/3day">3-Day List</a>
+      <a class="view-opt active" href="/dispatch">Dispatch</a>
+    </div>
+  </div>
+</header>
+
+<div class="dispatch" id="dispatch">
+  <section class="zone z-est">
+    <div class="zone-head">
+      <div><div class="zone-title">Here &mdash; not released</div><div class="zone-sub">At the shop, no repair phase set, no tech &middot; by estimator</div>
+        <div class="zone-key">
+          <span class="kk"><span class="r-days warm">4d</span>4&ndash;7 days here</span>
+          <span class="kk"><span class="r-days stale">8d</span>over a week</span>
+          <span class="kk"><span class="promise" style="background:#ffb31e;color:#2e1f00">10/2</span>promised date</span>
+        </div></div>
+      <div class="zone-count" id="nEst">&ndash;</div>
+    </div>
+    <div class="zone-body" id="zEst"><div class="loading">Loading&#8230;</div></div>
+  </section>
+  <section class="zone z-ready">
+    <div class="zone-head">
+      <div><div class="zone-title">Ready to hand out</div><div class="zone-sub">Released to production, no tech yet &middot; longest wait first</div>
+        <div class="zone-key">
+          <span class="kk"><span class="sw" style="background:#5b8fb0"></span>Dispatch / teardown</span>
+          <span class="kk"><span class="sw" style="background:#d4a531"></span>Parts hold</span>
+          <span class="kk"><span class="sw" style="background:#9a86c9"></span>Sublet</span>
+          <span class="kk"><span class="sw" style="background:#e07a5f"></span>Supp hold</span>
+          <span class="kk"><span class="r-days warm">4d</span>4&ndash;7 days</span>
+          <span class="kk"><span class="r-days stale">8d</span>over a week</span>
+        </div></div>
+      <div class="zone-count" id="nReady">&ndash;</div>
+    </div>
+    <div class="zone-body" id="zReady"></div>
+  </section>
+  <section class="zone z-tech">
+    <div class="zone-head">
+      <div><div class="zone-title">Assigned &mdash; repairs not started</div><div class="zone-sub">Each tech's cars in teardown or on a hold before repairs &middot; click a tech for every open job</div>
+        <div class="zone-key">
+          <span class="kk"><span class="sw" style="background:#5b8fb0"></span>Teardown</span>
+          <span class="kk"><span class="sw" style="background:#d4a531"></span>Parts before repairs</span>
+          <span class="kk"><span class="sw" style="background:#e07a5f"></span>Supp hold</span>
+          <span class="kk"><span class="sw" style="background:#3fb0a0"></span>Insurance</span>
+          <span class="kk"><span class="sw" style="background:#7e8aa3"></span>No phase set</span>
+          <span class="kk"><span class="from-note">NOTE</span>tech read from production notes</span>
+          <span class="kk"><span class="r-days warm">4d</span>4&ndash;7 days</span>
+          <span class="kk"><span class="r-days stale">8d</span>over a week</span>
+        </div></div>
+      <div class="zone-count" id="nTech">&ndash;</div>
+    </div>
+    <div class="zone-body" id="zTech"></div>
+  </section>
+</div>
+
+<div class="side-overlay" id="sideOverlay">
+  <div class="side-panel" id="sidePanel">
+    <div class="side-head">
+      <div class="side-title" id="sideTitle"></div>
+      <div class="side-sub" id="sideSub"></div>
+      <button class="side-close" onclick="closeSide()">&times;</button>
+    </div>
+    <div class="side-body" id="sideBody"></div>
+  </div>
+</div>
+
+<script>
+// ═══ CONFIG ═══════════════════════════════════════════
+const API_BASE='https://kgdtbs.onrender.com';
+const REFRESH_MS=5*60*1000;
+const PAGE_LOADED_AT=Date.now();
+
+// Body techs. Values are the SharePoint Tech choice values (what
+// /estimator-data carries), not full names. Rows are shown alphabetically, and
+// every tech gets a row even when empty — an empty row is who has room.
+const BODY_TECHS=['Carlos','Demchenko','Dmitriy','Jason','Kyle','Ludek','Uriah'];
+
+// Estimator pill colours — the same hex values as the estimator pills on the
+// SharePoint list, so a colour means the same person in both places.
+// `short` is used on the tech-row chips where width is tight (3-Day list
+// already renders Cordale as CORD).
+const EST_COLORS={
+  Cordale:{bg:'#1e7a34',c:'#ffffff',short:'Cord'},
+  Dana:   {bg:'#f5c800',c:'#000000',short:'Dana'},
+  Logan:  {bg:'#a80000',c:'#ffffff',short:'Logan'},
+  Alan:   {bg:'#1464a5',c:'#ffffff',short:'Alan'},
+  Other:  {bg:'#616161',c:'#ffffff',short:'Other'}
+};
+const EST_UNKNOWN={bg:'#9b4dca',c:'#1a1a1a'};   // any name not listed above
+
+// Short names for company customers on the rows and chips. First match wins;
+// only applied to names with no comma (people are always "Last, First").
+// Anything not listed falls through to the generic rule in shortCustomer():
+// "Ken Garff X of Salt Lake" -> "KG X". The full name still shows on hover,
+// in the side panel, and is what Search matches.
+const COMPANY_SHORT=[
+  [/mercedes/i,          'KG Mercedes'],
+  [/ferrari/i,           'KG Ferrari'],
+  [/jaguar/i,            'KG JLR'],
+  [/lexus/i,             'KG Lexus'],
+  [/west valley ford/i,  'KG WV Ford'],
+  [/nate wade/i,         'Nate Wade']
+];
+
+// Production writes "9/29- To KP" in the repair plan notes when a car is handed
+// to a tech. CCC's tech field can lag that by a day or more, so the newest
+// "To XX" with a body tech's initials is used as a FALLBACK when the feed's
+// tech is blank. Checked against the Sep 29 2026 Production Schedule: 58 cars
+// carried both a CCC tech and a note, and all 58 agreed.
+// Painter initials (WD, RH, DC, AH) are deliberately absent: "To KP" followed
+// by a newer "To DC" is still Kyle's car, it has just gone to paint.
+const NOTE_INITIALS={CO:'Carlos',AD:'Demchenko',KP:'Kyle',US:'Uriah',DR:'Dmitriy',LS:'Ludek',JM:'Jason'};
+// Same fallback for the painter ("9/9- To WD"). It matters here because a car
+// that has gone to paint is past the point this page cares about, even when
+// CCC's painter field is still blank. Same file: 33 of 33 agreed with CCC.
+const NOTE_PAINTERS={WD:'Wayne',RH:'Rick',DC:'Doug',AH:'Admir'};
+
+// Jennie's files are glass jobs. They are not dispatched by production and the
+// tracker treats them separately everywhere else, so they stay off this page.
+const EXCLUDE_ESTIMATORS=['Jennie'];
+
+// Days at the shop before the days chip changes colour.
+const DAYS_WARM=4;     // amber
+const DAYS_STALE=7;    // purple, same cutoff as "Stale" on Production View
+
+// ═══ STATUS MODEL ═════════════════════════════════════
+const STATUS_RANK={'':0,'Prelim':1,'Pre-Production':2,'Dispatch':3,'Teardown':4,'Waiting on Insurance':5,'Supp-Estimator':6,'Supp-Insurance':7,'Waiting on Parts':8,'Need Parts Update':9,'Frame':10,'Repair in Process':11,'Paint':12,'Sublet':13,'Reassembly':14,'QC':15,'Wash':16,'Done':17,'Ready for Delivery':18};
+const DONE_STATUSES=['Done','Ready for Delivery','Delivered'];
+const POST_REPAIR=['QC','Wash'];                 // a tech's click-through stops before these
+const NOT_RELEASED=['Pre-Production'];            // CCC [Not Started]: here, no phase set
+const RELEASED_EARLY=['Dispatch','Teardown'];
+const PARTS_HOLD=['Waiting on Parts','Need Parts Update'];
+const EST_HOLD=['Supp-Estimator','Waiting on Estimator'];
+const INS_HOLD=['Supp-Insurance','Waiting on Insurance'];
+
+// What a car is waiting on before repairs start. Order = display order.
+const WAIT_TYPES={
+  TECH: {label:'Teardown',          color:'#5b8fb0'},
+  PARTS:{label:'Parts',             color:'#d4a531'},
+  EST:  {label:'Supp hold',         color:'#e07a5f'},
+  INS:  {label:'Insurance',         color:'#3fb0a0'},
+  NONE: {label:'No phase set',      color:'#7e8aa3'},
+  SUB:  {label:'Sublet',            color:'#9a86c9'}
+};
+const WAIT_ORDER=['TECH','PARTS','EST','INS','NONE','SUB'];
+
+// Returns the wait type when the car has NOT started repairs, else null.
+// "Waiting on Parts" covers both ends of the shop in SharePoint (Repair Delay
+// and Reassy Delay both map to it). A painter on the file means the car has
+// been through the body shop, so parts holds only count as pre-repair while
+// the painter is blank. On the Sep 29 file that split all six Repair Delay
+// cars from every later-stage parts hold.
+function preRepairType(j){
+  if(NOT_RELEASED.includes(j.status)) return 'NONE';
+  if(RELEASED_EARLY.includes(j.status)) return 'TECH';
+  if(EST_HOLD.includes(j.status)) return 'EST';
+  if(INS_HOLD.includes(j.status)) return 'INS';
+  if(PARTS_HOLD.includes(j.status) && !j.painter) return 'PARTS';
+  return null;
+}
+
+// ═══ DATES (never new Date('yyyy-mm-dd') — that parses as UTC midnight and
+//     lands on the previous day in Mountain time) ═══════
+function parseYMD(s){
+  const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s||'');
+  return m? new Date(+m[1],+m[2]-1,+m[3]) : null;
+}
+function todayLocal(){const n=new Date();return new Date(n.getFullYear(),n.getMonth(),n.getDate());}
+function isoLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function calDays(from,to){return Math.round((to-from)/86400000);}
+// business days from today to the promise date; negative when past due
+function bizDayDTP(promise){
+  const p=parseYMD(promise); if(!p) return NaN;
+  const t=todayLocal(); if(+p===+t) return 0;
+  const step=p>t?1:-1; let n=0; const d=new Date(t);
+  while(+d!==+p){ d.setDate(d.getDate()+step); const w=d.getDay(); if(w!==0&&w!==6) n+=step; }
+  return n;
+}
+function fmtMD(s){const d=parseYMD(s);return d?(d.getMonth()+1)+'/'+d.getDate():'';}
+
+// ═══ CLOCK / SYNC ═════════════════════════════════════
+function fmtClock(d){let h=d.getHours();const m=String(d.getMinutes()).padStart(2,'0');const a=h>=12?'PM':'AM';h=h%12||12;return h+':'+m+' '+a;}
+function tickClock(){document.getElementById('clk').textContent=fmtClock(new Date());}
+tickClock();setInterval(tickClock,1000);
+
+// ═══ MODEL ════════════════════════════════════════════
+let ROWS=[];
+let LAST_SYNC=null;
+let OFF_TODAY=[];      // Tech choice values out today, from /timeoff
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// newest-first lines; the first "To XX" whose initials are in `map` wins
+function nameFromNotes(raw,map){
+  if(!raw) return '';
+  const lines=String(raw).split('\n');
+  for(let i=0;i<lines.length;i++){
+    const re=/\b[Tt]o\s+([A-Z]{2})\b/g; let m;
+    while((m=re.exec(lines[i]))){ if(map[m[1]]) return map[m[1]]; }
+  }
+  return '';
+}
+
+function normalize(r){
+  const promise=r.promise||'';
+  const pp=r.PartsReceivedPercent, lp=r.LaborAssignedPercent;
+  const drop=parseYMD(r.dropDate);
+  const feedTech=(r.tech||'').trim();
+  const noteTech=feedTech?'':nameFromNotes(r.RepairPlanComments,NOTE_INITIALS);
+  const feedPainter=(r.painter||'').trim();
+  const notePainter=feedPainter?'':nameFromNotes(r.RepairPlanComments,NOTE_PAINTERS);
+  const notes=(r.RepairPlanComments||'').split('\n').map(function(s){return s.trim();}).filter(Boolean);
+  return {
+    ro:r.ro||'', customer:r.customer||'', vehicle:r.vehicle||'',
+    estimator:(r.estimator||'').trim(), insurance:r.insurance||'',
+    tech:feedTech||noteTech, techFromNote:!feedTech&&!!noteTech,
+    painter:feedPainter||notePainter, painterFromNote:!feedPainter&&!!notePainter,
+    status:r.repairStatus||'',
+    promiseRaw:promise, hasPromise:!!promise, dtp:bizDayDTP(promise),
+    dollars:r.estimateTotal?Math.round(parseFloat(r.estimateTotal)):0,
+    PartsReceivedPercent:(pp===''||pp==null)?null:parseFloat(pp),
+    LaborAssignedPercent:(lp===''||lp==null)?null:parseFloat(lp),
+    daysInShop:drop?calDays(drop,todayLocal()):null,
+    notes:notes,
+    totalLoss:(r.totalLoss==='True'||r.totalLoss===true),
+    doneFlag:(r.done===true||r.done==='true'||r.done==='True'),
+    finished:!!(r.doneStatusTime||r.closedStatusTime)
+  };
+}
+
+// A car belongs on this page only while production still has work to hand out or start.
+function isLive(j){
+  if(!j.ro) return false;                                     // no RO = junk row
+  if(EXCLUDE_ESTIMATORS.includes(j.estimator)) return false;
+  if(DONE_STATUSES.includes(j.status)||j.doneFlag||j.finished) return false;
+  if(j.status==='Total Loss') return false;
+  // total-loss flag with no phase set = paperwork waiting on a release, not a car to hand out.
+  // A TL flag on a car with a real status (e.g. "hold, possible total") stays and gets a TL tag.
+  if(j.totalLoss && (j.status===''||NOT_RELEASED.includes(j.status))) return false;
+  return true;
+}
+
+// ═══ COLOR ENGINE (same gates as Production View) ═════
+function pctOK(v,thr){return v!=null&&v>=thr;}
+function pctUnder(v,thr){return v!=null&&v<thr;}
+function gateTier(j){
+  const r=STATUS_RANK[j.status]||0, p=j.PartsReceivedPercent, d=j.dtp;
+  if(d<=0){ if(r>=16)return 'green'; if(r>=15)return 'yellow'; return 'red'; }
+  if(d===1){ let t=r>=15?'green':r>=14?'yellow':'red'; if(pctUnder(p,0.90)&&t==='green')t='yellow'; return t; }
+  if(d===2){ if(r>=14){ if(pctUnder(p,0.40))return 'red'; if(pctUnder(p,0.80))return 'yellow'; return 'green'; }
+             if(r>=12) return pctOK(p,0.80)?'yellow':'red'; return 'red'; }
+  if(d===3){ if(r>=12)return 'green'; if(r>=10)return 'yellow'; return pctUnder(p,0.75)?'red':'yellow'; }
+  if(d===4){ if(r>=11)return 'green'; if(r>=8)return 'yellow'; return pctUnder(p,0.75)?'red':'yellow'; }
+  if(r>=10)return 'green'; if(r>=8)return 'yellow'; return pctUnder(p,0.50)?'red':'yellow';
+}
+function verdict(j){
+  if(EST_HOLD.includes(j.status)) return {tier:'estimator',weight:'full'};
+  if(INS_HOLD.includes(j.status)) return {tier:'insurance',weight:'bar'};
+  if(j.hasPromise&&!isNaN(j.dtp)&&j.dtp<=5) return {tier:gateTier(j),weight:(j.dtp>=4)?'bar':'full'};
+  if(j.daysInShop!=null&&j.daysInShop>7&&(pctUnder(j.PartsReceivedPercent,0.15)||pctUnder(j.LaborAssignedPercent,0.15)))
+    return {tier:'stale',weight:'full'};
+  return {tier:'flowing',weight:'bar'};
+}
+const CHIP_COLORS={
+  red:{bg:'#3a1518',c:'#ff9a9a',inv_bg:'#ff5a5a',inv_c:'#2a0608'},
+  yellow:{bg:'#3a2a0a',c:'#ffcf6a',inv_bg:'#ffb31e',inv_c:'#2e1f00'},
+  green:{bg:'#0d3320',c:'#8ef0b0',inv_bg:'#34d17a',inv_c:'#04210f'},
+  flowing:{bg:'#1c2433',c:'#aac0e0'}};
+function dayText(dtp){
+  if(isNaN(dtp))return '';
+  if(dtp<0)return Math.abs(dtp)+(Math.abs(dtp)===1?' day late':' days late');
+  if(dtp===0)return 'Today'; if(dtp===1)return '1 day'; return dtp+' days';
+}
+// promise chip: coloured only inside the 5-day gated window, same as Production View
+function promiseChip(j){
+  if(!j.hasPromise||isNaN(j.dtp)) return null;
+  const gated=j.dtp<=5, tier=gated?gateTier(j):'flowing';
+  const col=CHIP_COLORS[tier], inv=gated&&j.dtp<=3&&col.inv_bg;
+  return {txt:dayText(j.dtp), date:fmtMD(j.promiseRaw), bg:inv?col.inv_bg:col.bg, c:inv?col.inv_c:col.c, tier:gated?tier:'', pulse:(j.dtp<=0&&tier==='red')};
+}
+function barColor(p){return p>=100?'#34a853':p>=50?'#c2980a':'#c45a3a';}
+
+// ═══ SHARED PIECES ════════════════════════════════════
+function shortVehicle(v){
+  if(!v)return '';
+  const p=v.trim().split(/\s+/);
+  if(p.length&&/^\d{4}$/.test(p[0])) p[0]=p[0].slice(2);
+  return p.slice(0,3).join(' ');
+}
+function money(n){ if(!n) return '&#8212;'; return n>=1000?'$'+(n/1000).toFixed(n>=10000?0:1)+'k':'$'+n; }
+function daysClass(d){ if(d==null) return ''; if(d>DAYS_STALE) return ' stale'; if(d>=DAYS_WARM) return ' warm'; return ''; }
+function daysChip(j){ return '<span class="r-days'+daysClass(j.daysInShop)+'" title="Days since drop-off">'+(j.daysInShop==null?'&#8212;':j.daysInShop+'d')+'</span>'; }
+function partsTxt(j){
+  const p=j.PartsReceivedPercent; if(p==null) return '<span class="r-parts">PARTS &#8212;</span>';
+  const n=Math.round(p*100);
+  return '<span class="r-parts" title="Parts received">PARTS <b style="color:'+barColor(n)+'">'+n+'%</b></span>';
+}
+function tipFor(j){
+  const head=j.ro+' · '+j.customer+' · '+j.vehicle+(j.insurance?' · '+j.insurance:'');
+  return j.notes.length? head+'\n\n'+j.notes.join('\n') : head+'\n\n(no production notes)';
+}
+function copyRO(el,ro){
+  if(!ro)return; const orig=el.textContent;
+  const done=function(){el.classList.add('copied');el.textContent='✓ copied';setTimeout(function(){el.classList.remove('copied');el.textContent=orig;},900);};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ro).then(done).catch(done);}
+  else{try{const t=document.createElement('textarea');t.value=ro;document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);}catch(e){}done();}
+}
+function roSpan(j,cls){
+  return '<span class="'+cls+' copyable" title="Click to copy RO" data-ro="'+esc(j.ro)+'">'+esc(j.ro)+'</span>';
+}
+function estPill(name,useShort){
+  if(!name) return '';
+  const e=EST_COLORS[name]||EST_UNKNOWN;
+  const label=(useShort&&e.short)?e.short:name;
+  return '<span class="est-pill" style="background:'+e.bg+';color:'+e.c+'" title="Estimator: '+esc(name)+'">'+esc(label)+'</span>';
+}
+// Rows and chips show the last name only; a first initial is added when two
+// different customers on the page share that last name. Companies go through
+// COMPANY_SHORT, then the generic Ken Garff rule.
+let LAST_NAME_COUNTS={};
+function lastNameOf(c){return c.split(',')[0].trim();}
+function countLastNames(list){
+  const seen={};
+  list.forEach(function(j){
+    const c=(j.customer||'').trim(); if(c.indexOf(',')<0) return;
+    const k=lastNameOf(c).toLowerCase(); (seen[k]=seen[k]||{})[c.toLowerCase().replace(/\s+/g,' ')]=1;
+  });
+  LAST_NAME_COUNTS={}; Object.keys(seen).forEach(function(k){LAST_NAME_COUNTS[k]=Object.keys(seen[k]).length;});
+}
+function shortCustomer(j){
+  const c=(j.customer||'').trim();
+  if(c.indexOf(',')>=0){
+    const last=lastNameOf(c), first=c.slice(c.indexOf(',')+1).trim();
+    return (LAST_NAME_COUNTS[last.toLowerCase()]>1 && first)? last+', '+first.charAt(0)+'.' : last;
+  }
+  for(let i=0;i<COMPANY_SHORT.length;i++){ if(COMPANY_SHORT[i][0].test(c)) return COMPANY_SHORT[i][1]; }
+  return c.replace(/^ken garff\b[\s\-]*/i,'KG ').replace(/\s+(of\s+)?salt lake(\s+city)?$/i,'').trim();
+}
+
+// one-line row for zones 1 and 2; opts.sub adds the status + newest-note line
+function buildRow(j,opts){
+  opts=opts||{};
+  const el=document.createElement('div');
+  el.className='row';
+  if(opts.barColor) el.style.borderLeftColor=opts.barColor;
+  el.title=tipFor(j);
+  const p=promiseChip(j);
+  const pHtml=p?'<span class="promise" style="background:'+p.bg+';color:'+p.c+'" title="Promised '+p.date+'">'+p.date+' &middot; '+p.txt+'</span>':'';
+  let html='<div class="row-main">'+roSpan(j,'r-ro')+
+    '<span class="r-who"><span class="nm">'+esc(shortCustomer(j))+'</span><span class="veh">'+esc(shortVehicle(j.vehicle))+'</span></span>'+
+    (pHtml||'<span></span>')+partsTxt(j)+'<span class="r-money">'+money(j.dollars)+'</span>'+daysChip(j)+'</div>';
+  if(opts.sub){
+    const tags=[];
+    if(opts.showEst&&j.estimator) tags.push(estPill(j.estimator));
+    if(opts.statusTag) tags.push('<span class="tag" style="color:'+(opts.barColor||'#8fa0bd')+'">'+esc(j.status)+'</span>');
+    if(j.totalLoss) tags.push('<span class="tag tl">TL?</span>');
+    html+='<div class="row-sub">'+tags.join('')+'<span class="r-note">'+esc(j.notes[0]||'')+'</span></div>';
+  }
+  el.innerHTML=html;
+  el.addEventListener('click',function(e){
+    const ro=e.target.closest('.copyable'); if(ro){copyRO(ro,ro.dataset.ro);return;}
+    openCar(j);
+  });
+  return el;
+}
+
+// compact chip for the tech rows
+function buildChip(j,type){
+  const w=WAIT_TYPES[type];
+  const el=document.createElement('div');
+  el.className='chip';
+  el.style.borderLeftColor=w.color;
+  const p=promiseChip(j);
+  el.title=tipFor(j);
+  const label=(type==='TECH'||type==='NONE')?(j.status==='Pre-Production'?'No phase set':j.status):w.label;
+  el.innerHTML='<div class="chip-top">'+roSpan(j,'r-ro')+estPill(j.estimator,true)+daysChip(j)+'</div>'+
+    '<div class="chip-cust">'+esc(shortCustomer(j))+'</div>'+
+    '<div class="chip-sub"><span class="tag" style="color:'+w.color+'">'+esc(label)+'</span>'+
+      (j.totalLoss?'<span class="tag tl">TL?</span>':'')+
+      '<span class="chip-veh">'+esc(shortVehicle(j.vehicle))+'</span></div>'+
+    (p?'<div class="chip-promise"><span class="promise" style="background:'+p.bg+';color:'+p.c+'" title="Promised '+p.date+'">'+p.date+' &middot; '+p.txt+'</span></div>':'');
+  el.addEventListener('click',function(e){
+    const ro=e.target.closest('.copyable'); if(ro){copyRO(ro,ro.dataset.ro);return;}
+    openCar(j);
+  });
+  return el;
+}
+
+// full card, same markup as Production View, with the whole note history open
+function buildCard(j){
+  const v=verdict(j);
+  const base={red:'red',yellow:'yellow',green:'green',stale:'stale',estimator:'estimator',insurance:'insurance',flowing:''}[v.tier];
+  const cls=base?'bar-'+base+((base==='estimator'||base==='insurance'||base==='stale')?'':(v.weight==='bar'?' wt-bar':' wt-full')):'';
+  const card=document.createElement('div');card.className='card'+(cls?' '+cls:'');
+  const p=promiseChip(j);
+  let chipHtml;
+  if(p){ chipHtml='<div class="chip-stack"><span class="date-source">PROMISED '+p.date+'</span><span class="card-dtp'+(p.pulse?' chip-pulse':'')+'" style="background:'+p.bg+';color:'+p.c+'">'+p.txt+'</span></div>'; }
+  else { const esc10=(j.daysInShop!=null&&j.daysInShop>=10); chipHtml='<span class="card-dtp" style="background:#222a38;color:'+(esc10?'#fff;border:1px solid #5a6478':'#7e8aa3')+'">NO DATE</span>'; }
+  function bar(lbl,val){
+    if(val==null) return '<div class="bar-row"><span class="bar-lbl">'+lbl+'</span><span class="bar-blank">&#8212;</span></div>';
+    const n=Math.round(val*100), over=n>100;
+    return '<div class="bar-row"><span class="bar-lbl">'+lbl+'</span><div class="bar-track"><div class="bar-fill" style="width:'+Math.min(n,100)+'%;background:'+barColor(n)+'"></div></div><span class="bar-pct'+(over?' over':'')+'">'+n+'%</span>'+(over?'<span class="over-badge" title="Over 100% — check for error">&#10071;</span>':'')+'</div>';
+  }
+  const noteHtml=j.notes.length?'<div class="note"><span class="note-lbl">PRODUCTION NOTES</span><div class="note-full">'+esc(j.notes.join('\n'))+'</div></div>':'';
+  const techHtml=esc(j.tech||'—')+(j.techFromNote?'<span class="from-note" title="CCC has no tech on this file yet; read from the newest “To XX” note">NOTE</span>':'');
+  card.innerHTML='<div class="card-top"><span class="card-ro-wrap">'+roSpan(j,'card-ro')+estPill(j.estimator)+(j.totalLoss?'<span class="tag tl">TL?</span>':'')+'</span>'+chipHtml+'</div>'+
+    '<div class="card-cust">'+esc(j.customer)+'</div>'+
+    '<div class="card-veh">'+esc(shortVehicle(j.vehicle))+'</div>'+
+    '<div class="card-ins">'+(esc(j.insurance)||'&#8212;')+'</div>'+
+    '<div class="card-people"><span><b>T</b>'+techHtml+'</span><span><b>P</b>'+esc(j.painter||'—')+(j.painterFromNote?'<span class="from-note" title="CCC has no painter on this file yet; read from the newest To XX note">NOTE</span>':'')+'</span></div>'+
+    '<div class="bars">'+bar('PARTS',j.PartsReceivedPercent)+bar('LABOR',j.LaborAssignedPercent)+'</div>'+
+    (j.status?'<div class="card-phase">'+esc(j.status==='Pre-Production'?'No phase set':j.status)+'</div>':'')+
+    noteHtml+
+    '<div class="card-foot"><span class="card-dollars">'+(j.dollars?'$'+j.dollars.toLocaleString():'&#8212;')+'</span><span class="card-days'+(v.tier==='stale'?' days-stale':'')+'">'+(j.daysInShop!=null?j.daysInShop+'d in shop':'')+'</span></div>';
+  card.addEventListener('click',function(e){const ro=e.target.closest('.copyable'); if(ro) copyRO(ro,ro.dataset.ro);});
+  return card;
+}
+
+function divider(label,n,color){
+  const d=document.createElement('div');d.className='divider';
+  d.style.color=color;d.style.borderColor=color;
+  d.innerHTML='<span>'+esc(label)+'</span><span class="divider-n">'+n+'</span>';
+  return d;
+}
+function byWait(a,b){ return (b.daysInShop||0)-(a.daysInShop||0); }   // longest at the shop first
+
+// ═══ ZONES ════════════════════════════════════════════
+function pool(){
+  const q=(document.getElementById('search').value||'').trim().toLowerCase();
+  let p=ROWS.filter(isLive);
+  if(q) p=p.filter(function(j){return (j.ro+' '+j.customer+' '+j.vehicle+' '+j.insurance+' '+j.tech+' '+j.estimator).toLowerCase().includes(q);});
+  return p;
+}
+const EST_ORDER=['Cordale','Logan','Dana','Alan'];
+function techJobs(p,tech){   // everything a tech holds that has not reached post-scan / wash / done
+  return p.filter(function(j){return j.tech===tech && !POST_REPAIR.includes(j.status);});
+}
+
+function render(){
+  const p=pool();
+  countLastNames(p);
+
+  // Zone 1 — here, no phase set, no tech. Grouped by the estimator who owns the file.
+  const est=p.filter(function(j){return !j.tech && NOT_RELEASED.includes(j.status);});
+  const zE=document.getElementById('zEst'); zE.innerHTML='';
+  document.getElementById('nEst').textContent=est.length;
+  if(!est.length) zE.innerHTML='<div class="empty">&#8212;</div>';
+  const names=EST_ORDER.concat(est.map(function(j){return j.estimator||'Unassigned';}).filter(function(n,i,a){return !EST_ORDER.includes(n)&&a.indexOf(n)===i;}));
+  names.forEach(function(name){
+    const g=est.filter(function(j){return (j.estimator||'Unassigned')===name;}).sort(byWait);
+    if(!g.length) return;
+    const d=document.createElement('div');d.className='divider est-div';
+    d.innerHTML=estPill(name)+'<span class="divider-n">'+g.length+'</span>';
+    zE.appendChild(d);
+    g.forEach(function(j){zE.appendChild(buildRow(j,{}));});
+  });
+
+  // Zone 2 — released to production, no tech. Then no-tech cars parked on a hold or out at sublet.
+  const noTech=p.filter(function(j){return !j.tech;});
+  const ready=noTech.filter(function(j){const t=preRepairType(j);return t==='TECH'||t==='PARTS';}).sort(byWait);
+  const parked=noTech.filter(function(j){
+    const t=preRepairType(j);
+    return t==='EST'||t==='INS'||(j.status==='Sublet'&&!j.painter);
+  }).sort(byWait);
+  const zR=document.getElementById('zReady'); zR.innerHTML='';
+  document.getElementById('nReady').textContent=ready.length;
+  if(!ready.length) zR.innerHTML='<div class="empty">Nothing waiting for a tech.</div>';
+  ready.forEach(function(j){
+    const t=preRepairType(j);
+    zR.appendChild(buildRow(j,{sub:true,showEst:true,statusTag:true,barColor:WAIT_TYPES[t].color}));
+  });
+  if(parked.length){
+    zR.appendChild(divider('No tech yet — on hold or out at sublet',parked.length,'#9a86c9'));
+    parked.forEach(function(j){
+      const t=preRepairType(j)||'SUB';
+      zR.appendChild(buildRow(j,{sub:true,showEst:true,statusTag:true,barColor:WAIT_TYPES[t].color}));
+    });
+  }
+
+  // Zone 3 — one row per tech: assigned cars whose repairs have not started.
+  const zT=document.getElementById('zTech'); zT.innerHTML='';
+  const extra=p.map(function(j){return j.tech;}).filter(function(t,i,a){return t&&!BODY_TECHS.includes(t)&&a.indexOf(t)===i;});
+  let total=0;
+  BODY_TECHS.concat(extra).sort(function(a,b){return a.localeCompare(b);}).forEach(function(tech){
+    const mine=p.filter(function(j){return j.tech===tech && preRepairType(j);});
+    const open=techJobs(p,tech);
+    total+=mine.length;
+    const row=document.createElement('div');row.className='tech-row';
+    const id=document.createElement('div');id.className='tech-id';
+    id.title='Show every open job for '+tech;
+    id.innerHTML='<div class="tech-name">'+esc(tech)+'</div>'+
+      (OFF_TODAY.includes(tech)?'<span class="off-badge">OFF TODAY</span>':'')+
+      '<div class="tech-wait"><b>'+mine.length+'</b>not started</div>'+
+      '<div class="tech-open">'+open.length+' open job'+(open.length===1?'':'s')+' &rsaquo;</div>';
+    id.addEventListener('click',function(){openTech(tech);});
+    const cars=document.createElement('div');cars.className='tech-cars';
+    if(!mine.length) cars.innerHTML='<div class="tech-none">Nothing waiting to start.</div>';
+    WAIT_ORDER.forEach(function(type){
+      mine.filter(function(j){return preRepairType(j)===type;}).sort(byWait).forEach(function(j){cars.appendChild(buildChip(j,type));});
+    });
+    row.appendChild(id);row.appendChild(cars);zT.appendChild(row);
+  });
+  document.getElementById('nTech').textContent=total;
+}
+
+// ═══ SIDE PANEL ═══════════════════════════════════════
+const PANEL_GROUPS=[
+  {label:'Not started',            color:'#5b8fb0', test:function(j){return !!preRepairType(j);}},
+  {label:'Body work',              color:'#aac0e0', test:function(j){return ['Frame','Repair in Process'].includes(j.status);}},
+  {label:'Paint',                  color:'#aac0e0', test:function(j){return j.status==='Paint';}},
+  {label:'Waiting on parts — after body', color:'#d4a531', test:function(j){return PARTS_HOLD.includes(j.status)&&!!j.painter;}},
+  {label:'Sublet',                 color:'#9a86c9', test:function(j){return j.status==='Sublet';}},
+  {label:'Reassembly',             color:'#aac0e0', test:function(j){return j.status==='Reassembly';}},
+  {label:'No status in SharePoint',color:'#7e8aa3', test:function(j){return true;}}   // catch-all, last
+];
+function openSide(title,sub,narrow){
+  document.getElementById('sideTitle').textContent=title;
+  document.getElementById('sideSub').textContent=sub;
+  document.getElementById('sidePanel').classList.toggle('narrow',!!narrow);
+  document.getElementById('sideOverlay').classList.add('open');
+}
+function closeSide(){document.getElementById('sideOverlay').classList.remove('open');}
+function openTech(tech){
+  const jobs=techJobs(pool(),tech);
+  const body=document.getElementById('sideBody');body.innerHTML='';
+  if(!jobs.length) body.innerHTML='<div class="empty">No open jobs.</div>';
+  let left=jobs.slice();
+  PANEL_GROUPS.forEach(function(g){
+    const mine=left.filter(g.test); left=left.filter(function(j){return !g.test(j);});
+    if(!mine.length) return;
+    const wrap=document.createElement('div');wrap.className='side-group';
+    wrap.appendChild(divider(g.label,mine.length,g.color));
+    const grid=document.createElement('div');grid.className='side-grid';
+    mine.sort(function(a,b){return (STATUS_RANK[a.status]||0)-(STATUS_RANK[b.status]||0)||byWait(a,b);}).forEach(function(j){grid.appendChild(buildCard(j));});
+    wrap.appendChild(grid);body.appendChild(wrap);
+  });
+  openSide(tech+' — '+jobs.length+' open job'+(jobs.length===1?'':'s'),'Everything assigned that has not reached post-scan, wash or done',false);
+}
+function openCar(j){
+  const body=document.getElementById('sideBody');body.innerHTML='';
+  body.appendChild(buildCard(j));
+  openSide(j.ro,j.customer,true);
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.view-switch')) document.getElementById('viewMenu').classList.remove('open');
+  if(e.target===document.getElementById('sideOverlay')) closeSide();
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape') closeSide();});
+
+// ═══ DATA ═════════════════════════════════════════════
+function setSync(){
+  const el=document.getElementById('sync');
+  if(!LAST_SYNC){el.textContent='Sync unknown';return;}
+  const d=new Date(LAST_SYNC);const hrs=(new Date()-d)/3.6e6;
+  el.textContent='Synced '+fmtClock(d);el.classList.toggle('stale',hrs>20);
+  if(hrs>20)el.textContent+=' ⚠';
+}
+async function load(){
+  try{
+    const res=await fetch(API_BASE+'/estimator-data',{cache:'no-store'});
+    const data=await res.json();
+    ROWS=(Array.isArray(data)?data:[]).map(normalize);
+  }catch(e){console.error('estimator-data fetch failed',e);ROWS=[];}
+  try{
+    const s=await fetch(API_BASE+'/last-sync',{cache:'no-store'});const sj=await s.json();LAST_SYNC=sj.last_sync||null;
+  }catch(e){LAST_SYNC=null;}
+  // Time off is optional: the cache is empty after a deploy until the daily flow runs.
+  try{
+    const t=await fetch(API_BASE+'/timeoff',{cache:'no-store'});const tj=await t.json();
+    const day=(tj&&tj.days&&tj.days[isoLocal(todayLocal())])||null;
+    OFF_TODAY=(day&&Array.isArray(day.tech))?day.tech:[];
+  }catch(e){OFF_TODAY=[];}
+  setSync();render();
+}
+load();setInterval(load,REFRESH_MS);
+
+// idle-aware auto-reload, same as the other boards
+const RELOAD_AFTER_MS=30*60*1000, IDLE_REQUIRED_MS=2*60*1000;
+let lastInteraction=Date.now();
+['mousemove','mousedown','keydown','touchstart','scroll','wheel'].forEach(function(ev){
+  document.addEventListener(ev,function(){lastInteraction=Date.now();},{passive:true,capture:true});
+});
+setInterval(function(){
+  const now=Date.now();
+  if(now-PAGE_LOADED_AT>=RELOAD_AFTER_MS && now-lastInteraction>=IDLE_REQUIRED_MS && !document.getElementById('sideOverlay').classList.contains('open')) location.reload();
+},30*1000);
+</script>
+</body>
+</html>
