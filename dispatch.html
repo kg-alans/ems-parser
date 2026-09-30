@@ -20,7 +20,6 @@
   .header-left{display:flex;flex-direction:column;align-items:flex-start;gap:2px;}
   .shop-name{font-family:'Changa One',display;font-size:21px;color:#fff;line-height:1;}
   .page-chip{font-family:'Saira',sans-serif;font-size:15px;font-weight:800;letter-spacing:0.04em;padding:2px 8px;border-radius:5px;background:#4a0a0a;color:#ff9999;border:1px solid #c50f1f;}
-  .sw{width:4px;height:12px;border-radius:1px;flex-shrink:0;}
   .header-right{display:flex;align-items:center;gap:14px;margin-right:34px;}
   .search-wrap{display:flex;flex-direction:column;gap:2px;}
   .search-box{background:#2a0e14;border:1px solid #8c2038;border-radius:6px;padding:6px 10px;color:#fff;font-family:'Lexend Deca';font-size:12px;width:170px;outline:none;}
@@ -46,15 +45,9 @@
   .zone.z-est{flex:0 0 468px;}
   .zone.z-ready{flex:0 0 468px;}
   .zone.z-tech{flex:1 1 auto;}
-  .zone-head{padding:7px 11px 7px;border-bottom:2px solid #3a4458;flex-shrink:0;background:#161b26;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .zone-head{padding:7px 11px 7px;border-bottom:2px solid #3a4458;flex-shrink:0;background:#161b26;display:flex;align-items:flex-end;justify-content:space-between;gap:10px;}
   .zone-title{font-family:'Saira',sans-serif;font-size:12.5px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#c3cde0;line-height:1.1;}
   .zone-sub{font-size:9.5px;color:#6f7d96;margin-top:2px;letter-spacing:0.02em;}
-  /* each zone carries its own key: only what that zone's marks mean */
-  .zone-key{display:flex;flex-wrap:wrap;align-items:center;gap:3px 11px;margin-top:5px;}
-  .kk{display:flex;align-items:center;gap:4px;font-size:9.5px;color:#93a1ba;white-space:nowrap;}
-  .kk .r-days{min-width:0;font-size:9px;padding:0 4px;}
-  .kk .promise{font-size:8.5px;}
-  .kk .from-note{margin-left:0;}
   .zone-count{font-family:'Saira',sans-serif;font-size:22px;font-weight:800;color:#fff;line-height:0.9;}
   .zone-body{flex:1;overflow-y:auto;padding:5px;display:flex;flex-direction:column;gap:3px;scrollbar-width:thin;scrollbar-color:#6b1a2b #0d1018;}
   .zone-body::-webkit-scrollbar{width:7px;} .zone-body::-webkit-scrollbar-track{background:#0d1018;} .zone-body::-webkit-scrollbar-thumb{background:#6b1a2b;border-radius:4px;border:1px solid #0d1018;}
@@ -75,8 +68,9 @@
   .r-parts{font-family:'Saira',sans-serif;font-size:9.5px;font-weight:700;white-space:nowrap;min-width:52px;text-align:right;color:#8fa0bd;}
   .r-parts b{font-weight:800;}
   .r-days{font-family:'Saira',sans-serif;font-size:10px;font-weight:800;padding:1px 6px;border-radius:3px;background:#1c2433;color:#9db0cf;white-space:nowrap;min-width:34px;text-align:center;}
-  .r-days.warm{background:#3a2a0a;color:#ffcf6a;}
-  .r-days.stale{background:var(--stale-bar);color:#0c0814;}
+  .r-days.d-amber{background:#3a2a0a;color:#ffcf6a;}
+  .r-days.d-orange{background:#40200a;color:#ff9d4d;}
+  .r-days.d-red{background:#3f1418;color:#ff8080;}
   .row-sub{display:flex;align-items:center;gap:6px;margin-top:2px;min-width:0;height:15px;}
   .tag{font-family:'Saira',sans-serif;font-size:8.5px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,0.06);white-space:nowrap;flex-shrink:0;}
   .tag.tl{background:#3a1518;color:#ff9a9a;}
@@ -92,6 +86,7 @@
   .tech-id:hover{background:#1c2434;}
   .tech-name{font-family:'Saira',sans-serif;font-size:17px;font-weight:800;color:#fff;letter-spacing:0.02em;line-height:1;}
   .tech-wait{font-family:'Saira',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.06em;color:#8fa0bd;text-transform:uppercase;}
+  .tech-parts{font-family:'Saira',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.06em;color:#d4a531;text-transform:uppercase;}
   .tech-wait b{font-size:15px;color:#fff;font-weight:800;margin-right:3px;}
   .tech-open{margin-top:auto;font-family:'Saira',sans-serif;font-size:10px;font-weight:800;letter-spacing:0.05em;color:#7fc0ff;background:#13233f;border:1px solid #2a466e;border-radius:4px;padding:3px 6px;text-align:center;text-transform:uppercase;}
   .tech-id:hover .tech-open{background:#1a3055;}
@@ -197,44 +192,21 @@
 <div class="dispatch" id="dispatch">
   <section class="zone z-est">
     <div class="zone-head">
-      <div><div class="zone-title">Here &mdash; not released</div><div class="zone-sub">At the shop, no repair phase set, no tech &middot; by estimator</div>
-        <div class="zone-key">
-          <span class="kk"><span class="r-days warm">4d</span>4&ndash;7 days here</span>
-          <span class="kk"><span class="r-days stale">8d</span>over a week</span>
-          <span class="kk"><span class="promise" style="background:#ffb31e;color:#2e1f00">10/2</span>promised date</span>
-        </div></div>
+      <div><div class="zone-title">Here &mdash; not released</div><div class="zone-sub">At the shop, no repair phase set, no tech &middot; by estimator</div></div>
       <div class="zone-count" id="nEst">&ndash;</div>
     </div>
     <div class="zone-body" id="zEst"><div class="loading">Loading&#8230;</div></div>
   </section>
   <section class="zone z-ready">
     <div class="zone-head">
-      <div><div class="zone-title">Ready to hand out</div><div class="zone-sub">Released to production, no tech yet &middot; longest wait first</div>
-        <div class="zone-key">
-          <span class="kk"><span class="sw" style="background:#5b8fb0"></span>Dispatch / teardown</span>
-          <span class="kk"><span class="sw" style="background:#d4a531"></span>Parts hold</span>
-          <span class="kk"><span class="sw" style="background:#9a86c9"></span>Sublet</span>
-          <span class="kk"><span class="sw" style="background:#e07a5f"></span>Supp hold</span>
-          <span class="kk"><span class="r-days warm">4d</span>4&ndash;7 days</span>
-          <span class="kk"><span class="r-days stale">8d</span>over a week</span>
-        </div></div>
+      <div><div class="zone-title">No tech assigned</div><div class="zone-sub">Released to production with nobody on it &middot; longest wait first in each section</div></div>
       <div class="zone-count" id="nReady">&ndash;</div>
     </div>
     <div class="zone-body" id="zReady"></div>
   </section>
   <section class="zone z-tech">
     <div class="zone-head">
-      <div><div class="zone-title">Assigned &mdash; repairs not started</div><div class="zone-sub">Each tech's cars in teardown or on a hold before repairs &middot; click a tech for every open job</div>
-        <div class="zone-key">
-          <span class="kk"><span class="sw" style="background:#5b8fb0"></span>Teardown</span>
-          <span class="kk"><span class="sw" style="background:#d4a531"></span>Parts before repairs</span>
-          <span class="kk"><span class="sw" style="background:#e07a5f"></span>Supp hold</span>
-          <span class="kk"><span class="sw" style="background:#3fb0a0"></span>Insurance</span>
-          <span class="kk"><span class="sw" style="background:#7e8aa3"></span>No phase set</span>
-          <span class="kk"><span class="from-note">NOTE</span>tech read from production notes</span>
-          <span class="kk"><span class="r-days warm">4d</span>4&ndash;7 days</span>
-          <span class="kk"><span class="r-days stale">8d</span>over a week</span>
-        </div></div>
+      <div><div class="zone-title">Assigned &mdash; repairs not started</div><div class="zone-sub">Each tech's cars in teardown or on a supplement hold &middot; click a tech for every open job, parts holds included</div></div>
       <div class="zone-count" id="nTech">&ndash;</div>
     </div>
     <div class="zone-body" id="zTech"></div>
@@ -263,18 +235,19 @@ const PAGE_LOADED_AT=Date.now();
 // every tech gets a row even when empty — an empty row is who has room.
 const BODY_TECHS=['Carlos','Demchenko','Dmitriy','Jason','Kyle','Ludek','Uriah'];
 
-// Estimator pill colours — the same hex values as the estimator pills on the
-// SharePoint list, so a colour means the same person in both places.
+// Estimator pill colours. Same hues as the estimator pills on the SharePoint
+// list (Cordale green, Dana yellow, Logan red, Alan blue), brightened so the
+// name reads in black on every one of them.
 // `short` is used on the tech-row chips where width is tight (3-Day list
 // already renders Cordale as CORD).
 const EST_COLORS={
-  Cordale:{bg:'#1e7a34',c:'#ffffff',short:'Cord'},
+  Cordale:{bg:'#4fc96b',c:'#000000',short:'Cord'},
   Dana:   {bg:'#f5c800',c:'#000000',short:'Dana'},
-  Logan:  {bg:'#a80000',c:'#ffffff',short:'Logan'},
-  Alan:   {bg:'#1464a5',c:'#ffffff',short:'Alan'},
-  Other:  {bg:'#616161',c:'#ffffff',short:'Other'}
+  Logan:  {bg:'#ff7468',c:'#000000',short:'Logan'},
+  Alan:   {bg:'#5fb0f5',c:'#000000',short:'Alan'},
+  Other:  {bg:'#aab2c0',c:'#000000',short:'Other'}
 };
-const EST_UNKNOWN={bg:'#9b4dca',c:'#1a1a1a'};   // any name not listed above
+const EST_UNKNOWN={bg:'#c29bf0',c:'#000000'};   // any name not listed above
 
 // Short names for company customers on the rows and chips. First match wins;
 // only applied to names with no comma (people are always "Last, First").
@@ -298,18 +271,17 @@ const COMPANY_SHORT=[
 // Painter initials (WD, RH, DC, AH) are deliberately absent: "To KP" followed
 // by a newer "To DC" is still Kyle's car, it has just gone to paint.
 const NOTE_INITIALS={CO:'Carlos',AD:'Demchenko',KP:'Kyle',US:'Uriah',DR:'Dmitriy',LS:'Ludek',JM:'Jason'};
-// Same fallback for the painter ("9/9- To WD"). It matters here because a car
-// that has gone to paint is past the point this page cares about, even when
-// CCC's painter field is still blank. Same file: 33 of 33 agreed with CCC.
+// Same fallback for the painter ("9/9- To WD"), used only to fill the painter
+// on the detail card when CCC's field is still blank. 33 of 33 agreed with CCC.
 const NOTE_PAINTERS={WD:'Wayne',RH:'Rick',DC:'Doug',AH:'Admir'};
 
 // Jennie's files are glass jobs. They are not dispatched by production and the
 // tracker treats them separately everywhere else, so they stay off this page.
 const EXCLUDE_ESTIMATORS=['Jennie'];
 
-// Days at the shop before the days chip changes colour.
-const DAYS_WARM=4;     // amber
-const DAYS_STALE=7;    // purple, same cutoff as "Stale" on Production View
+// Days since drop-off -> colour of the days chip. Three-day bands, same
+// tinted style throughout: 0-3 plain, 4-6 amber, 7-9 orange, 10+ red.
+const DAYS_AMBER=4, DAYS_ORANGE=7, DAYS_RED=10;
 
 // ═══ STATUS MODEL ═════════════════════════════════════
 const STATUS_RANK={'':0,'Prelim':1,'Pre-Production':2,'Dispatch':3,'Teardown':4,'Waiting on Insurance':5,'Supp-Estimator':6,'Supp-Insurance':7,'Waiting on Parts':8,'Need Parts Update':9,'Frame':10,'Repair in Process':11,'Paint':12,'Sublet':13,'Reassembly':14,'QC':15,'Wash':16,'Done':17,'Ready for Delivery':18};
@@ -321,31 +293,29 @@ const PARTS_HOLD=['Waiting on Parts','Need Parts Update'];
 const EST_HOLD=['Supp-Estimator','Waiting on Estimator'];
 const INS_HOLD=['Supp-Insurance','Waiting on Insurance'];
 
-// What a car is waiting on before repairs start. Order = display order.
+// What a car is sitting in, for everything that has not reached body work.
 const WAIT_TYPES={
   TECH: {label:'Teardown',          color:'#5b8fb0'},
-  PARTS:{label:'Parts',             color:'#d4a531'},
+  PARTS:{label:'Waiting on parts',  color:'#d4a531'},
   EST:  {label:'Supp hold',         color:'#e07a5f'},
-  INS:  {label:'Insurance',         color:'#3fb0a0'},
+  INS:  {label:'Insurance hold',    color:'#3fb0a0'},
   NONE: {label:'No phase set',      color:'#7e8aa3'},
   SUB:  {label:'Sublet',            color:'#9a86c9'}
 };
-const WAIT_ORDER=['TECH','PARTS','EST','INS','NONE','SUB'];
-
-// Returns the wait type when the car has NOT started repairs, else null.
-// "Waiting on Parts" covers both ends of the shop in SharePoint (Repair Delay
-// and Reassy Delay both map to it). A painter on the file means the car has
-// been through the body shop, so parts holds only count as pre-repair while
-// the painter is blank. On the Sep 29 file that split all six Repair Delay
-// cars from every later-stage parts hold.
-function preRepairType(j){
+function waitType(j){
   if(NOT_RELEASED.includes(j.status)) return 'NONE';
   if(RELEASED_EARLY.includes(j.status)) return 'TECH';
   if(EST_HOLD.includes(j.status)) return 'EST';
   if(INS_HOLD.includes(j.status)) return 'INS';
-  if(PARTS_HOLD.includes(j.status) && !j.painter) return 'PARTS';
+  if(PARTS_HOLD.includes(j.status)) return 'PARTS';     // every parts hold, whatever stage
+  if(j.status==='Sublet') return 'SUB';
   return null;
 }
+// A tech's row shows only cars whose repairs have not started: teardown, a
+// supplement or insurance hold, or no phase set. Parts holds are NOT counted
+// here (Sep 30 2026) — SharePoint cannot tell a pre-repair parts hold from a
+// reassembly one, so they get their own section in the tech's drawer instead.
+const NOT_STARTED_ORDER=['TECH','EST','INS','NONE'];
 
 // ═══ DATES (never new Date('yyyy-mm-dd') — that parses as UTC midnight and
 //     lands on the previous day in Mountain time) ═══════
@@ -476,7 +446,7 @@ function shortVehicle(v){
   return p.slice(0,3).join(' ');
 }
 function money(n){ if(!n) return '&#8212;'; return n>=1000?'$'+(n/1000).toFixed(n>=10000?0:1)+'k':'$'+n; }
-function daysClass(d){ if(d==null) return ''; if(d>DAYS_STALE) return ' stale'; if(d>=DAYS_WARM) return ' warm'; return ''; }
+function daysClass(d){ if(d==null) return ''; if(d>=DAYS_RED) return ' d-red'; if(d>=DAYS_ORANGE) return ' d-orange'; if(d>=DAYS_AMBER) return ' d-amber'; return ''; }
 function daysChip(j){ return '<span class="r-days'+daysClass(j.daysInShop)+'" title="Days since drop-off">'+(j.daysInShop==null?'&#8212;':j.daysInShop+'d')+'</span>'; }
 function partsTxt(j){
   const p=j.PartsReceivedPercent; if(p==null) return '<span class="r-parts">PARTS &#8212;</span>';
@@ -599,7 +569,7 @@ function buildCard(j){
     '<div class="bars">'+bar('PARTS',j.PartsReceivedPercent)+bar('LABOR',j.LaborAssignedPercent)+'</div>'+
     (j.status?'<div class="card-phase">'+esc(j.status==='Pre-Production'?'No phase set':j.status)+'</div>':'')+
     noteHtml+
-    '<div class="card-foot"><span class="card-dollars">'+(j.dollars?'$'+j.dollars.toLocaleString():'&#8212;')+'</span><span class="card-days'+(v.tier==='stale'?' days-stale':'')+'">'+(j.daysInShop!=null?j.daysInShop+'d in shop':'')+'</span></div>';
+    '<div class="card-foot"><span class="card-dollars">'+(j.dollars?'$'+j.dollars.toLocaleString():'&#8212;')+'</span>'+(j.daysInShop!=null?'<span class="r-days'+daysClass(j.daysInShop)+'">'+j.daysInShop+'d in shop</span>':'')+'</div>';
   card.addEventListener('click',function(e){const ro=e.target.closest('.copyable'); if(ro) copyRO(ro,ro.dataset.ro);});
   return card;
 }
@@ -643,35 +613,34 @@ function render(){
     g.forEach(function(j){zE.appendChild(buildRow(j,{}));});
   });
 
-  // Zone 2 — released to production, no tech. Then no-tech cars parked on a hold or out at sublet.
+  // Zone 2 — no tech assigned, split by what the car is sitting in.
   const noTech=p.filter(function(j){return !j.tech;});
-  const ready=noTech.filter(function(j){const t=preRepairType(j);return t==='TECH'||t==='PARTS';}).sort(byWait);
-  const parked=noTech.filter(function(j){
-    const t=preRepairType(j);
-    return t==='EST'||t==='INS'||(j.status==='Sublet'&&!j.painter);
-  }).sort(byWait);
   const zR=document.getElementById('zReady'); zR.innerHTML='';
-  document.getElementById('nReady').textContent=ready.length;
-  if(!ready.length) zR.innerHTML='<div class="empty">Nothing waiting for a tech.</div>';
-  ready.forEach(function(j){
-    const t=preRepairType(j);
-    zR.appendChild(buildRow(j,{sub:true,showEst:true,statusTag:true,barColor:WAIT_TYPES[t].color}));
-  });
-  if(parked.length){
-    zR.appendChild(divider('No tech yet — on hold or out at sublet',parked.length,'#9a86c9'));
-    parked.forEach(function(j){
-      const t=preRepairType(j)||'SUB';
-      zR.appendChild(buildRow(j,{sub:true,showEst:true,statusTag:true,barColor:WAIT_TYPES[t].color}));
+  let nNoTech=0;
+  [ {label:'Ready to hand out', types:['TECH'],      always:true},
+    {label:'Waiting on parts',  types:['PARTS']},
+    {label:'Sublet',            types:['SUB']},
+    {label:'Supp / hold',       types:['EST','INS']}
+  ].forEach(function(sec){
+    const g=noTech.filter(function(j){return sec.types.includes(waitType(j));}).sort(byWait);
+    nNoTech+=g.length;
+    if(!g.length && !sec.always) return;
+    zR.appendChild(divider(sec.label,g.length,WAIT_TYPES[sec.types[0]].color));
+    if(!g.length){ const e=document.createElement('div');e.className='empty';e.textContent='Nothing waiting for a tech.';zR.appendChild(e); }
+    g.forEach(function(j){
+      zR.appendChild(buildRow(j,{sub:true,showEst:true,statusTag:true,barColor:WAIT_TYPES[waitType(j)].color}));
     });
-  }
+  });
+  document.getElementById('nReady').textContent=nNoTech;
 
   // Zone 3 — one row per tech: assigned cars whose repairs have not started.
   const zT=document.getElementById('zTech'); zT.innerHTML='';
   const extra=p.map(function(j){return j.tech;}).filter(function(t,i,a){return t&&!BODY_TECHS.includes(t)&&a.indexOf(t)===i;});
   let total=0;
   BODY_TECHS.concat(extra).sort(function(a,b){return a.localeCompare(b);}).forEach(function(tech){
-    const mine=p.filter(function(j){return j.tech===tech && preRepairType(j);});
+    const mine=p.filter(function(j){return j.tech===tech && NOT_STARTED_ORDER.includes(waitType(j));});
     const open=techJobs(p,tech);
+    const onParts=open.filter(function(j){return waitType(j)==='PARTS';}).length;
     total+=mine.length;
     const row=document.createElement('div');row.className='tech-row';
     const id=document.createElement('div');id.className='tech-id';
@@ -679,12 +648,13 @@ function render(){
     id.innerHTML='<div class="tech-name">'+esc(tech)+'</div>'+
       (OFF_TODAY.includes(tech)?'<span class="off-badge">OFF TODAY</span>':'')+
       '<div class="tech-wait"><b>'+mine.length+'</b>not started</div>'+
+      (onParts?'<div class="tech-parts">'+onParts+' on parts</div>':'')+
       '<div class="tech-open">'+open.length+' open job'+(open.length===1?'':'s')+' &rsaquo;</div>';
     id.addEventListener('click',function(){openTech(tech);});
     const cars=document.createElement('div');cars.className='tech-cars';
     if(!mine.length) cars.innerHTML='<div class="tech-none">Nothing waiting to start.</div>';
-    WAIT_ORDER.forEach(function(type){
-      mine.filter(function(j){return preRepairType(j)===type;}).sort(byWait).forEach(function(j){cars.appendChild(buildChip(j,type));});
+    NOT_STARTED_ORDER.forEach(function(type){
+      mine.filter(function(j){return waitType(j)===type;}).sort(byWait).forEach(function(j){cars.appendChild(buildChip(j,type));});
     });
     row.appendChild(id);row.appendChild(cars);zT.appendChild(row);
   });
@@ -693,12 +663,14 @@ function render(){
 
 // ═══ SIDE PANEL ═══════════════════════════════════════
 const PANEL_GROUPS=[
-  {label:'Not started',            color:'#5b8fb0', test:function(j){return !!preRepairType(j);}},
+  {label:'Teardown',               color:'#5b8fb0', test:function(j){return waitType(j)==='TECH';}},
+  {label:'Waiting on parts',       color:'#d4a531', test:function(j){return waitType(j)==='PARTS';}},
+  {label:'Supp / hold',            color:'#e07a5f', test:function(j){const t=waitType(j);return t==='EST'||t==='INS';}},
   {label:'Body work',              color:'#aac0e0', test:function(j){return ['Frame','Repair in Process'].includes(j.status);}},
   {label:'Paint',                  color:'#aac0e0', test:function(j){return j.status==='Paint';}},
-  {label:'Waiting on parts — after body', color:'#d4a531', test:function(j){return PARTS_HOLD.includes(j.status)&&!!j.painter;}},
   {label:'Sublet',                 color:'#9a86c9', test:function(j){return j.status==='Sublet';}},
   {label:'Reassembly',             color:'#aac0e0', test:function(j){return j.status==='Reassembly';}},
+  {label:'No phase set',           color:'#7e8aa3', test:function(j){return waitType(j)==='NONE';}},
   {label:'No status in SharePoint',color:'#7e8aa3', test:function(j){return true;}}   // catch-all, last
 ];
 function openSide(title,sub,narrow){
